@@ -25,7 +25,7 @@ type Configuration struct {
 	AdminPort          int    `default:"8081"`
 	MockPort           int    `default:"8080"`
 	MappingDir         string `default:"."`
-	MappingFilepattern string `default:"*-mapping.json"`
+	MappingFilepattern string `default:"*-mapping.*"`
 }
 
 func (c Configuration) info() string {

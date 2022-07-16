@@ -1,0 +1,6 @@
+description: "YAML mock definitions"
+endpoints:
+  - request:
+      path: "/mypath"
+    response:
+      bodyFileName: "responses/myresponse.json"

@@ -6,9 +6,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
+	"gopkg.in/yaml.v2"
 
 	"github.com/gorilla/mux"
 )
@@ -49,7 +51,11 @@ func (r *MockRouter) load() (*mux.Router, error) {
 			return nil, err
 		}
 		mock := &model.Mock{}
-		err = json.Unmarshal(mockData, mock)
+		if strings.HasSuffix(mappingFile, ".json") {
+			err = json.Unmarshal(mockData, mock)
+		} else if strings.HasSuffix(mappingFile, ".yaml") || strings.HasSuffix(mappingFile, ".yml") {
+			err = yaml.Unmarshal(mockData, mock)
+		}
 		if err != nil {
 			return nil, err
 		}
