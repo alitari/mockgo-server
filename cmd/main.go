@@ -22,16 +22,18 @@ var logger *utils.Logger
 
 type Configuration struct {
 	Verbose            bool   `default:"true"`
-	Port               int    `default:"8080"`
+	AdminPort          int    `default:"8081"`
+	MockPort           int    `default:"8080"`
 	MappingDir         string `default:"."`
 	MappingFilepattern string `default:"*-mapping.json"`
 }
 
 func (c Configuration) info() string {
 	return fmt.Sprintf(`Verbose: %v
-Port: %v
+Admin Port: %v
+Mock Port: %v
 Mapping Dir: %s
-Mapping Filepattern: '%s'`, c.Verbose, c.Port, c.MappingDir, c.MappingFilepattern)
+Mapping Filepattern: '%s'`, c.Verbose, c.AdminPort, c.MockPort, c.MappingDir, c.MappingFilepattern)
 }
 
 func main() {
@@ -47,5 +49,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error loading config file: %s", err)
 	}
-	mockRouter.ListenAndServe(config.Port)
+	go routing.NewAdminRouter( mockRouter, logger).ListenAndServe(config.AdminPort)
+	mockRouter.ListenAndServe(config.MockPort)
 }
