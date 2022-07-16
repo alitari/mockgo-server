@@ -1,0 +1,24 @@
+{
+    "description": "Test mock definitions",
+    "endpoints":[
+        {
+            "request":{
+                "path": "/hello"
+            },
+            "response":{
+                "bodyFileName": "responses/hello.json"
+            } 
+        },
+        {
+            "request":{
+                "path": "/hello2"
+            },
+            "response":{
+                "body": "{\"text\": \"Hello\",\"name\": \"World\"}",
+                "headers": {
+                    "Content-Type":"application/json"
+                }
+            } 
+        }        
+    ]
+}
