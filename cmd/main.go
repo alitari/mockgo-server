@@ -3,10 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
-	"strconv"
 
 	"github.com/alitari/mockgo-server/internal/routing"
+	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -19,15 +18,20 @@ Configuration:     |___/
 ==============
 `
 
+var logger *utils.Logger
+
 type Configuration struct {
-	Verbose bool `default:"true"`
-	Port    int  `default:"8080"`
-	ConfigFile    string  `default:"./config.json"`
+	Verbose            bool   `default:"true"`
+	Port               int    `default:"8080"`
+	MappingDir         string `default:"."`
+	MappingFilepattern string `default:"*-mapping.json"`
 }
 
 func (c Configuration) info() string {
 	return fmt.Sprintf(`Verbose: %v
-Port: %v`, c.Verbose, c.Port)
+Port: %v
+Mapping Dir: %s
+Mapping Filepattern: '%s'`, c.Verbose, c.Port, c.MappingDir, c.MappingFilepattern)
 }
 
 func main() {
@@ -35,14 +39,13 @@ func main() {
 	if err := envconfig.Process("", &config); err != nil {
 		log.Fatal(err)
 	}
+	logger = &utils.Logger{Verbose: config.Verbose}
 
-	log.Print(banner + config.info())
+	logger.LogAlways(banner + config.info())
 
-	r, err := routing.Load(config.ConfigFile)
+	mockRouter, err := routing.NewMockRouter(config.MappingDir, config.MappingFilepattern, logger)
 	if err != nil {
 		log.Fatalf("Error loading config file: %s", err)
 	}
-
-	log.Printf("Running on port [%v]\n", config.Port)
-	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(config.Port), r))
+	mockRouter.ListenAndServe(config.Port)
 }

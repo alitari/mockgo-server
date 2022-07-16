@@ -1,0 +1,13 @@
+{
+    "description": "Test mock definitions",
+    "endpoints":[
+        {
+            "request":{
+                "path": "/goodby"
+            },
+            "response":{
+                "bodyFileName": "responses/goodby.json"
+            } 
+        }
+    ]
+}
