@@ -17,6 +17,7 @@ type Response struct {
 }
 
 type Endpoint struct {
+	Prio     int      `json:"prio" yaml:"prio"`
 	Request  Request  `json:"request" yaml:"request"`
 	Response Response `json:"response" yaml:"response"`
 }

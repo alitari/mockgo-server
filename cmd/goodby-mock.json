@@ -6,7 +6,7 @@
                 "path": "/goodby"
             },
             "response":{
-                "bodyFileName": "responses/goodby.json"
+                "body": "Hello there!!!!!!!!!"
             } 
         }
     ]

@@ -21,19 +21,19 @@ Configuration:     |___/
 var logger *utils.Logger
 
 type Configuration struct {
-	Verbose            bool   `default:"true"`
-	AdminPort          int    `default:"8081"`
-	MockPort           int    `default:"8080"`
-	MappingDir         string `default:"."`
-	MappingFilepattern string `default:"*-mapping.*"`
+	Verbose         bool   `default:"true"`
+	AdminPort       int    `default:"8081"`
+	MockPort        int    `default:"8080"`
+	MockDir         string `default:"."`
+	MockFilepattern string `default:"*-mock.*"`
 }
 
 func (c Configuration) info() string {
 	return fmt.Sprintf(`Verbose: %v
 Admin Port: %v
 Mock Port: %v
-Mapping Dir: %s
-Mapping Filepattern: '%s'`, c.Verbose, c.AdminPort, c.MockPort, c.MappingDir, c.MappingFilepattern)
+Mock Dir: %s
+Mock Filepattern: '%s'`, c.Verbose, c.AdminPort, c.MockPort, c.MockDir, c.MockFilepattern)
 }
 
 func main() {
@@ -45,10 +45,11 @@ func main() {
 
 	logger.LogAlways(banner + config.info())
 
-	mockRouter, err := routing.NewMockRouter(config.MappingDir, config.MappingFilepattern, logger)
+	mockRouter := routing.NewMockRouter(config.MockDir, config.MockFilepattern, logger)
+	err := mockRouter.LoadMocks()
 	if err != nil {
-		log.Fatalf("Error loading config file: %s", err)
+		log.Fatalf("Can't initialize mocks: %v", err)
 	}
-	go routing.NewAdminRouter( mockRouter, logger).ListenAndServe(config.AdminPort)
+	go routing.NewAdminRouter(mockRouter, logger).ListenAndServe(config.AdminPort)
 	mockRouter.ListenAndServe(config.MockPort)
 }
