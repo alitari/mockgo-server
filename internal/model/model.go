@@ -3,29 +3,29 @@ package model
 import "text/template"
 
 type Request struct {
-	Template *template.Template
-	Scheme   string            `json:"scheme" yaml:"scheme"`
-	Host     string            `json:"host" yaml:"host"`
-	Method   string            `json:"method" yaml:"method"`
-	Path     string            `json:"path" yaml:"path"`
-	Query    map[string]string `json:"query" yaml:"query"`
-	Headers  map[string]string `json:"headers" yaml:"headers"`
+	Template *template.Template `yaml:"-"`
+	Scheme   string             `yaml:"scheme"`
+	Host     string             `yaml:"host"`
+	Method   string             `yaml:"method"`
+	Path     string             `yaml:"path"`
+	Query    map[string]string  `yaml:"query"`
+	Headers  map[string]string  `yaml:"headers"`
 }
 
 type Response struct {
-	Template *template.Template
-	StatusCode   int               `json:"statusCode" yaml:"statusCode"`
-	Headers      map[string]string `json:"headers" yaml:"headers"`
-	Body         string            `json:"body" yaml:"body"`
-	BodyFileName string            `json:"bodyFileName" yaml:"bodyFileName"`
+	Template     *template.Template `yaml:"-"`
+	StatusCode   int                `yaml:"statusCode"`
+	Headers      map[string]string  `yaml:"headers"`
+	Body         string             `yaml:"body"`
+	BodyFileName string             `yaml:"bodyFileName"`
 }
 
 type Endpoint struct {
-	Prio     int      `json:"prio" yaml:"prio"`
-	Request  *Request  `json:"request" yaml:"request"`
-	Response *Response `json:"response" yaml:"response"`
+	Prio     int       `yaml:"prio"`
+	Request  *Request  `yaml:"request"`
+	Response *Response `yaml:"response"`
 }
 
 type Mock struct {
-	Endpoints []*Endpoint `json:"endpoints" yaml:"endpoints" `
+	Endpoints []*Endpoint `yaml:"endpoints" `
 }

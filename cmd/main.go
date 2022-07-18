@@ -49,8 +49,11 @@ func main() {
 
 	logger.LogAlways(banner + config.info())
 
-	mockRouter := routing.NewMockRouter(config.MockDir, config.MockFilepattern, config.ResponseDir, config.ResponseFilepattern, logger)
-	err := mockRouter.LoadMocks()
+	mockRouter, err := routing.NewMockRouter(config.MockDir, config.MockFilepattern, config.ResponseDir, config.ResponseFilepattern, logger)
+	if err != nil {
+		log.Fatalf("Can't load files: %v", err)
+	}
+	err = mockRouter.LoadMocks()
 	if err != nil {
 		log.Fatalf("Can't initialize mocks: %v", err)
 	}

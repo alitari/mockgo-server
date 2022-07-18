@@ -1,13 +1,13 @@
 package routing
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
+	"gopkg.in/yaml.v2"
 
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
@@ -41,16 +41,16 @@ func (r *AdminRouter) newRouter() {
 func (r *AdminRouter) info(writer http.ResponseWriter, request *http.Request) {
 	r.logger.LogAlways(fmt.Sprintf("Received request %v", request))
 	infoData := &InfoResponse{Mocks: r.mockRouter.mocks}
-	jsonStr, err := json.MarshalIndent(infoData, "", "  ")
+	yamlStr, err := yaml.Marshal(infoData)
 	if err != nil {
 		mess := fmt.Sprintf("Cannot marshal data %v : %v", infoData, err)
 		r.logger.LogAlways(mess)
-		writer.Write([]byte(mess))		
+		writer.Write([]byte(mess))
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	writer.Header().Set(headers.ContentType, "application/json")
-	writer.Write(jsonStr)
+	writer.Write(yamlStr)
 	writer.WriteHeader(http.StatusOK)
 }
 

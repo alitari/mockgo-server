@@ -1,0 +1,5 @@
+endpoints:
+  - request:
+      path: '{{ expandenv "$MY_PATH" }}'
+    response:
+      bodyFileName: "myresponse.json"
