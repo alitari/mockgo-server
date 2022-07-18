@@ -21,19 +21,23 @@ Configuration:     |___/
 var logger *utils.Logger
 
 type Configuration struct {
-	Verbose         bool   `default:"true"`
-	AdminPort       int    `default:"8081"`
-	MockPort        int    `default:"8080"`
-	MockDir         string `default:"."`
-	MockFilepattern string `default:"*-mock.*"`
+	Verbose             bool   `default:"true"`
+	AdminPort           int    `default:"8081"`
+	MockPort            int    `default:"8080"`
+	MockDir             string `default:"."`
+	MockFilepattern     string `default:"*-mock.*"`
+	ResponseDir         string `default:"./responses"`
+	ResponseFilepattern string `default:"*.*"`
 }
 
 func (c Configuration) info() string {
 	return fmt.Sprintf(`Verbose: %v
 Admin Port: %v
 Mock Port: %v
-Mock Dir: %s
-Mock Filepattern: '%s'`, c.Verbose, c.AdminPort, c.MockPort, c.MockDir, c.MockFilepattern)
+Mock Dir: '%s'
+Mock Filepattern: '%s'
+Response Dir: '%s'
+Response Filepattern: '%s'`, c.Verbose, c.AdminPort, c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, c.ResponseFilepattern)
 }
 
 func main() {
@@ -45,7 +49,7 @@ func main() {
 
 	logger.LogAlways(banner + config.info())
 
-	mockRouter := routing.NewMockRouter(config.MockDir, config.MockFilepattern, logger)
+	mockRouter := routing.NewMockRouter(config.MockDir, config.MockFilepattern, config.ResponseDir, config.ResponseFilepattern, logger)
 	err := mockRouter.LoadMocks()
 	if err != nil {
 		log.Fatalf("Can't initialize mocks: %v", err)

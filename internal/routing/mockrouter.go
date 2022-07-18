@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
@@ -18,21 +19,27 @@ import (
 )
 
 type MockRouter struct {
-	mockDir         string
-	mockFilepattern string
-	logger          *utils.Logger
-	mocks           map[string]*model.Mock                  // mockfile -> mock
-	endpoints       map[string]map[string][]*model.Endpoint // path -> method -> endpoint
-	router          *mux.Router
+	mockDir             string
+	mockFilepattern     string
+	responseDir         string
+	responseFilepattern string
+	logger              *utils.Logger
+	mocks               map[string]*model.Mock                  // mockfile -> mock
+	endpoints           map[string]map[string][]*model.Endpoint // path -> method -> endpoint
+	responseFiles       map[string]string                       // responseFilename -> file content
+	router              *mux.Router
 }
 
-func NewMockRouter(mockDir, mockFilepattern string, logger *utils.Logger) *MockRouter {
+func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, logger *utils.Logger) *MockRouter {
 	mockRouter := &MockRouter{
-		mockDir:         mockDir,
-		mockFilepattern: mockFilepattern,
-		logger:          logger,
-		mocks:           make(map[string]*model.Mock),
-		endpoints:       make(map[string]map[string][]*model.Endpoint),
+		mockDir:             mockDir,
+		mockFilepattern:     mockFilepattern,
+		responseDir:         responseDir,
+		responseFilepattern: responseFilepattern,
+		responseFiles:       make(map[string]string),
+		logger:              logger,
+		mocks:               make(map[string]*model.Mock),
+		endpoints:           make(map[string]map[string][]*model.Endpoint),
 	}
 	mockRouter.loadFiles()
 	return mockRouter
@@ -65,7 +72,7 @@ func (r *MockRouter) loadFiles() error {
 		for i, endpoint := range mock.Endpoints {
 			var requestTpltSource []byte
 			var responseTpltSource []byte
-			
+
 			if isYaml {
 				requestTpltSource, err = yaml.Marshal(endpoint.Request)
 				if err != nil {
@@ -99,6 +106,27 @@ func (r *MockRouter) loadFiles() error {
 		r.mocks[mockFile] = mock
 	}
 	r.newRouter()
+	err = r.loadResponseFiles()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *MockRouter) loadResponseFiles() error {
+	responseFiles, err := utils.WalkMatch(r.responseDir, r.responseFilepattern)
+	if err != nil {
+		return err
+	}
+	r.logger.LogWhenVerbose(fmt.Sprintf("Found %v response file(s):", len(responseFiles)))
+	for _, responseFile := range responseFiles {
+		r.logger.LogWhenVerbose(fmt.Sprintf("Reading response file '%s' ...", responseFile))
+		responseFileContent, err := ioutil.ReadFile(responseFile)
+		if err != nil {
+			return err
+		}
+		r.responseFiles[filepath.Base(responseFile)] = string(responseFileContent)
+	}
 	return nil
 }
 
@@ -158,15 +186,6 @@ func (r *MockRouter) storeEndpoint(endpoint *model.Endpoint) {
 	r.endpoints[endpoint.Request.Path][endpoint.Request.Method] = endPoints
 }
 
-// mockExcecuted := &bytes.Buffer{}
-// err := tplt.Execute(mockExcecuted, nil)
-// if err != nil {
-// 	return err
-// }
-// r.mocks[mockFile] = mock
-// }
-// }
-
 func (r *MockRouter) matchRequestToEndpoint(request *http.Request) *model.Endpoint {
 	endpoints := r.endpoints[request.URL.Path][request.Method]
 	if endpoints == nil {
@@ -198,92 +217,19 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 			writer.Header().Set(key, val)
 		}
 	}
+	if endpoint.Response.StatusCode > 0 {
+		writer.WriteHeader(endpoint.Response.StatusCode)
+	} else {
+		writer.WriteHeader(http.StatusOK)
+	}
+	bodyStr := ""
 	if endpoint.Response.Body != "" {
-		if endpoint.Response.StatusCode > 0 {
-			writer.WriteHeader(endpoint.Response.StatusCode)
-		} else {
-			writer.WriteHeader(http.StatusOK)
-		}
-		fmt.Fprint(writer, endpoint.Response.Body)
-		return
+		bodyStr = endpoint.Response.Body
+	} else if endpoint.Response.BodyFileName != "" {
+		bodyStr = r.responseFiles[endpoint.Response.BodyFileName]
 	}
-	if endpoint.Response.BodyFileName != "" {
-		http.ServeFile(writer, request, endpoint.Response.BodyFileName)
-		return
-	}
+	fmt.Fprint(writer, bodyStr)
 }
-
-// func (r *MockRouter) handlerFactory() func(writer http.ResponseWriter, request *http.Request) {
-// 	return func(writer http.ResponseWriter, request *http.Request) {
-// 		val := request.Context().Value("mykey")
-// 		r.logger.LogAlways(fmt.Sprintf("val=%v", val))
-// 		var matchedEndpoint *model.Endpoint
-// 		for _, mock := range r.mocks {
-// 			endPointCandidate := r.matchedEndpoint(mock, request)
-// 			if endPointCandidate != nil && (matchedEndpoint == nil || endPointCandidate.Prio > matchedEndpoint.Prio) {
-// 				matchedEndpoint = endPointCandidate
-// 			}
-// 		}
-// 		if matchedEndpoint == nil {
-// 			writer.WriteHeader(http.StatusNotFound)
-// 			return
-// 		}
-
-// 		if len(matchedEndpoint.Response.Headers) > 0 {
-// 			for key, val := range matchedEndpoint.Response.Headers {
-// 				writer.Header().Set(key, val)
-// 			}
-// 		}
-// 		if matchedEndpoint.Response.Body != "" {
-// 			if matchedEndpoint.Response.StatusCode > 0 {
-// 				writer.WriteHeader(matchedEndpoint.Response.StatusCode)
-// 			} else {
-// 				writer.WriteHeader(http.StatusOK)
-// 			}
-// 			fmt.Fprint(writer, matchedEndpoint.Response.Body)
-// 			return
-// 		}
-// 		if matchedEndpoint.Response.BodyFileName != "" {
-// 			http.ServeFile(writer, request, matchedEndpoint.Response.BodyFileName)
-// 			return
-// 		}
-// 	}
-// }
-
-// func (r *MockRouter) matchedEndpoint(mock *model.Mock, request *http.Request) *model.Endpoint {
-// 	var matched *model.Endpoint
-// 	for _, endPoint := range mock.Endpoints {
-// 		if r.matchEndpoint(&endPoint, request) && (matched == nil || endPoint.Prio > matched.Prio) {
-// 			matched = &endPoint
-// 		}
-// 	}
-// 	return matched
-// }
-
-// func (r *MockRouter) matchEndpoint(endPoint *model.Endpoint, request *http.Request) bool {
-// 	if endPoint.Request.Path != request.URL.Path {
-// 		return false
-// 	}
-
-// 	if endPoint.Request.Method != "" && endPoint.Request.Method != request.Method {
-// 		return false
-// 	}
-// 	if len(endPoint.Request.Query) > 0 {
-// 		for key, val := range endPoint.Request.Query {
-// 			if request.URL.Query().Get(key) != val {
-// 				return false
-// 			}
-// 		}
-// 	}
-// 	if len(endPoint.Request.Headers) > 0 {
-// 		for key, val := range endPoint.Request.Headers {
-// 			if request.Header.Get(key) != val {
-// 				return false
-// 			}
-// 		}
-// 	}
-// 	return true
-// }
 
 func (r *MockRouter) ListenAndServe(port int) {
 	r.logger.LogAlways(fmt.Sprintf("Serving mocks on port %v", port))
