@@ -1,0 +1,18 @@
+# an endpoint needs at least 
+# default for request.path is "/" and request.methode is "GET"
+# default for response code is 204
+endpoints:
+  - request:
+      scheme: "https"
+      host: "alexkrieg.com"
+      method: "POST"
+      path: "/maximal"
+      query:
+        firstQueryParam: value1
+        secondQueryParam: value2
+      headers:
+        Content-Type: "application/json"
+        Myheader: myheaderValue
+
+    response:
+      statusCode: 204

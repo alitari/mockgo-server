@@ -2,7 +2,7 @@ package model
 
 import "text/template"
 
-type Request struct {
+type MatchRequest struct {
 	Template *template.Template `yaml:"-"`
 	Scheme   string             `yaml:"scheme"`
 	Host     string             `yaml:"host"`
@@ -12,7 +12,7 @@ type Request struct {
 	Headers  map[string]string  `yaml:"headers"`
 }
 
-type Response struct {
+type MockResponse struct {
 	Template     *template.Template `yaml:"-"`
 	StatusCode   int                `yaml:"statusCode"`
 	Headers      map[string]string  `yaml:"headers"`
@@ -20,12 +20,12 @@ type Response struct {
 	BodyFileName string             `yaml:"bodyFileName"`
 }
 
-type Endpoint struct {
-	Prio     int       `yaml:"prio"`
-	Request  *Request  `yaml:"request"`
-	Response *Response `yaml:"response"`
+type MockEndpoint struct {
+	Prio     int           `yaml:"prio"`
+	Request  *MatchRequest `yaml:"request"`
+	Response *MockResponse `yaml:"response"`
 }
 
 type Mock struct {
-	Endpoints []*Endpoint `yaml:"endpoints" `
+	Endpoints []*MockEndpoint `yaml:"endpoints" `
 }

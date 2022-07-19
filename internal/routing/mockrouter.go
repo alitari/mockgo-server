@@ -24,9 +24,9 @@ type MockRouter struct {
 	responseDir         string
 	responseFilepattern string
 	logger              *utils.Logger
-	mocks               map[string]*model.Mock                  // mockfile -> mock
-	endpoints           map[string]map[string][]*model.Endpoint // path -> method -> endpoint
-	responseFiles       map[string]string                       // responseFilename -> file content
+	mocks               map[string]*model.Mock                      // mockfile -> mock
+	endpoints           map[string]map[string][]*model.MockEndpoint // path -> method -> endpoint
+	responseFiles       map[string]string                           // responseFilename -> file content
 	router              *mux.Router
 }
 
@@ -39,7 +39,7 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 		responseFiles:       make(map[string]string),
 		logger:              logger,
 		mocks:               make(map[string]*model.Mock),
-		endpoints:           make(map[string]map[string][]*model.Endpoint),
+		endpoints:           make(map[string]map[string][]*model.MockEndpoint),
 	}
 	err := mockRouter.loadFiles()
 	if err != nil {
@@ -118,7 +118,7 @@ func (r *MockRouter) loadResponseFiles() error {
 
 func (r *MockRouter) newRouter() {
 	r.router = mux.NewRouter()
-	var endPoint *model.Endpoint
+	var endPoint *model.MockEndpoint
 	route := r.router.MatcherFunc(func(request *http.Request, match *mux.RouteMatch) bool {
 		endPoint = r.matchRequestToEndpoint(request)
 		return endPoint != nil
@@ -129,7 +129,7 @@ func (r *MockRouter) newRouter() {
 }
 
 func (r *MockRouter) LoadMocks() error {
-	r.endpoints = map[string]map[string][]*model.Endpoint{}
+	r.endpoints = map[string]map[string][]*model.MockEndpoint{}
 	for mockFile, mock := range r.mocks {
 		for _, endpoint := range mock.Endpoints {
 			requestExcecuted := &bytes.Buffer{}
@@ -137,7 +137,7 @@ func (r *MockRouter) LoadMocks() error {
 			if err != nil {
 				return err
 			}
-			var request model.Request
+			var request model.MatchRequest
 			if strings.HasSuffix(mockFile, ".yaml") || strings.HasSuffix(mockFile, ".yml") {
 				err = yaml.Unmarshal(requestExcecuted.Bytes(), &request)
 			}
@@ -151,51 +151,69 @@ func (r *MockRouter) LoadMocks() error {
 	return nil
 }
 
-func (r *MockRouter) registerEndpoint(endpoint *model.Endpoint) {
+func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 	if endpoint.Request.Path == "" {
 		endpoint.Request.Path = "/"
 	}
 	if r.endpoints[endpoint.Request.Path] == nil {
-		r.endpoints[endpoint.Request.Path] = make(map[string][]*model.Endpoint)
+		r.endpoints[endpoint.Request.Path] = make(map[string][]*model.MockEndpoint)
 	}
 	if endpoint.Request.Method == "" {
 		endpoint.Request.Method = "GET"
 	}
 	endPoints := r.endpoints[endpoint.Request.Path][endpoint.Request.Method]
 	if endPoints == nil {
-		endPoints = []*model.Endpoint{}
+		endPoints = []*model.MockEndpoint{}
 	}
 	endPoints = append(endPoints, endpoint)
 	r.endpoints[endpoint.Request.Path][endpoint.Request.Method] = endPoints
-	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint for path|method:  %s|%s", endpoint.Request.Path, endpoint.Request.Method))
+	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint for path|method: %s|%s", endpoint.Request.Path, endpoint.Request.Method))
 }
 
-func (r *MockRouter) matchRequestToEndpoint(request *http.Request) *model.Endpoint {
+func (r *MockRouter) matchRequestToEndpoint(request *http.Request) *model.MockEndpoint {
 	endpoints := r.endpoints[request.URL.Path][request.Method]
 	if endpoints == nil {
 		return nil
 	}
 	for _, ep := range endpoints {
-		if len(ep.Request.Query) > 0 {
-			for key, val := range ep.Request.Query {
-				if request.URL.Query().Get(key) != val {
-					continue
-				}
-			}
+		if !r.matchQueryParams(ep.Request,request) {
+			continue
 		}
-		if len(ep.Request.Headers) > 0 {
-			for key, val := range ep.Request.Headers {
-				if request.Header.Get(key) != val {
-					continue
-				}
-			}
+		if !r.matchHeaderValues(ep.Request,request) {
+			continue
 		}
 		return ep
 	}
 	return nil
 }
 
-func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.Endpoint) {
+func (r *MockRouter) matchQueryParams(matchRequest *model.MatchRequest, request *http.Request) bool {
+	if len(matchRequest.Query) > 0 {
+		for key, val := range matchRequest.Query {
+			if request.URL.Query().Get(key) != val {
+				return false
+			}
+		}
+		return true
+	} else {
+		return true
+	}
+}
+
+func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request *http.Request) bool {
+	if len(matchRequest.Headers) > 0 {
+		for key, val := range matchRequest.Headers {
+			if request.Header.Get(key) != val {
+				return false
+			}
+		}
+		return true
+	} else {
+		return true
+	}
+}
+
+func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint) {
 	if len(endpoint.Response.Headers) > 0 {
 		for key, val := range endpoint.Response.Headers {
 			writer.Header().Set(key, val)
