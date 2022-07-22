@@ -20,8 +20,9 @@ import (
 )
 
 type epSearchNode struct {
-	searchNodes map[string]*epSearchNode
-	endpoints   map[string][]*model.MockEndpoint
+	searchNodes   map[string]*epSearchNode
+	endpoints     map[string][]*model.MockEndpoint
+	pathParamName string
 }
 
 type MockRouter struct {
@@ -125,12 +126,13 @@ func (r *MockRouter) loadResponseFiles() error {
 func (r *MockRouter) newRouter() {
 	r.router = mux.NewRouter()
 	var endPoint *model.MockEndpoint
+	var requestPathParam map[string]string
 	route := r.router.MatcherFunc(func(request *http.Request, match *mux.RouteMatch) bool {
-		endPoint = r.matchRequestToEndpoint(request)
+		endPoint, requestPathParam = r.matchRequestToEndpoint(request)
 		return endPoint != nil
 	})
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		r.renderResponse(writer, request, endPoint)
+		r.renderResponse(writer, request, endPoint, requestPathParam)
 	})
 }
 
@@ -171,8 +173,14 @@ func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 		if sn.searchNodes == nil {
 			sn.searchNodes = make(map[string]*epSearchNode)
 		}
+		pathParamName := ""
+		if strings.HasPrefix(pathSegment, "{") && strings.HasSuffix(pathSegment, "}") {
+			pathParamName = pathSegment[1 : len(pathSegment)-1]
+			pathSegment = "*"
+		}
 		sn.searchNodes[pathSegment] = &epSearchNode{}
 		sn = sn.searchNodes[pathSegment]
+		sn.pathParamName = pathParamName
 	}
 	if sn.endpoints == nil {
 		sn.endpoints = make(map[string][]*model.MockEndpoint)
@@ -185,7 +193,8 @@ func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint for path|method: %s|%s", endpoint.Request.Path, endpoint.Request.Method))
 }
 
-func (r *MockRouter) matchRequestToEndpoint(request *http.Request) *model.MockEndpoint {
+func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockEndpoint, map[string]string) {
+	requestPathParams := map[string]string{}
 	sn := r.endpoints
 	getPathSegment := func(segments []string, pos int, skip bool) string {
 		if pos < len(segments) {
@@ -202,11 +211,11 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) *model.MockEn
 			if allMatch {
 				break
 			} else {
-				return nil
+				return nil, requestPathParams
 			}
 		} else {
 			if allMatch {
-				for i := pos ; pathSegment != ""; i++ {
+				for i := pos; pathSegment != ""; i++ {
 					if sn.searchNodes[pathSegment] != nil {
 						pos = i
 						break
@@ -218,13 +227,16 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) *model.MockEn
 			if sn.searchNodes[pathSegment] == nil {
 				if sn.searchNodes["*"] == nil {
 					if sn.searchNodes["**"] == nil {
-						return nil
+						return nil, requestPathParams
 					} else {
 						allMatch = true
 						sn = sn.searchNodes["**"]
 					}
 				} else {
 					sn = sn.searchNodes["*"]
+					if len(sn.pathParamName) > 0 {
+						requestPathParams[sn.pathParamName] = pathSegment
+					}
 				}
 			} else {
 				sn = sn.searchNodes[pathSegment]
@@ -233,10 +245,9 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) *model.MockEn
 		}
 	}
 	if sn != nil && sn.endpoints != nil && sn.endpoints[request.Method] != nil {
-		return r.matchEndPointsAttributes(sn.endpoints[request.Method], request)
+		return r.matchEndPointsAttributes(sn.endpoints[request.Method], request), requestPathParams
 	}
-
-	return nil
+	return nil, requestPathParams
 }
 
 func (r *MockRouter) matchEndPointsAttributes(endPoints []*model.MockEndpoint, request *http.Request) *model.MockEndpoint {
@@ -278,7 +289,7 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 	}
 }
 
-func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint) {
+func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, requestPathParams map[string]string) {
 	if len(endpoint.Response.Headers) > 0 {
 		for key, val := range endpoint.Response.Headers {
 			writer.Header().Set(key, val)

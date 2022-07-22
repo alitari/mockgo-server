@@ -1,0 +1,5 @@
+endpoints:
+  - request:
+      path: "/multipathParams/{pathParam1}/foo/{pathParam2}"
+    response:
+      statusCode: 204

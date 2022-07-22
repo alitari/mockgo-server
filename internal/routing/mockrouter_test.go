@@ -9,9 +9,10 @@ import (
 )
 
 type testCase struct {
-	name    string
-	request *http.Request
-	match   bool
+	name          string
+	request       *http.Request
+	match         bool
+	requestParams map[string]string
 }
 
 func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
@@ -87,15 +88,33 @@ func TestMatchRequestToEndpoint_AllMatchWildcardmocks(t *testing.T) {
 	assertMatchRequestToEndpoint(mockRouter, testCases, t)
 }
 
+func TestMatchRequestToEndpoint_PathParamsmocks(t *testing.T) {
+	mockRouter := createMockRouter("pathParamsMocks", t)
+	testCases := []*testCase{
+		{name: "Single pathparams, match ", request: &http.Request{URL: &url.URL{Path: "/pathParams/bar/foo"}, Method: "GET"}, match: true, requestParams: map[string]string{"pathParam": "bar"}},
+		{name: "Single pathparams, No Match last segment does not match,  ", request: &http.Request{URL: &url.URL{Path: "/pathParams/bar/foos"}, Method: "GET"}, match: false},
+		{name: "Multi pathparams, match ", request: &http.Request{URL: &url.URL{Path: "/multipathParams/val1/foo/val2"}, Method: "GET"}, match: true, requestParams: map[string]string{"pathParam1": "val1","pathParam2": "val2"}},
+		
+	}
+	assertMatchRequestToEndpoint(mockRouter, testCases, t)
+}
+
 func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*testCase, t *testing.T) {
 	for _, testCase := range testCases {
-		ep := mockRouter.matchRequestToEndpoint(testCase.request)
+		ep, requestParams := mockRouter.matchRequestToEndpoint(testCase.request)
 		if testCase.match && ep == nil {
 			t.Errorf("testcase '%s' failed:  expect a match for request: %v", testCase.name, testCase.request)
 		} else if !testCase.match && ep != nil {
 			t.Errorf("testcase '%s' failed:  expect a no match for request: %v", testCase.name, testCase.request)
 		} else {
 			t.Logf("testcase '%s':'%s' passed", t.Name(), testCase.name)
+		}
+		if testCase.requestParams != nil {
+			for expectedParamName, expectedParamValue := range testCase.requestParams {
+				if requestParams[expectedParamName] != expectedParamValue {
+					t.Errorf("testcase '%s' failed:  expect a request param with key: '%s' and value: '%s'. but get '%s' ", testCase.name, expectedParamName, expectedParamValue, requestParams[expectedParamName])
+				}
+			}
 		}
 	}
 
