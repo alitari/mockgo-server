@@ -92,6 +92,7 @@ func TestMatchRequestToEndpoint_Wildcardmocks(t *testing.T) {
 		{name: "Single wildcard Mock: No match, first path segment", request: &http.Request{URL: &url.URL{Path: "/wildcards/bar/foo"}, Method: "GET"}, match: false},
 		{name: "Single wildcard Mock: No match, path too long ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo/toolong"}, Method: "GET"}, match: false},
 		{name: "Single wildcard Mock: No match, path too short ", request: &http.Request{URL: &url.URL{Path: "/bar/foo"}, Method: "GET"}, match: false},
+		{name: "Multi wildcard Mock: Match", request: &http.Request{URL: &url.URL{Path: "/multiwildcard/bar/foo/bar"}, Method: "GET"}, match: true},
 	}
 
 	for _, testCase := range testCases {
