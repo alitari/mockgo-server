@@ -15,20 +15,10 @@ type testCase struct {
 }
 
 func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
-	mockRouter, err := NewMockRouter("../../test/data/simplemocks", "*-mock.yaml", "../../test/data/simplemocks", "*-response.json", &utils.Logger{Verbose: true})
-	if err != nil {
-		t.Fatalf("Can't create mock router: %v", err)
-	}
-	if mockRouter == nil {
-		t.Fatal("Mockrouter must not be nil")
-	}
-	mockRouter.LoadMocks()
-	if err != nil {
-		t.Fatalf("Can't load mocks . %v", err)
-	}
+	mockRouter := createMockRouter("simplemocks", t)
 
-	testCases := []testCase{
-		{name: "Minimal: Match, full request",
+	testCases := []*testCase{
+		{name: "Minimal Mock: Match, full request",
 			request: &http.Request{
 				URL:    &url.URL{Scheme: "https", Host: "myhost", Path: "/minimal"},
 				Method: "GET",
@@ -59,8 +49,48 @@ func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
 			match: false},
 	}
 
-	for _, testCase := range testCases {
+	assertMatchRequestToEndpoint(mockRouter, testCases, t)
 
+}
+
+func TestMatchRequestToEndpoint_Wildcardmocks(t *testing.T) {
+	mockRouter := createMockRouter("wildcardmocks", t)
+
+	testCases := []*testCase{
+		{name: "Single wildcard Match 1 ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo"}, Method: "GET"}, match: true},
+		{name: "Single wildcard Match 2", request: &http.Request{URL: &url.URL{Path: "/wildcard/foo/foo"}, Method: "GET"}, match: true},
+		{name: "Single wildcard No match, first path segment", request: &http.Request{URL: &url.URL{Path: "/wildcards/bar/foo"}, Method: "GET"}, match: false},
+		{name: "Single wildcard No match, path too long ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo/toolong"}, Method: "GET"}, match: false},
+		{name: "Single wildcard No match, path too short ", request: &http.Request{URL: &url.URL{Path: "/bar/foo"}, Method: "GET"}, match: false},
+		{name: "Multi wildcard Match", request: &http.Request{URL: &url.URL{Path: "/multiwildcard/bar/foo/bar"}, Method: "GET"}, match: true},
+	}
+
+	assertMatchRequestToEndpoint(mockRouter, testCases, t)
+}
+
+func TestMatchRequestToEndpoint_AllMatchWildcardmocks(t *testing.T) {
+	mockRouter := createMockRouter("allMatchWildcardMocks", t)
+	testCases := []*testCase{
+		{name: "Match 1 ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/bar"}, Method: "GET"}, match: true},
+		{name: "Match 2 ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/foo"}, Method: "GET"}, match: true},
+		// {name: "Match 3 no segment", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd"}, Method: "GET"}, match: true},
+		{name: "Match path longer ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/foo/bar"}, Method: "GET"}, match: true},
+		{name: "No Match, first path segment ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnds/foo"}, Method: "GET"}, match: false},
+		{name: "No Match, path shorter ", request: &http.Request{URL: &url.URL{Path: "/"}, Method: "GET"}, match: false},
+		{name: "Match in the middle 1", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/foo"}, Method: "GET"}, match: true},
+		{name: "Match in the middle 2", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/ext/foo"}, Method: "GET"}, match: true},
+		{name: "Match in the middle 3", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/ext/rem/foo"}, Method: "GET"}, match: true},
+		{name: "No Match endsegements", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/foo/foo"}, Method: "GET"}, match: false},
+		{name: "Match combined wildcards single segment ", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/foo/ext"}, Method: "GET"}, match: true},
+		{name: "Match combined wildcards multiple segment", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/a/b/c/foo/d"}, Method: "GET"}, match: true},
+		{name: "No Match combined wildcards last segment missing", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/a/b/c/foo"}, Method: "GET"}, match: false},
+		
+	}
+	assertMatchRequestToEndpoint(mockRouter, testCases, t)
+}
+
+func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*testCase, t *testing.T) {
+	for _, testCase := range testCases {
 		ep := mockRouter.matchRequestToEndpoint(testCase.request)
 		if testCase.match && ep == nil {
 			t.Errorf("testcase '%s' failed:  expect a match for request: %v", testCase.name, testCase.request)
@@ -73,8 +103,8 @@ func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
 
 }
 
-func TestMatchRequestToEndpoint_Wildcardmocks(t *testing.T) {
-	mockRouter, err := NewMockRouter("../../test/data/wildcardmocks", "*-mock.yaml", "../../test/data/wildcardmocks", "*-response.json", &utils.Logger{Verbose: true})
+func createMockRouter(testMockDir string, t *testing.T) *MockRouter {
+	mockRouter, err := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/allMatchWildcardMocks", "*-response.json", &utils.Logger{Verbose: true})
 	if err != nil {
 		t.Fatalf("Can't create mock router: %v", err)
 	}
@@ -85,26 +115,5 @@ func TestMatchRequestToEndpoint_Wildcardmocks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Can't load mocks . %v", err)
 	}
-
-	testCases := []testCase{
-		{name: "Single wildcard Mock: Match 1 ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo"}, Method: "GET"}, match: true},
-		{name: "Single wildcard Mock: Match 2", request: &http.Request{URL: &url.URL{Path: "/wildcard/foo/foo"}, Method: "GET"}, match: true},
-		{name: "Single wildcard Mock: No match, first path segment", request: &http.Request{URL: &url.URL{Path: "/wildcards/bar/foo"}, Method: "GET"}, match: false},
-		{name: "Single wildcard Mock: No match, path too long ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo/toolong"}, Method: "GET"}, match: false},
-		{name: "Single wildcard Mock: No match, path too short ", request: &http.Request{URL: &url.URL{Path: "/bar/foo"}, Method: "GET"}, match: false},
-		{name: "Multi wildcard Mock: Match", request: &http.Request{URL: &url.URL{Path: "/multiwildcard/bar/foo/bar"}, Method: "GET"}, match: true},
-	}
-
-	for _, testCase := range testCases {
-
-		ep := mockRouter.matchRequestToEndpoint(testCase.request)
-		if testCase.match && ep == nil {
-			t.Errorf("testcase '%s' failed:  expect a match for request: %v", testCase.name, testCase.request)
-		} else if !testCase.match && ep != nil {
-			t.Errorf("testcase '%s' failed:  expect a no match for request: %v", testCase.name, testCase.request)
-		} else {
-			t.Logf("testcase '%s':'%s' passed", t.Name(), testCase.name)
-		}
-	}
-
+	return mockRouter
 }

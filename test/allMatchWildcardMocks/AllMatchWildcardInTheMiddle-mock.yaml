@@ -1,0 +1,5 @@
+endpoints:
+  - request:
+      path: "/allmatchwildcardInTheMiddle/**/foo"
+    response:
+      statusCode: 204

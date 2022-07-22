@@ -187,16 +187,49 @@ func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 
 func (r *MockRouter) matchRequestToEndpoint(request *http.Request) *model.MockEndpoint {
 	sn := r.endpoints
-	pathSegments := strings.Split(request.URL.Path, "/")
-	for _, pathSegment := range pathSegments[1:] {
-		if sn == nil || sn.searchNodes == nil {
-			return nil
+	getPathSegment := func(segments []string, pos int, skip bool) string {
+		if pos < len(segments) {
+			return segments[pos]
 		} else {
+			return ""
+		}
+	}
+	pathSegments := strings.Split(request.URL.Path, "/")[1:]
+	allMatch := false
+	pathSegment := getPathSegment(pathSegments, 0, allMatch)
+	for pos := 1; pathSegment != ""; pos++ {
+		if sn.searchNodes == nil {
+			if allMatch {
+				break
+			} else {
+				return nil
+			}
+		} else {
+			if allMatch {
+				for i := pos ; pathSegment != ""; i++ {
+					if sn.searchNodes[pathSegment] != nil {
+						pos = i
+						break
+					}
+					pathSegment = getPathSegment(pathSegments, i, allMatch)
+				}
+				allMatch = false
+			}
 			if sn.searchNodes[pathSegment] == nil {
-				sn = sn.searchNodes["*"]
+				if sn.searchNodes["*"] == nil {
+					if sn.searchNodes["**"] == nil {
+						return nil
+					} else {
+						allMatch = true
+						sn = sn.searchNodes["**"]
+					}
+				} else {
+					sn = sn.searchNodes["*"]
+				}
 			} else {
 				sn = sn.searchNodes[pathSegment]
 			}
+			pathSegment = getPathSegment(pathSegments, pos, allMatch)
 		}
 	}
 	if sn != nil && sn.endpoints != nil && sn.endpoints[request.Method] != nil {

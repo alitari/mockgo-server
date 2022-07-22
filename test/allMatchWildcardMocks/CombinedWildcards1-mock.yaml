@@ -1,0 +1,5 @@
+endpoints:
+  - request:
+      path: "/combinedwildcards1/**/foo/*"
+    response:
+      statusCode: 204

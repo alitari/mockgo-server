@@ -1,8 +1,0 @@
-# an endpoint needs at least 
-# default for request.path is "/" and request.methode is "GET"
-# default for response code is 204
-endpoints:
-  - request:
-      path: "/minimal"
-    response:
-      statusCode: 204
