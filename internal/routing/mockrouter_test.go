@@ -73,7 +73,6 @@ func TestMatchRequestToEndpoint_AllMatchWildcardmocks(t *testing.T) {
 	testCases := []*testCase{
 		{name: "Match 1 ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/bar"}, Method: "GET"}, match: true},
 		{name: "Match 2 ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/foo"}, Method: "GET"}, match: true},
-		// {name: "Match 3 no segment", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd"}, Method: "GET"}, match: true},
 		{name: "Match path longer ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/foo/bar"}, Method: "GET"}, match: true},
 		{name: "No Match, first path segment ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnds/foo"}, Method: "GET"}, match: false},
 		{name: "No Match, path shorter ", request: &http.Request{URL: &url.URL{Path: "/"}, Method: "GET"}, match: false},
@@ -84,7 +83,6 @@ func TestMatchRequestToEndpoint_AllMatchWildcardmocks(t *testing.T) {
 		{name: "Match combined wildcards single segment ", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/foo/ext"}, Method: "GET"}, match: true},
 		{name: "Match combined wildcards multiple segment", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/a/b/c/foo/d"}, Method: "GET"}, match: true},
 		{name: "No Match combined wildcards last segment missing", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/a/b/c/foo"}, Method: "GET"}, match: false},
-		
 	}
 	assertMatchRequestToEndpoint(mockRouter, testCases, t)
 }
