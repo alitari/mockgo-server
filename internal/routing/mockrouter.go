@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -18,15 +19,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type epSearchNode struct {
+	searchNodes map[string]*epSearchNode
+	endpoints   map[string][]*model.MockEndpoint
+}
+
 type MockRouter struct {
 	mockDir             string
 	mockFilepattern     string
 	responseDir         string
 	responseFilepattern string
 	logger              *utils.Logger
-	mocks               map[string]*model.Mock                      // mockfile -> mock
-	endpoints           map[string]map[string][]*model.MockEndpoint // path -> method -> endpoint
-	responseFiles       map[string]string                           // responseFilename -> file content
+	mocks               map[string]*model.Mock // mockfile -> mock
+	endpoints           *epSearchNode
+	responseFiles       map[string]string // responseFilename -> file content
 	router              *mux.Router
 }
 
@@ -39,7 +45,7 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 		responseFiles:       make(map[string]string),
 		logger:              logger,
 		mocks:               make(map[string]*model.Mock),
-		endpoints:           make(map[string]map[string][]*model.MockEndpoint),
+		endpoints:           &epSearchNode{},
 	}
 	err := mockRouter.loadFiles()
 	if err != nil {
@@ -129,7 +135,7 @@ func (r *MockRouter) newRouter() {
 }
 
 func (r *MockRouter) LoadMocks() error {
-	r.endpoints = map[string]map[string][]*model.MockEndpoint{}
+	r.endpoints = &epSearchNode{}
 	for mockFile, mock := range r.mocks {
 		for _, endpoint := range mock.Endpoints {
 			requestExcecuted := &bytes.Buffer{}
@@ -155,31 +161,64 @@ func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 	if endpoint.Request.Path == "" {
 		endpoint.Request.Path = "/"
 	}
-	if r.endpoints[endpoint.Request.Path] == nil {
-		r.endpoints[endpoint.Request.Path] = make(map[string][]*model.MockEndpoint)
-	}
 	if endpoint.Request.Method == "" {
 		endpoint.Request.Method = "GET"
 	}
-	endPoints := r.endpoints[endpoint.Request.Path][endpoint.Request.Method]
-	if endPoints == nil {
-		endPoints = []*model.MockEndpoint{}
+
+	sn := r.endpoints
+	pathSegments := strings.Split(endpoint.Request.Path, "/")
+	for _, pathSegment := range pathSegments[1:] {
+		if sn.searchNodes == nil {
+			sn.searchNodes = make(map[string]*epSearchNode)
+		}
+		sn.searchNodes[pathSegment] = &epSearchNode{}
+		sn = sn.searchNodes[pathSegment]
 	}
-	endPoints = append(endPoints, endpoint)
-	r.endpoints[endpoint.Request.Path][endpoint.Request.Method] = endPoints
+	if sn.endpoints == nil {
+		sn.endpoints = make(map[string][]*model.MockEndpoint)
+	}
+
+	if sn.endpoints[endpoint.Request.Method] == nil {
+		sn.endpoints[endpoint.Request.Method] = []*model.MockEndpoint{}
+	}
+	sn.endpoints[endpoint.Request.Method] = append(sn.endpoints[endpoint.Request.Method], endpoint)
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint for path|method: %s|%s", endpoint.Request.Path, endpoint.Request.Method))
 }
 
 func (r *MockRouter) matchRequestToEndpoint(request *http.Request) *model.MockEndpoint {
-	endpoints := r.endpoints[request.URL.Path][request.Method]
-	if endpoints == nil {
-		return nil
+	sn := r.endpoints
+	pathSegments := strings.Split(request.URL.Path, "/")
+	for _, pathSegment := range pathSegments[1:] {
+		if sn == nil {
+			return nil
+		}
+		if sn.searchNodes == nil {
+			if sn.endpoints == nil {
+				return nil
+			} else {
+				if sn.endpoints[request.Method] == nil {
+					return nil
+				} else {
+					return r.matchEndPointsAttributes(sn.endpoints[request.Method], request)
+				}
+			}
+		} else {
+			sn = sn.searchNodes[pathSegment]
+		}
 	}
-	for _, ep := range endpoints {
-		if !r.matchQueryParams(ep.Request,request) {
+	if sn != nil && sn.endpoints != nil && sn.endpoints[request.Method] != nil {
+		return r.matchEndPointsAttributes(sn.endpoints[request.Method], request)
+	}
+
+	return nil
+}
+
+func (r *MockRouter) matchEndPointsAttributes(endPoints []*model.MockEndpoint, request *http.Request) *model.MockEndpoint {
+	for _, ep := range endPoints {
+		if !r.matchQueryParams(ep.Request, request) {
 			continue
 		}
-		if !r.matchHeaderValues(ep.Request,request) {
+		if !r.matchHeaderValues(ep.Request, request) {
 			continue
 		}
 		return ep
@@ -235,5 +274,8 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 
 func (r *MockRouter) ListenAndServe(port int) {
 	r.logger.LogAlways(fmt.Sprintf("Serving mocks on port %v", port))
-	http.ListenAndServe(":"+strconv.Itoa(port), r.router)
+	err := http.ListenAndServe(":"+strconv.Itoa(port), r.router)
+	if err != nil {
+		log.Fatalf("Can't serve on port %v", port)
+	}
 }
