@@ -189,21 +189,14 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) *model.MockEn
 	sn := r.endpoints
 	pathSegments := strings.Split(request.URL.Path, "/")
 	for _, pathSegment := range pathSegments[1:] {
-		if sn == nil {
+		if sn == nil || sn.searchNodes == nil {
 			return nil
-		}
-		if sn.searchNodes == nil {
-			if sn.endpoints == nil {
-				return nil
-			} else {
-				if sn.endpoints[request.Method] == nil {
-					return nil
-				} else {
-					return r.matchEndPointsAttributes(sn.endpoints[request.Method], request)
-				}
-			}
 		} else {
-			sn = sn.searchNodes[pathSegment]
+			if sn.searchNodes[pathSegment] == nil {
+				sn = sn.searchNodes["*"]
+			} else {
+				sn = sn.searchNodes[pathSegment]
+			}
 		}
 	}
 	if sn != nil && sn.endpoints != nil && sn.endpoints[request.Method] != nil {

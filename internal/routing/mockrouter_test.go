@@ -14,8 +14,8 @@ type testCase struct {
 	match   bool
 }
 
-func TestMatchRequestToEndpoint(t *testing.T) {
-	mockRouter, err := NewMockRouter("../../test/data", "*-mock.yaml", "../../test/data", "*-response.json", &utils.Logger{Verbose: true})
+func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
+	mockRouter, err := NewMockRouter("../../test/data/simplemocks", "*-mock.yaml", "../../test/data/simplemocks", "*-response.json", &utils.Logger{Verbose: true})
 	if err != nil {
 		t.Fatalf("Can't create mock router: %v", err)
 	}
@@ -35,7 +35,9 @@ func TestMatchRequestToEndpoint(t *testing.T) {
 				Header: map[string][]string{"Accept": {"Something"}, "Authorization": {"Basic"}}},
 			match: true},
 		{name: "Minimal Mock: Match, minimal ", request: &http.Request{URL: &url.URL{Path: "/minimal"}, Method: "GET"}, match: true},
-		{name: "Minimal Mock: No Match, wrong path", request: &http.Request{URL: &url.URL{Path: "/minimals"}, Method: "GET"}, match: false},
+		{name: "Minimal Mock: No Match, wrong path name", request: &http.Request{URL: &url.URL{Path: "/minimals"}, Method: "GET"}, match: false},
+		{name: "Minimal Mock: No Match, wrong path length too long", request: &http.Request{URL: &url.URL{Path: "/minimal/foo"}, Method: "GET"}, match: false},
+		{name: "Minimal Mock: No Match, wrong path length too short", request: &http.Request{URL: &url.URL{Path: "/"}, Method: "GET"}, match: false},
 		{name: "Minimal Mock: No Match, wrong method", request: &http.Request{URL: &url.URL{Path: "/minimal"}, Method: "POST"}, match: false},
 		{name: "Maximal Mock: Match, exact",
 			request: &http.Request{
@@ -58,13 +60,49 @@ func TestMatchRequestToEndpoint(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
+
 		ep := mockRouter.matchRequestToEndpoint(testCase.request)
 		if testCase.match && ep == nil {
 			t.Errorf("testcase '%s' failed:  expect a match for request: %v", testCase.name, testCase.request)
 		} else if !testCase.match && ep != nil {
 			t.Errorf("testcase '%s' failed:  expect a no match for request: %v", testCase.name, testCase.request)
 		} else {
-			t.Logf("testcase '%s' passed", testCase.name)
+			t.Logf("testcase '%s':'%s' passed", t.Name(), testCase.name)
+		}
+	}
+
+}
+
+func TestMatchRequestToEndpoint_Wildcardmocks(t *testing.T) {
+	mockRouter, err := NewMockRouter("../../test/data/wildcardmocks", "*-mock.yaml", "../../test/data/wildcardmocks", "*-response.json", &utils.Logger{Verbose: true})
+	if err != nil {
+		t.Fatalf("Can't create mock router: %v", err)
+	}
+	if mockRouter == nil {
+		t.Fatal("Mockrouter must not be nil")
+	}
+	mockRouter.LoadMocks()
+	if err != nil {
+		t.Fatalf("Can't load mocks . %v", err)
+	}
+
+	testCases := []testCase{
+		{name: "Single wildcard Mock: Match 1 ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo"}, Method: "GET"}, match: true},
+		{name: "Single wildcard Mock: Match 2", request: &http.Request{URL: &url.URL{Path: "/wildcard/foo/foo"}, Method: "GET"}, match: true},
+		{name: "Single wildcard Mock: No match, first path segment", request: &http.Request{URL: &url.URL{Path: "/wildcards/bar/foo"}, Method: "GET"}, match: false},
+		{name: "Single wildcard Mock: No match, path too long ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo/toolong"}, Method: "GET"}, match: false},
+		{name: "Single wildcard Mock: No match, path too short ", request: &http.Request{URL: &url.URL{Path: "/bar/foo"}, Method: "GET"}, match: false},
+	}
+
+	for _, testCase := range testCases {
+
+		ep := mockRouter.matchRequestToEndpoint(testCase.request)
+		if testCase.match && ep == nil {
+			t.Errorf("testcase '%s' failed:  expect a match for request: %v", testCase.name, testCase.request)
+		} else if !testCase.match && ep != nil {
+			t.Errorf("testcase '%s' failed:  expect a no match for request: %v", testCase.name, testCase.request)
+		} else {
+			t.Logf("testcase '%s':'%s' passed", t.Name(), testCase.name)
 		}
 	}
 
