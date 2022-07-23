@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -23,6 +24,15 @@ type epSearchNode struct {
 	searchNodes   map[string]*epSearchNode
 	endpoints     map[string][]*model.MockEndpoint
 	pathParamName string
+}
+
+type ResponseTemplateData struct {
+	RequestPathParams map[string]string
+	KVStore           map[string]interface{}
+	RequestUrl        string
+	RequestUser       string
+	RequestPath       string
+	RequestHost       string
 }
 
 type MockRouter struct {
@@ -280,23 +290,55 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 }
 
 func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, requestPathParams map[string]string) {
-	if len(endpoint.Response.Headers) > 0 {
-		for key, val := range endpoint.Response.Headers {
+	renderedResponse, err := r.executeResponseTemplate(endpoint, request, requestPathParams)
+	if err != nil {
+		writer.Header().Set("Mock", "false")
+		fmt.Fprintf(writer, "Error rendering response: %v", err)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if len(renderedResponse.Headers) > 0 {
+		for key, val := range renderedResponse.Headers {
 			writer.Header().Set(key, val)
 		}
 	}
-	if endpoint.Response.StatusCode > 0 {
-		writer.WriteHeader(endpoint.Response.StatusCode)
+	if renderedResponse.StatusCode > 0 {
+		writer.WriteHeader(renderedResponse.StatusCode)
 	} else {
 		writer.WriteHeader(http.StatusOK)
 	}
 	bodyStr := ""
-	if endpoint.Response.Body != "" {
-		bodyStr = endpoint.Response.Body
-	} else if endpoint.Response.BodyFileName != "" {
-		bodyStr = r.responseFiles[endpoint.Response.BodyFileName]
+	if renderedResponse.Body != "" {
+		bodyStr = renderedResponse.Body
+	} else if renderedResponse.BodyFileName != "" {
+		bodyStr = r.responseFiles[renderedResponse.BodyFileName]
 	}
 	fmt.Fprint(writer, bodyStr)
+}
+
+func (r *MockRouter) executeResponseTemplate(endpoint *model.MockEndpoint, request *http.Request, requestPathParams map[string]string) (*model.MockResponse, error) {
+	responseExcecuted := &bytes.Buffer{}
+	data := &ResponseTemplateData{
+		RequestUrl:        request.URL.String(),
+		RequestPathParams: requestPathParams,
+		RequestPath:       request.URL.RawPath,
+		RequestHost:       request.URL.Host,
+		KVStore:           nil,
+	}
+	if request.URL.User != nil {
+		data.RequestUser = request.URL.User.Username()
+	}
+	err := endpoint.Response.Template.Execute(responseExcecuted, data)
+	if err != nil {
+		return nil, err
+	}
+	r.logger.LogWhenDebugRR(fmt.Sprintf("Rendered response:\n%s", responseExcecuted))
+	renderedResponse := &model.MockResponse{}
+	err = yaml.Unmarshal(responseExcecuted.Bytes(), renderedResponse)
+	if err != nil {
+		return nil, err
+	}
+	return renderedResponse, nil
 }
 
 func (r *MockRouter) ListenAndServe(port int) {
