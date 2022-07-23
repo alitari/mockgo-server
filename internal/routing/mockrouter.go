@@ -196,7 +196,7 @@ func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockEndpoint, map[string]string) {
 	requestPathParams := map[string]string{}
 	sn := r.endpoints
-	getPathSegment := func(segments []string, pos int, skip bool) string {
+	getPathSegment := func(segments []string, pos int) string {
 		if pos < len(segments) {
 			return segments[pos]
 		} else {
@@ -205,7 +205,7 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 	}
 	pathSegments := strings.Split(request.URL.Path, "/")[1:]
 	allMatch := false
-	pathSegment := getPathSegment(pathSegments, 0, allMatch)
+	pathSegment := getPathSegment(pathSegments, 0)
 	for pos := 1; pathSegment != ""; pos++ {
 		if sn.searchNodes == nil {
 			if allMatch {
@@ -220,7 +220,7 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 						pos = i
 						break
 					}
-					pathSegment = getPathSegment(pathSegments, i, allMatch)
+					pathSegment = getPathSegment(pathSegments, i)
 				}
 				allMatch = false
 			}
@@ -241,7 +241,7 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 			} else {
 				sn = sn.searchNodes[pathSegment]
 			}
-			pathSegment = getPathSegment(pathSegments, pos, allMatch)
+			pathSegment = getPathSegment(pathSegments, pos)
 		}
 	}
 	if sn != nil && sn.endpoints != nil && sn.endpoints[request.Method] != nil {
