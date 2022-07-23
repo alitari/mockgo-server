@@ -26,6 +26,7 @@ type renderingTestCase struct {
 	responseTemplate           string
 	requestParams              map[string]string
 	request                    *http.Request
+	kvstoreJson                string
 	expectedResponseStatusCode int
 	expectedResponseBody       string
 	expectedResponseHeader     map[string]string
@@ -126,25 +127,37 @@ func TestRenderResponse_Simple(t *testing.T) {
 	mockRouter := createMockRouter("prioMocks", t)
 
 	testCases := []*renderingTestCase{
-		{name: "Minimal status", responseTemplate: "statusCode: 204", expectedResponseStatusCode: 204},
-		{name: "Minimal body", responseTemplate: "body: Hello", expectedResponseStatusCode: 200, expectedResponseBody: "Hello"},
-		{name: "Minimal template RequestPathParams", responseTemplate: "body: {{ .RequestPathParams.param1 }}",
+		{name: "status", responseTemplate: "statusCode: 204", expectedResponseStatusCode: 204},
+		{name: "body", responseTemplate: "body: Hello", expectedResponseStatusCode: 200, expectedResponseBody: "Hello"},
+		{name: "template RequestPathParams", responseTemplate: "body: {{ .RequestPathParams.param1 }}",
 			requestParams: map[string]string{"param1": "Hello"}, expectedResponseStatusCode: 200, expectedResponseBody: "Hello"},
-		{name: "Minimal template Request url",
+		{name: "template Request url",
 			responseTemplate: "body: \"incoming request url: '{{ .RequestUrl }}'\"",
 			request: &http.Request{URL: &url.URL{User: url.User("alex"), Scheme: "https", Host: "myhost", Path: "/mypath"},
 				Method: "GET",
 				Header: map[string][]string{"headerKey": {"headerValue"}}},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "incoming request url: 'https://alex@myhost/mypath'"},
+		{name: "template kvstore",
+			responseTemplate: `body: |
+{{ kvStoreGet "testkey" | toPrettyJson | indent 2 }}`,
+			kvstoreJson:                `{ "myResponse" : "is Great!" }`,
+			expectedResponseStatusCode: 200,
+			expectedResponseBody:       "{\n  \"myResponse\": \"is Great!\"\n}"},
 	}
 	assertRenderingResponse(mockRouter, testCases, t)
 }
 
 func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestCase, t *testing.T) {
 	for _, testCase := range testCases {
+		if len(testCase.kvstoreJson) > 0 {
+			err := mockRouter.kvstore.Put("testkey", testCase.kvstoreJson)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
 		recorder := httptest.NewRecorder()
-		tplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Parse(testCase.responseTemplate)
+		tplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Funcs(mockRouter.templateFuncMap()).Parse(testCase.responseTemplate)
 		if err != nil {
 			t.Fatal(err)
 		}

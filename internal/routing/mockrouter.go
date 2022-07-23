@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig"
+	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"gopkg.in/yaml.v2"
@@ -44,6 +45,7 @@ type MockRouter struct {
 	endpoints           *epSearchNode
 	responseFiles       map[string]string // responseFilename -> file content
 	router              *mux.Router
+	kvstore             *kvstore.KVStore
 }
 
 func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, logger *utils.Logger) (*MockRouter, error) {
@@ -55,6 +57,7 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 		responseFiles:       make(map[string]string),
 		logger:              logger,
 		endpoints:           &epSearchNode{},
+		kvstore:             kvstore.NewStore(),
 	}
 	err := mockRouter.loadFiles()
 	if err != nil {
@@ -121,7 +124,7 @@ func (r *MockRouter) initResponseTemplate(endpoint *model.MockEndpoint) error {
 	if err != nil {
 		return err
 	}
-	responseTplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Parse(string(responseTpltSourceBytes))
+	responseTplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Funcs(r.templateFuncMap()).Parse(string(responseTpltSourceBytes))
 	if err != nil {
 		return err
 	}
@@ -323,7 +326,6 @@ func (r *MockRouter) executeResponseTemplate(endpoint *model.MockEndpoint, reque
 		RequestPathParams: requestPathParams,
 		RequestPath:       request.URL.RawPath,
 		RequestHost:       request.URL.Host,
-		KVStore:           nil,
 	}
 	if request.URL.User != nil {
 		data.RequestUser = request.URL.User.Username()
