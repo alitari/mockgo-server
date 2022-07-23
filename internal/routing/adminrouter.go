@@ -40,7 +40,7 @@ func (r *AdminRouter) newRouter() {
 
 func (r *AdminRouter) info(writer http.ResponseWriter, request *http.Request) {
 	r.logger.LogAlways(fmt.Sprintf("Received request %v", request))
-	infoData := &InfoResponse{Mocks: r.mockRouter.mocks}
+	infoData := &InfoResponse{} // not working now
 	yamlStr, err := yaml.Marshal(infoData)
 	if err != nil {
 		mess := fmt.Sprintf("Cannot marshal data %v : %v", infoData, err)

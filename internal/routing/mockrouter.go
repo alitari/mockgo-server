@@ -1,7 +1,6 @@
 package routing
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -31,7 +30,6 @@ type MockRouter struct {
 	responseDir         string
 	responseFilepattern string
 	logger              *utils.Logger
-	mocks               map[string]*model.Mock // mockfile -> mock
 	endpoints           *epSearchNode
 	responseFiles       map[string]string // responseFilename -> file content
 	router              *mux.Router
@@ -45,7 +43,6 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 		responseFilepattern: responseFilepattern,
 		responseFiles:       make(map[string]string),
 		logger:              logger,
-		mocks:               make(map[string]*model.Mock),
 		endpoints:           &epSearchNode{},
 	}
 	err := mockRouter.loadFiles()
@@ -56,46 +53,26 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 }
 
 func (r *MockRouter) loadFiles() error {
+	r.endpoints = &epSearchNode{}
+	endPointCounter := 0
 	mockFiles, err := utils.WalkMatch(r.mockDir, r.mockFilepattern)
 	if err != nil {
 		return err
 	}
 	r.logger.LogWhenVerbose(fmt.Sprintf("Found %v mock file(s):", len(mockFiles)))
 	for _, mockFile := range mockFiles {
-		r.logger.LogWhenVerbose(fmt.Sprintf("Reading mock file '%s' ...", mockFile))
-		mockFileContent, err := ioutil.ReadFile(mockFile)
+		mock, err := r.readMockFile(mockFile)
 		if err != nil {
 			return err
 		}
-		r.mocks[mockFile] = &model.Mock{}
-		if strings.HasSuffix(mockFile, ".yaml") || strings.HasSuffix(mockFile, ".yml") {
-			err = yaml.Unmarshal(mockFileContent, r.mocks[mockFile])
-		}
-		if err != nil {
-			return err
-		}
-		for i, endpoint := range r.mocks[mockFile].Endpoints {
-			requestTpltSourceBytes, err := yaml.Marshal(endpoint.Request)
-			if err != nil {
-				return err
+		for _, endpoint := range mock.Endpoints {
+			endPointCounter++
+			if len(endpoint.Id) == 0 {
+				endpoint.Id = strconv.Itoa(endPointCounter)
 			}
-
-			responseTpltSourceBytes, err := yaml.Marshal(endpoint.Response)
-			if err != nil {
-				return err
-			}
-
-			r.logger.LogWhenVerbose("requestTemplate source: '" + string(requestTpltSourceBytes) + "'")
-			requestTplt, err := template.New(mockFile + "-request-" + strconv.Itoa(i)).Funcs(sprig.TxtFuncMap()).Parse(string(requestTpltSourceBytes))
-			if err != nil {
-				return err
-			}
-			endpoint.Request.Template = requestTplt
-			responseTplt, err := template.New(mockFile + "-response-" + strconv.Itoa(i)).Funcs(sprig.TxtFuncMap()).Parse(string(responseTpltSourceBytes))
-			if err != nil {
-				return err
-			}
-			endpoint.Response.Template = responseTplt
+			endpoint.Mock = mock
+			r.initResponseTemplate(endpoint)
+			r.registerEndpoint(endpoint)
 		}
 	}
 	r.newRouter()
@@ -103,6 +80,38 @@ func (r *MockRouter) loadFiles() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (r *MockRouter) readMockFile(mockFile string) (*model.Mock, error) {
+	r.logger.LogWhenVerbose(fmt.Sprintf("Reading mock file '%s' ...", mockFile))
+	mockFileContent, err := ioutil.ReadFile(mockFile)
+	if err != nil {
+		return nil, err
+	}
+	mock := &model.Mock{}
+	if strings.HasSuffix(mockFile, ".yaml") || strings.HasSuffix(mockFile, ".yml") {
+		err = yaml.Unmarshal(mockFileContent, mock)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(mock.Name) == 0 {
+		mock.Name = mockFile
+	}
+	return mock, nil
+}
+
+func (r *MockRouter) initResponseTemplate(endpoint *model.MockEndpoint) error {
+	responseTpltSourceBytes, err := yaml.Marshal(endpoint.Response)
+	if err != nil {
+		return err
+	}
+	responseTplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Parse(string(responseTpltSourceBytes))
+	if err != nil {
+		return err
+	}
+	endpoint.Response.Template = responseTplt
 	return nil
 }
 
@@ -134,29 +143,6 @@ func (r *MockRouter) newRouter() {
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		r.renderResponse(writer, request, endPoint, requestPathParam)
 	})
-}
-
-func (r *MockRouter) LoadMocks() error {
-	r.endpoints = &epSearchNode{}
-	for mockFile, mock := range r.mocks {
-		for _, endpoint := range mock.Endpoints {
-			requestExcecuted := &bytes.Buffer{}
-			err := endpoint.Request.Template.Execute(requestExcecuted, "")
-			if err != nil {
-				return err
-			}
-			var request model.MatchRequest
-			if strings.HasSuffix(mockFile, ".yaml") || strings.HasSuffix(mockFile, ".yml") {
-				err = yaml.Unmarshal(requestExcecuted.Bytes(), &request)
-			}
-			if err != nil {
-				return err
-			}
-			endpoint.Request = &request
-			r.registerEndpoint(endpoint)
-		}
-	}
-	return nil
 }
 
 func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {

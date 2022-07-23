@@ -53,10 +53,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Can't load files: %v", err)
 	}
-	err = mockRouter.LoadMocks()
-	if err != nil {
-		log.Fatalf("Can't initialize mocks: %v", err)
-	}
+	
 	go routing.NewAdminRouter(mockRouter, logger).ListenAndServe(config.AdminPort)
 	mockRouter.ListenAndServe(config.MockPort)
 }

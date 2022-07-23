@@ -128,7 +128,6 @@ func createMockRouter(testMockDir string, t *testing.T) *MockRouter {
 	if mockRouter == nil {
 		t.Fatal("Mockrouter must not be nil")
 	}
-	mockRouter.LoadMocks()
 	if err != nil {
 		t.Fatalf("Can't load mocks . %v", err)
 	}
