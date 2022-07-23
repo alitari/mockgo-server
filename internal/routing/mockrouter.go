@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -65,6 +66,9 @@ func (r *MockRouter) loadFiles() error {
 		if err != nil {
 			return err
 		}
+		sort.SliceStable(mock.Endpoints, func(i, j int) bool {
+			return mock.Endpoints[i].Prio < mock.Endpoints[j].Prio
+		})
 		for _, endpoint := range mock.Endpoints {
 			endPointCounter++
 			if len(endpoint.Id) == 0 {

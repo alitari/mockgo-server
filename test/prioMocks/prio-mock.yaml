@@ -1,0 +1,31 @@
+endpoints:
+  - id: mustloose1
+    prio: 1
+    request:
+      path: "/prio"
+    response:
+      statusCode: 500
+  - id: mustloose2
+    prio: 2
+    request:
+      path: "/prio"
+    response:
+      statusCode: 500
+  - id: mustloose3
+    prio: 3
+    request:
+      path: "/prio"
+    response:
+      statusCode: 500
+  - id: mustwin
+    prio: 10
+    request:
+      path: "/prio"
+    response:
+      statusCode: 204
+  - id: mustloose9
+    prio: 9
+    request:
+      path: "/prio"
+    response:
+      statusCode: 500
