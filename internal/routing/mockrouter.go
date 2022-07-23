@@ -295,9 +295,10 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, requestPathParams map[string]string) {
 	renderedResponse, err := r.executeResponseTemplate(endpoint, request, requestPathParams)
 	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Header().Set("Mock", "false")
 		fmt.Fprintf(writer, "Error rendering response: %v", err)
-		writer.WriteHeader(http.StatusInternalServerError)
+		// writer.Write([]byte("Error"))
 		return
 	}
 	if len(renderedResponse.Headers) > 0 {
@@ -338,7 +339,7 @@ func (r *MockRouter) executeResponseTemplate(endpoint *model.MockEndpoint, reque
 	renderedResponse := &model.MockResponse{}
 	err = yaml.Unmarshal(responseExcecuted.Bytes(), renderedResponse)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could't unmarshall response yaml:\n'%s'\nerror: %v", responseExcecuted, err)
 	}
 	return renderedResponse, nil
 }

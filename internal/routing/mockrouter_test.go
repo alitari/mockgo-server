@@ -139,11 +139,14 @@ func TestRenderResponse_Simple(t *testing.T) {
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "incoming request url: 'https://alex@myhost/mypath'"},
 		{name: "template kvstore",
-			responseTemplate: `body: |
-{{ kvStoreGet "testkey" | toPrettyJson | indent 2 }}`,
+			responseTemplate:           "body: |\n{{ kvStoreGet \"testkey\" | toPrettyJson | indent 2 }}",
 			kvstoreJson:                `{ "myResponse" : "is Great!" }`,
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "{\n  \"myResponse\": \"is Great!\"\n}"},
+		{name: "response no yaml", responseTemplate: "statusCode: 204 this is no valid json",
+			expectedResponseStatusCode: 500,
+			expectedResponseBody:       "Error rendering response: could't unmarshall response yaml:\n'statusCode: 204 this is no valid json'\nerror: yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `204 thi...` into int",
+		},
 	}
 	assertRenderingResponse(mockRouter, testCases, t)
 }
