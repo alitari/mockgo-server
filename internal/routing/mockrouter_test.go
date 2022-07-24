@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"text/template"
 
@@ -124,13 +125,28 @@ func TestMatchRequestToEndpoint_Prio(t *testing.T) {
 }
 
 func TestRenderResponse_Simple(t *testing.T) {
-	mockRouter := createMockRouter("prioMocks", t)
+	mockRouter := createMockRouter("responseRendering", t)
+	expectedResponseResult := `{
+    "requestUrl": "https://coolhost.cooldomain.com/coolpath",
+    "requestPathParams": "map[myparam1:myvalue]",
+    "requestPathParam1": "myvalue",
+    "requestPath": "/coolpath",
+    "requestHost": "coolhost.cooldomain.com",
+    "requestBody": "{ \"requestBody\": \"is there!\" }"
+}`
 
 	testCases := []*renderingTestCase{
-		{name: "status", responseTemplate: "statusCode: 204", expectedResponseStatusCode: 204},
-		{name: "body", responseTemplate: "body: Hello", expectedResponseStatusCode: 200, expectedResponseBody: "Hello"},
-		{name: "template RequestPathParams", responseTemplate: "body: {{ .RequestPathParams.param1 }}",
-			requestParams: map[string]string{"param1": "Hello"}, expectedResponseStatusCode: 200, expectedResponseBody: "Hello"},
+		{name: "status", responseTemplate: "statusCode: 204",
+			expectedResponseStatusCode: 204},
+		{name: "body", responseTemplate: "body: Hello",
+			expectedResponseStatusCode: 200,
+			expectedResponseBody:       "Hello"},
+		{name: "body from response file", responseTemplate: "bodyFilename: simple-response.json",
+			expectedResponseStatusCode: 200,
+			expectedResponseBody:       "{\n    \"greets\": \"Hello\"\n}"},
+		{name: "template RequestPathParams", responseTemplate: "body: {{ .RequestPathParams.param1 }}", requestParams: map[string]string{"param1": "Hello"},
+			expectedResponseStatusCode: 200,
+			expectedResponseBody:       "Hello"},
 		{name: "template Request url",
 			responseTemplate: "body: \"incoming request url: '{{ .RequestUrl }}'\"",
 			request: &http.Request{URL: &url.URL{User: url.User("alex"), Scheme: "https", Host: "myhost", Path: "/mypath"},
@@ -138,6 +154,12 @@ func TestRenderResponse_Simple(t *testing.T) {
 				Header: map[string][]string{"headerKey": {"headerValue"}}},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "incoming request url: 'https://alex@myhost/mypath'"},
+		{name: "template response file all request params",
+			responseTemplate:           "bodyFilename: request-template-response.json",
+			request:                    createRequest("PUT", "https://coolhost.cooldomain.com/coolpath", "{ \"requestBody\": \"is there!\" }", map[string][]string{"myheaderKey": {"myheaderValue"}}, t),
+			requestParams:              map[string]string{"myparam1": "myvalue"},
+			expectedResponseStatusCode: 200,
+			expectedResponseBody:       expectedResponseResult},
 		{name: "template kvstore",
 			responseTemplate:           "body: |\n{{ kvStoreGet \"testkey\" | toPrettyJson | indent 2 }}",
 			kvstoreJson:                `{ "myResponse" : "is Great!" }`,
@@ -149,6 +171,16 @@ func TestRenderResponse_Simple(t *testing.T) {
 		},
 	}
 	assertRenderingResponse(mockRouter, testCases, t)
+}
+
+func createRequest(method, url, bodyStr string, header map[string][]string, t *testing.T) *http.Request {
+	body := io.NopCloser(strings.NewReader(bodyStr))
+	request, err := http.NewRequest(method, url, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header = header
+	return request
 }
 
 func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestCase, t *testing.T) {
@@ -226,7 +258,7 @@ func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingT
 }
 
 func createMockRouter(testMockDir string, t *testing.T) *MockRouter {
-	mockRouter, err := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/allMatchWildcardMocks", "*-response.json", &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	mockRouter, err := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	if err != nil {
 		t.Fatalf("Can't create mock router: %v", err)
 	}

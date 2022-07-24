@@ -34,6 +34,7 @@ type ResponseTemplateData struct {
 	RequestUser       string
 	RequestPath       string
 	RequestHost       string
+	RequestBody       string
 }
 
 type MockRouter struct {
@@ -43,7 +44,7 @@ type MockRouter struct {
 	responseFilepattern string
 	logger              *utils.Logger
 	endpoints           *epSearchNode
-	responseFiles       map[string]string // responseFilename -> file content
+	responseFiles       map[string]*template.Template // responseFilename -> template
 	router              *mux.Router
 	kvstore             *kvstore.KVStore
 }
@@ -54,7 +55,7 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 		mockFilepattern:     mockFilepattern,
 		responseDir:         responseDir,
 		responseFilepattern: responseFilepattern,
-		responseFiles:       make(map[string]string),
+		responseFiles:       make(map[string]*template.Template),
 		logger:              logger,
 		endpoints:           &epSearchNode{},
 		kvstore:             kvstore.NewStore(),
@@ -124,7 +125,7 @@ func (r *MockRouter) initResponseTemplate(endpoint *model.MockEndpoint) error {
 	if err != nil {
 		return err
 	}
-	responseTplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Funcs(r.templateFuncMap()).Parse(string(responseTpltSourceBytes))
+	responseTplt, err := r.createTemplate(string(responseTpltSourceBytes))
 	if err != nil {
 		return err
 	}
@@ -144,9 +145,21 @@ func (r *MockRouter) loadResponseFiles() error {
 		if err != nil {
 			return err
 		}
-		r.responseFiles[filepath.Base(responseFile)] = string(responseFileContent)
+		responseFileTplt, err := r.createTemplate(string(responseFileContent))
+		if err != nil {
+			return err
+		}
+		r.responseFiles[filepath.Base(responseFile)] = responseFileTplt
 	}
 	return nil
+}
+
+func (r *MockRouter) createTemplate(content string) (*template.Template, error) {
+	tplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Funcs(r.templateFuncMap()).Parse(string(content))
+	if err != nil {
+		return nil, err
+	}
+	return tplt, nil
 }
 
 func (r *MockRouter) newRouter() {
@@ -293,12 +306,18 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 }
 
 func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, requestPathParams map[string]string) {
-	renderedResponse, err := r.executeResponseTemplate(endpoint, request, requestPathParams)
+	responseTemplateData, err := r.createResponseTemplateData(request, requestPathParams)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Header().Set("Mock", "false")
+		writer.Header().Set("Mocked", "false")
 		fmt.Fprintf(writer, "Error rendering response: %v", err)
-		// writer.Write([]byte("Error"))
+		return
+	}
+	renderedResponse, err := r.executeResponseTemplate(endpoint, responseTemplateData)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Header().Set("Mocked", "false")
+		fmt.Fprintf(writer, "Error rendering response: %v", err)
 		return
 	}
 	if len(renderedResponse.Headers) > 0 {
@@ -314,24 +333,43 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 	bodyStr := ""
 	if renderedResponse.Body != "" {
 		bodyStr = renderedResponse.Body
-	} else if renderedResponse.BodyFileName != "" {
-		bodyStr = r.responseFiles[renderedResponse.BodyFileName]
+	} else if renderedResponse.BodyFilename != "" {
+		bodyStr, err = r.executeResponseFileTemplate(renderedResponse.BodyFilename, responseTemplateData)
+		if err != nil {
+			writer.WriteHeader(http.StatusInternalServerError)
+			writer.Header().Set("Mocked", "false")
+			fmt.Fprintf(writer, "Error rendering response: %v", err)
+			return
+		}
 	}
+	writer.Header().Set("Mocked", "true")
 	fmt.Fprint(writer, bodyStr)
 }
 
-func (r *MockRouter) executeResponseTemplate(endpoint *model.MockEndpoint, request *http.Request, requestPathParams map[string]string) (*model.MockResponse, error) {
-	responseExcecuted := &bytes.Buffer{}
+func (r *MockRouter) createResponseTemplateData(request *http.Request, requestPathParams map[string]string) (*ResponseTemplateData, error) {
 	data := &ResponseTemplateData{
 		RequestUrl:        request.URL.String(),
 		RequestPathParams: requestPathParams,
-		RequestPath:       request.URL.RawPath,
+		RequestPath:       request.URL.Path,
 		RequestHost:       request.URL.Host,
 	}
 	if request.URL.User != nil {
 		data.RequestUser = request.URL.User.Username()
 	}
-	err := endpoint.Response.Template.Execute(responseExcecuted, data)
+	if request.Body != nil {
+		body := new(bytes.Buffer)
+		_, err := body.ReadFrom(request.Body)
+		if err != nil {
+			return nil, err
+		}
+		data.RequestBody = body.String()
+	}
+	return data, nil
+}
+
+func (r *MockRouter) executeResponseTemplate(endpoint *model.MockEndpoint, responseTemplateData *ResponseTemplateData) (*model.MockResponse, error) {
+	responseExcecuted := &bytes.Buffer{}
+	err := endpoint.Response.Template.Execute(responseExcecuted, responseTemplateData)
 	if err != nil {
 		return nil, err
 	}
@@ -342,6 +380,16 @@ func (r *MockRouter) executeResponseTemplate(endpoint *model.MockEndpoint, reque
 		return nil, fmt.Errorf("could't unmarshall response yaml:\n'%s'\nerror: %v", responseExcecuted, err)
 	}
 	return renderedResponse, nil
+}
+
+func (r *MockRouter) executeResponseFileTemplate(responseFilename string, responseTemplateData *ResponseTemplateData) (string, error) {
+	responseExcecuted := &bytes.Buffer{}
+	err := r.responseFiles[responseFilename].Execute(responseExcecuted, responseTemplateData)
+	if err != nil {
+		return "", err
+	}
+	r.logger.LogWhenDebugRR(fmt.Sprintf("Rendered response file:\n%s", responseExcecuted))
+	return responseExcecuted.String(), nil
 }
 
 func (r *MockRouter) ListenAndServe(port int) {

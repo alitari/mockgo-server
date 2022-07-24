@@ -16,7 +16,7 @@ type MockResponse struct {
 	StatusCode   int                `yaml:"statusCode"`
 	Headers      map[string]string  `yaml:"headers"`
 	Body         string             `yaml:"body"`
-	BodyFileName string             `yaml:"bodyFileName"`
+	BodyFilename string             `yaml:"bodyFilename"`
 }
 
 type MockEndpoint struct {

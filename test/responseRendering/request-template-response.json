@@ -1,0 +1,8 @@
+{
+    "requestUrl": "{{ .RequestUrl }}",
+    "requestPathParams": "{{ .RequestPathParams }}",
+    "requestPathParam1": "{{ .RequestPathParams.myparam1 }}",
+    "requestPath": "{{ .RequestPath }}",
+    "requestHost": "{{ .RequestHost }}",
+    "requestBody": {{ .RequestBody | quote }}
+}
