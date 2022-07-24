@@ -59,7 +59,7 @@ func (r *AdminRouter) endpoints(writer http.ResponseWriter, request *http.Reques
 	endpoints = r.getEndpoints(endpoints, r.mockRouter.endpoints)
 	endPointResponse := &EndpointsResponse{Endpoints: endpoints}
 	writer.Header().Set(headers.ContentType, "application/json")
-	resp, err := json.MarshalIndent(endPointResponse, "", "  ")
+	resp, err := json.MarshalIndent(endPointResponse, "", "    ")
 	if err != nil {
 		io.WriteString(writer, fmt.Sprintf("Cannot marshall response: %v", err))
 		writer.WriteHeader(http.StatusInternalServerError)

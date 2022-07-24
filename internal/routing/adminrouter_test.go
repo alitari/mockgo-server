@@ -4,16 +4,17 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/alitari/mockgo-server/internal/utils"
 )
 
 type adminRouterTestCase struct {
-	name             string
-	request          *http.Request
+	name                       string
+	request                    *http.Request
 	expectedResponseStatusCode int
-	expectedResponse string
+	expectedResponseFile       string
 }
 
 func TestAdminRouter_Endpoints(t *testing.T) {
@@ -22,8 +23,9 @@ func TestAdminRouter_Endpoints(t *testing.T) {
 
 	testCases := []*adminRouterTestCase{
 		{name: "Endpoints",
-			request: &http.Request{},
+			request:                    &http.Request{},
 			expectedResponseStatusCode: 200,
+			expectedResponseFile: "../../test/expectedResponses/endpoints.json",
 		},
 	}
 	assertAdminRouterResponse(func(request *http.Request, recorder *httptest.ResponseRecorder) {
@@ -44,8 +46,14 @@ func assertAdminRouterResponse(routerCall func(*http.Request, *httptest.Response
 			t.Fatal(err)
 		}
 
-		if testCase.expectedResponse != string(responseBody) {
-			t.Errorf("Expected response  is:\n%s,\nbut is:\n%s", testCase.expectedResponse, responseBody)
+		if len(testCase.expectedResponseFile) > 0 {
+			expectedResponse, err := os.ReadFile(testCase.expectedResponseFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(expectedResponse) != string(responseBody) {
+				t.Errorf("Expected response  is:\n%s,\nbut is:\n%s", expectedResponse, responseBody)
+			}
 		}
 
 		if !t.Failed() {
