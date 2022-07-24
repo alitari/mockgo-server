@@ -117,7 +117,7 @@ func (r *MockRouter) readMockFile(mockFile string) (*model.Mock, error) {
 		return nil, err
 	}
 	if len(mock.Name) == 0 {
-		mock.Name = mockFile
+		mock.Name = filepath.Base(mockFile)
 	}
 	return mock, nil
 }
@@ -208,7 +208,7 @@ func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 		sn.endpoints[endpoint.Request.Method] = []*model.MockEndpoint{}
 	}
 	sn.endpoints[endpoint.Request.Method] = append(sn.endpoints[endpoint.Request.Method], endpoint)
-	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint for path|method: %s|%s", endpoint.Request.Path, endpoint.Request.Method))
+	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.Id, endpoint.Request.Path, endpoint.Request.Method))
 }
 
 func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockEndpoint, map[string]string) {

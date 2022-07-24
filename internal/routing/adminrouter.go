@@ -1,13 +1,14 @@
 package routing
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
-	"gopkg.in/yaml.v2"
 
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
@@ -19,8 +20,8 @@ type AdminRouter struct {
 	mockRouter *MockRouter
 }
 
-type InfoResponse struct {
-	Mocks map[string]*model.Mock
+type EndpointsResponse struct {
+	Endpoints []*model.MockEndpoint
 }
 
 func NewAdminRouter(mockRouter *MockRouter, logger *utils.Logger) *AdminRouter {
@@ -34,24 +35,38 @@ func NewAdminRouter(mockRouter *MockRouter, logger *utils.Logger) *AdminRouter {
 
 func (r *AdminRouter) newRouter() {
 	router := mux.NewRouter()
-	router.HandleFunc("/admin/info", r.info)
+	router.HandleFunc("/endpoints", r.endpoints)
 	r.router = router
 }
 
-func (r *AdminRouter) info(writer http.ResponseWriter, request *http.Request) {
+func (r *AdminRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearchNode) []*model.MockEndpoint {
+	for _, sns := range sn.searchNodes {
+		if sns.endpoints != nil {
+			for _, epMethodMap := range sns.endpoints {
+				endpoints = append(endpoints, epMethodMap...)
+			}
+		}
+		if sns.searchNodes != nil {
+			endpoints = append(endpoints, r.getEndpoints(endpoints, sns)...)
+		}
+	}
+	return endpoints
+}
+
+func (r *AdminRouter) endpoints(writer http.ResponseWriter, request *http.Request) {
 	r.logger.LogAlways(fmt.Sprintf("Received request %v", request))
-	infoData := &InfoResponse{} // not working now
-	yamlStr, err := yaml.Marshal(infoData)
+	endpoints := []*model.MockEndpoint{}
+	endpoints = r.getEndpoints(endpoints, r.mockRouter.endpoints)
+	endPointResponse := &EndpointsResponse{Endpoints: endpoints}
+	writer.Header().Set(headers.ContentType, "application/json")
+	resp, err := json.MarshalIndent(endPointResponse, "", "  ")
 	if err != nil {
-		mess := fmt.Sprintf("Cannot marshal data %v : %v", infoData, err)
-		r.logger.LogAlways(mess)
-		writer.Write([]byte(mess))
+		io.WriteString(writer, fmt.Sprintf("Cannot marshall response: %v", err))
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	writer.Header().Set(headers.ContentType, "application/json")
-	writer.Write(yamlStr)
-	writer.WriteHeader(http.StatusOK)
+	r.logger.LogWhenDebugRR(fmt.Sprintf("%v", endPointResponse))
+	io.WriteString(writer, string(resp))
 }
 
 func (r *AdminRouter) ListenAndServe(port int) {

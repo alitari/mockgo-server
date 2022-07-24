@@ -3,31 +3,31 @@ package model
 import "text/template"
 
 type MatchRequest struct {
-	Scheme  string            `yaml:"scheme"`
-	Host    string            `yaml:"host"`
-	Method  string            `yaml:"method"`
-	Path    string            `yaml:"path"`
-	Query   map[string]string `yaml:"query"`
-	Headers map[string]string `yaml:"headers"`
+	Scheme  string            `yaml:"scheme" json:"scheme"`
+	Host    string            `yaml:"host" json:"host"`
+	Method  string            `yaml:"method" json:"method"`
+	Path    string            `yaml:"path" json:"path"`
+	Query   map[string]string `yaml:"query" json:"query"`
+	Headers map[string]string `yaml:"headers" json:"headers"`
 }
 
 type MockResponse struct {
-	Template     *template.Template `yaml:"-"`
-	StatusCode   int                `yaml:"statusCode"`
-	Headers      map[string]string  `yaml:"headers"`
-	Body         string             `yaml:"body"`
-	BodyFilename string             `yaml:"bodyFilename"`
+	Template     *template.Template `yaml:"-" json:"-"`
+	StatusCode   int                `yaml:"statusCode" json:"statusCode"`
+	Headers      map[string]string  `yaml:"headers" json:"headers"`
+	Body         string             `yaml:"body" json:"body"`
+	BodyFilename string             `yaml:"bodyFilename" json:"bodyFilename"`
 }
 
 type MockEndpoint struct {
-	Id       string        `yaml:"id"`
-	Mock     *Mock         `yaml:"-"`
-	Prio     int           `yaml:"prio"`
-	Request  *MatchRequest `yaml:"request"`
-	Response *MockResponse `yaml:"response"`
+	Id       string        `yaml:"id" json:"id"`
+	Mock     *Mock         `yaml:"-" json:"mock" `
+	Prio     int           `yaml:"prio" json:"prio"`
+	Request  *MatchRequest `yaml:"request" json:"request"`
+	Response *MockResponse `yaml:"response" json:"response"`
 }
 
 type Mock struct {
-	Name      string          `yaml:"name"`
-	Endpoints []*MockEndpoint `yaml:"endpoints" `
+	Name      string          `yaml:"name" json:"name"`
+	Endpoints []*MockEndpoint `yaml:"endpoints" json:"-"`
 }
