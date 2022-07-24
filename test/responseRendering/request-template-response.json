@@ -4,5 +4,6 @@
     "requestPathParam1": "{{ .RequestPathParams.myparam1 }}",
     "requestPath": "{{ .RequestPath }}",
     "requestHost": "{{ .RequestHost }}",
-    "requestBody": {{ .RequestBody | quote }}
+    "requestBody": {{ .RequestBody | quote }},
+    "requestBodyKey" : "{{ .RequestBodyJsonData.requestBodyKey }}"
 }

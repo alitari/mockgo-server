@@ -2,6 +2,7 @@ package routing
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -28,13 +29,14 @@ type epSearchNode struct {
 }
 
 type ResponseTemplateData struct {
-	RequestPathParams map[string]string
-	KVStore           map[string]interface{}
-	RequestUrl        string
-	RequestUser       string
-	RequestPath       string
-	RequestHost       string
-	RequestBody       string
+	RequestPathParams   map[string]string
+	KVStore             map[string]interface{}
+	RequestUrl          string
+	RequestUser         string
+	RequestPath         string
+	RequestHost         string
+	RequestBody         string
+	RequestBodyJsonData map[string]interface{}
 }
 
 type MockRouter struct {
@@ -363,6 +365,11 @@ func (r *MockRouter) createResponseTemplateData(request *http.Request, requestPa
 			return nil, err
 		}
 		data.RequestBody = body.String()
+		bodyData := &map[string]interface{}{}
+		err = json.Unmarshal(body.Bytes(), bodyData)
+		if err == nil { // ignore when no json
+			data.RequestBodyJsonData = *bodyData
+		}
 	}
 	return data, nil
 }

@@ -132,7 +132,8 @@ func TestRenderResponse_Simple(t *testing.T) {
     "requestPathParam1": "myvalue",
     "requestPath": "/coolpath",
     "requestHost": "coolhost.cooldomain.com",
-    "requestBody": "{ \"requestBody\": \"is there!\" }"
+    "requestBody": "{ \"requestBodyKey\": \"requestBodyValue\" }",
+    "requestBodyKey" : "requestBodyValue"
 }`
 
 	testCases := []*renderingTestCase{
@@ -156,7 +157,7 @@ func TestRenderResponse_Simple(t *testing.T) {
 			expectedResponseBody:       "incoming request url: 'https://alex@myhost/mypath'"},
 		{name: "template response file all request params",
 			responseTemplate:           "bodyFilename: request-template-response.json",
-			request:                    createRequest("PUT", "https://coolhost.cooldomain.com/coolpath", "{ \"requestBody\": \"is there!\" }", map[string][]string{"myheaderKey": {"myheaderValue"}}, t),
+			request:                    createRequest("PUT", "https://coolhost.cooldomain.com/coolpath", "{ \"requestBodyKey\": \"requestBodyValue\" }", map[string][]string{"myheaderKey": {"myheaderValue"}}, t),
 			requestParams:              map[string]string{"myparam1": "myvalue"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       expectedResponseResult},
