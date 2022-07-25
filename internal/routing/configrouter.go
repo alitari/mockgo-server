@@ -35,18 +35,14 @@ func NewConfigRouter(mockRouter *MockRouter, logger *utils.Logger) *ConfigRouter
 
 func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
-	router.HandleFunc("/endpoints", utils.RequestMustBe(http.MethodGet, "application/json", "application/json", r.endpoints))
-	router.HandleFunc("/kvstore/{key}", utils.RequestMustBe(http.MethodPut, "application/json", "application/json", r.setKVStore))
+	router.HandleFunc("/endpoints", utils.RequestMustHave(http.MethodGet, "application/json", "application/json", []string{"key"}, r.endpoints))
+	router.HandleFunc("/kvstore/{key}", utils.RequestMustHave(http.MethodPut, "application/json", "application/json", nil, r.setKVStore))
 	r.router = router
 }
 
 func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	key := vars["key"]
-	if len(key) == 0 {
-		http.Error(writer, "Need a key", http.StatusNotFound)
-		return
-	}
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
