@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type AdminRouter struct {
+type ConfigRouter struct {
 	logger     *utils.Logger
 	router     *mux.Router
 	mockRouter *MockRouter
@@ -24,23 +24,23 @@ type EndpointsResponse struct {
 	Endpoints []*model.MockEndpoint
 }
 
-func NewAdminRouter(mockRouter *MockRouter, logger *utils.Logger) *AdminRouter {
-	adminRouter := &AdminRouter{
+func NewConfigRouter(mockRouter *MockRouter, logger *utils.Logger) *ConfigRouter {
+	configRouter := &ConfigRouter{
 		mockRouter: mockRouter,
 		logger:     logger,
 	}
-	adminRouter.newRouter()
-	return adminRouter
+	configRouter.newRouter()
+	return configRouter
 }
 
-func (r *AdminRouter) newRouter() {
+func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
 	router.HandleFunc("/endpoints", r.endpoints)
 	router.HandleFunc("/kvstore/{key}", r.setKVStore)
 	r.router = router
 }
 
-func (r *AdminRouter) setKVStore(writer http.ResponseWriter, request *http.Request) {
+func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Request) {
 	if request.Method == http.MethodPut {
 		if request.Header.Get("Content-Type") == "application/json" {
 			vars := mux.Vars(request)
@@ -69,7 +69,7 @@ func (r *AdminRouter) setKVStore(writer http.ResponseWriter, request *http.Reque
 	}
 }
 
-func (r *AdminRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearchNode) []*model.MockEndpoint {
+func (r *ConfigRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearchNode) []*model.MockEndpoint {
 	for _, sns := range sn.searchNodes {
 		if sns.endpoints != nil {
 			for _, epMethodMap := range sns.endpoints {
@@ -83,7 +83,7 @@ func (r *AdminRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearch
 	return endpoints
 }
 
-func (r *AdminRouter) endpoints(writer http.ResponseWriter, request *http.Request) {
+func (r *ConfigRouter) endpoints(writer http.ResponseWriter, request *http.Request) {
 	r.logger.LogAlways(fmt.Sprintf("Received request %v", request))
 	endpoints := []*model.MockEndpoint{}
 	endpoints = r.getEndpoints(endpoints, r.mockRouter.endpoints)
@@ -104,7 +104,7 @@ func (r *AdminRouter) endpoints(writer http.ResponseWriter, request *http.Reques
 	}
 }
 
-func (r *AdminRouter) ListenAndServe(port int) {
+func (r *ConfigRouter) ListenAndServe(port int) {
 	r.logger.LogAlways(fmt.Sprintf("Serving admin endpoints on port %v", port))
 	http.ListenAndServe(":"+strconv.Itoa(port), r.router)
 }

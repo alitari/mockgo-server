@@ -11,34 +11,34 @@ import (
 	"github.com/alitari/mockgo-server/internal/utils"
 )
 
-type adminRouterTestCase struct {
+type configRouterTestCase struct {
 	name                       string
 	request                    *http.Request
 	expectedResponseStatusCode int
 	expectedResponseFile       string
 }
 
-func TestAdminRouter_Endpoints(t *testing.T) {
+func TestConfigRouter_Endpoints(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	adminRouter := NewAdminRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 
-	testCases := []*adminRouterTestCase{
+	testCases := []*configRouterTestCase{
 		{name: "Endpoints",
 			request:                    &http.Request{},
 			expectedResponseStatusCode: 200,
 			expectedResponseFile:       "../../test/expectedResponses/endpoints.json",
 		},
 	}
-	assertAdminRouterResponse(func(request *http.Request, recorder *httptest.ResponseRecorder) {
-		adminRouter.endpoints(recorder, request)
+	assertConfigRouterResponse(func(request *http.Request, recorder *httptest.ResponseRecorder) {
+		configRouter.endpoints(recorder, request)
 	}, testCases, t)
 
 }
 
-func TestAdminRouter_KVStore(t *testing.T) {
+func TestConfigRouter_KVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	adminRouter := NewAdminRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
-	testCases := []*adminRouterTestCase{
+	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	testCases := []*configRouterTestCase{
 		{name: "KVStore",
 			request: createRequest(
 				http.MethodPut,
@@ -50,8 +50,8 @@ func TestAdminRouter_KVStore(t *testing.T) {
 			expectedResponseStatusCode: http.StatusNoContent,
 		},
 	}
-	assertAdminRouterResponse(func(request *http.Request, recorder *httptest.ResponseRecorder) {
-		adminRouter.setKVStore(recorder, request)
+	assertConfigRouterResponse(func(request *http.Request, recorder *httptest.ResponseRecorder) {
+		configRouter.setKVStore(recorder, request)
 	}, testCases, t)
 	value, err := mockRouter.kvstore.Get("testapp")
 	if err != nil {
@@ -67,7 +67,7 @@ func TestAdminRouter_KVStore(t *testing.T) {
 	}
 }
 
-func assertAdminRouterResponse(routerCall func(*http.Request, *httptest.ResponseRecorder), testCases []*adminRouterTestCase, t *testing.T) {
+func assertConfigRouterResponse(routerCall func(*http.Request, *httptest.ResponseRecorder), testCases []*configRouterTestCase, t *testing.T) {
 	for _, testCase := range testCases {
 		recorder := httptest.NewRecorder()
 		routerCall(testCase.request, recorder)
