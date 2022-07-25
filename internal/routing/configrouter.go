@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/alitari/mockgo-server/internal/model"
@@ -35,8 +36,8 @@ func NewConfigRouter(mockRouter *MockRouter, logger *utils.Logger) *ConfigRouter
 
 func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
-	router.HandleFunc("/endpoints", utils.RequestMustHave(http.MethodGet, "application/json", "application/json", []string{"key"}, r.endpoints))
-	router.HandleFunc("/kvstore/{key}", utils.RequestMustHave(http.MethodPut, "application/json", "application/json", nil, r.setKVStore))
+	router.NewRoute().Name("endpoints").Path("/endpoints").HandlerFunc(utils.RequestMustHave(http.MethodGet, "application/json", "application/json", nil, r.endpoints))
+	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "application/json", []string{"key"}, r.setKVStore))
 	r.router = router
 }
 
@@ -73,6 +74,9 @@ func (r *ConfigRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearc
 func (r *ConfigRouter) endpoints(writer http.ResponseWriter, request *http.Request) {
 	endpoints := []*model.MockEndpoint{}
 	endpoints = r.getEndpoints(endpoints, r.mockRouter.endpoints)
+	sort.SliceStable(endpoints, func(i, j int) bool {
+		return endpoints[i].Id < endpoints[j].Id
+	})
 	endPointResponse := &EndpointsResponse{Endpoints: endpoints}
 	writer.Header().Set(headers.ContentType, "application/json")
 	resp, err := json.MarshalIndent(endPointResponse, "", "    ")

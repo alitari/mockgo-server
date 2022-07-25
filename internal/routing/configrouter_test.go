@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/alitari/mockgo-server/internal/utils"
+	"github.com/go-http-utils/headers"
 )
 
 type configRouterTestCase struct {
@@ -21,23 +22,28 @@ type configRouterTestCase struct {
 func TestConfigRouter_Endpoints(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
-
+	configRouter.newRouter()
 	testCases := []*configRouterTestCase{
 		{name: "Endpoints",
-			request:                    &http.Request{},
+			request: createRequest(
+				http.MethodGet,
+				"http://somehost/endpoints",
+				"",
+				map[string][]string{headers.ContentType: {"application/json"}, headers.Accept: {"application/json"}},
+				nil,
+				t),
 			expectedResponseStatusCode: 200,
 			expectedResponseFile:       "../../test/expectedResponses/endpoints.json",
 		},
 	}
-	assertConfigRouterResponse(func(request *http.Request, recorder *httptest.ResponseRecorder) {
-		configRouter.endpoints(recorder, request)
-	}, testCases, t)
-
+	assertConfigRouterResponse(configRouter.router.Get("endpoints").GetHandler(), testCases, t)
 }
 
 func TestConfigRouter_KVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
 	testCases := []*configRouterTestCase{
 		{name: "KVStore",
 			request: createRequest(
@@ -50,9 +56,7 @@ func TestConfigRouter_KVStore(t *testing.T) {
 			expectedResponseStatusCode: http.StatusNoContent,
 		},
 	}
-	assertConfigRouterResponse(func(request *http.Request, recorder *httptest.ResponseRecorder) {
-		configRouter.setKVStore(recorder, request)
-	}, testCases, t)
+	assertConfigRouterResponse(configRouter.router.Get("setKVStore").GetHandler(), testCases, t)
 	value, err := mockRouter.kvstore.Get("testapp")
 	if err != nil {
 		t.Fatal(err)
@@ -67,10 +71,10 @@ func TestConfigRouter_KVStore(t *testing.T) {
 	}
 }
 
-func assertConfigRouterResponse(routerCall func(*http.Request, *httptest.ResponseRecorder), testCases []*configRouterTestCase, t *testing.T) {
+func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterTestCase, t *testing.T) {
 	for _, testCase := range testCases {
 		recorder := httptest.NewRecorder()
-		routerCall(testCase.request, recorder)
+		handler.ServeHTTP(recorder, testCase.request)
 		if testCase.expectedResponseStatusCode != recorder.Result().StatusCode {
 			t.Errorf("Expected status code %v, but is %v", testCase.expectedResponseStatusCode, recorder.Result().StatusCode)
 		}
