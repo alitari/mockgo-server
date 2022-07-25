@@ -48,9 +48,9 @@ func TestConfigRouter_KVStore(t *testing.T) {
 		{name: "KVStore",
 			request: createRequest(
 				http.MethodPut,
-				"http://somehost/kvstore/mypp",
+				"http://somehost/kvstore/testapp",
 				"{ \"mykey\": \"myvalue\" }",
-				map[string][]string{"Content-Type": {"application/json"}},
+				map[string][]string{headers.ContentType: {"application/json"}, headers.Accept: {"application/json"}},
 				map[string]string{"key": "testapp"},
 				t),
 			expectedResponseStatusCode: http.StatusNoContent,
@@ -64,7 +64,7 @@ func TestConfigRouter_KVStore(t *testing.T) {
 	switch value := value.(type) {
 	case *map[string]interface{}:
 		if fmt.Sprintf("%v", value) != "&map[mykey:myvalue]" {
-			t.Errorf("Expected kv store value of key %s, is %s , but is %s", "mykey", "&map[mykey:myvalue]", fmt.Sprintf("%v", value))
+			t.Errorf("Expected kv store value of key %s, is %s , but is %s", "myapp", "&map[mykey:myvalue]", fmt.Sprintf("%v", value))
 		}
 	default:
 		t.Errorf("Wrong expected kvstore value type, expected is map[string]string, but is %T", value)
