@@ -12,6 +12,7 @@ import (
 	"github.com/Masterminds/sprig"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
+	"github.com/gorilla/mux"
 )
 
 type matchingTestCase struct {
@@ -157,7 +158,7 @@ func TestRenderResponse_Simple(t *testing.T) {
 			expectedResponseBody:       "incoming request url: 'https://alex@myhost/mypath'"},
 		{name: "template response file all request params",
 			responseTemplate:           "bodyFilename: request-template-response.json",
-			request:                    createRequest("PUT", "https://coolhost.cooldomain.com/coolpath", "{ \"requestBodyKey\": \"requestBodyValue\" }", map[string][]string{"myheaderKey": {"myheaderValue"}}, t),
+			request:                    createRequest("PUT", "https://coolhost.cooldomain.com/coolpath", "{ \"requestBodyKey\": \"requestBodyValue\" }", map[string][]string{"myheaderKey": {"myheaderValue"}}, nil, t),
 			requestParams:              map[string]string{"myparam1": "myvalue"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       expectedResponseResult},
@@ -174,13 +175,16 @@ func TestRenderResponse_Simple(t *testing.T) {
 	assertRenderingResponse(mockRouter, testCases, t)
 }
 
-func createRequest(method, url, bodyStr string, header map[string][]string, t *testing.T) *http.Request {
+func createRequest(method, url, bodyStr string, header map[string][]string, urlVars map[string]string, t *testing.T) *http.Request {
 	body := io.NopCloser(strings.NewReader(bodyStr))
 	request, err := http.NewRequest(method, url, body)
 	if err != nil {
 		t.Fatal(err)
 	}
 	request.Header = header
+	if urlVars != nil {
+		request = mux.SetURLVars(request, urlVars)
+	}
 	return request
 }
 

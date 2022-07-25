@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -25,13 +26,45 @@ func TestAdminRouter_Endpoints(t *testing.T) {
 		{name: "Endpoints",
 			request:                    &http.Request{},
 			expectedResponseStatusCode: 200,
-			expectedResponseFile: "../../test/expectedResponses/endpoints.json",
+			expectedResponseFile:       "../../test/expectedResponses/endpoints.json",
 		},
 	}
 	assertAdminRouterResponse(func(request *http.Request, recorder *httptest.ResponseRecorder) {
 		adminRouter.endpoints(recorder, request)
 	}, testCases, t)
 
+}
+
+func TestAdminRouter_KVStore(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+	adminRouter := NewAdminRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	testCases := []*adminRouterTestCase{
+		{name: "KVStore",
+			request: createRequest(
+				http.MethodPut,
+				"http://somehost/kvstore/mypp",
+				"{ \"mykey\": \"myvalue\" }",
+				map[string][]string{"Content-Type": {"application/json"}},
+				map[string]string{"key": "testapp"},
+				t),
+			expectedResponseStatusCode: http.StatusNoContent,
+		},
+	}
+	assertAdminRouterResponse(func(request *http.Request, recorder *httptest.ResponseRecorder) {
+		adminRouter.setKVStore(recorder, request)
+	}, testCases, t)
+	value, err := mockRouter.kvstore.Get("testapp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch value := value.(type) {
+	case *map[string]interface{}:
+		if fmt.Sprintf("%v", value) != "&map[mykey:myvalue]" {
+			t.Errorf("Expected kv store value of key %s, is %s , but is %s", "mykey", "&map[mykey:myvalue]", fmt.Sprintf("%v", value))
+		}
+	default:
+		t.Errorf("Wrong expected kvstore value type, expected is map[string]string, but is %T", value)
+	}
 }
 
 func assertAdminRouterResponse(routerCall func(*http.Request, *httptest.ResponseRecorder), testCases []*adminRouterTestCase, t *testing.T) {

@@ -36,7 +36,37 @@ func NewAdminRouter(mockRouter *MockRouter, logger *utils.Logger) *AdminRouter {
 func (r *AdminRouter) newRouter() {
 	router := mux.NewRouter()
 	router.HandleFunc("/endpoints", r.endpoints)
+	router.HandleFunc("/kvstore/{key}", r.setKVStore)
 	r.router = router
+}
+
+func (r *AdminRouter) setKVStore(writer http.ResponseWriter, request *http.Request) {
+	if request.Method == http.MethodPut {
+		if request.Header.Get("Content-Type") == "application/json" {
+			vars := mux.Vars(request)
+			key := vars["key"]
+			if len(key) == 0 {
+				http.Error(writer, "Need a key", http.StatusNotFound)
+				return
+			}
+			body, err := io.ReadAll(request.Body)
+			if err != nil {
+				http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			err = r.mockRouter.kvstore.Put(key, string(body))
+			if err != nil {
+				http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
+				return
+			}
+			writer.WriteHeader(http.StatusNoContent)
+		} else {
+			http.Error(writer, "Content-Type must be json", http.StatusUnsupportedMediaType)
+			return
+		}
+	} else {
+		http.Error(writer, "Only PUT is allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func (r *AdminRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearchNode) []*model.MockEndpoint {
@@ -66,7 +96,12 @@ func (r *AdminRouter) endpoints(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	r.logger.LogWhenDebugRR(fmt.Sprintf("%v", endPointResponse))
-	io.WriteString(writer, string(resp))
+	_, err = io.WriteString(writer, string(resp))
+	if err != nil {
+		io.WriteString(writer, fmt.Sprintf("Cannot write response: %v", err))
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (r *AdminRouter) ListenAndServe(port int) {
