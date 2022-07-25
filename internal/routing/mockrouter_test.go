@@ -177,10 +177,7 @@ func TestRenderResponse_Simple(t *testing.T) {
 
 func createRequest(method, url, bodyStr string, header map[string][]string, urlVars map[string]string, t *testing.T) *http.Request {
 	body := io.NopCloser(strings.NewReader(bodyStr))
-	request, err := http.NewRequest(method, url, body)
-	if err != nil {
-		t.Fatal(err)
-	}
+	request:= httptest.NewRequest(method, url, body)
 	request.Header = header
 	if urlVars != nil {
 		request = mux.SetURLVars(request, urlVars)

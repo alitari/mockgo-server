@@ -35,38 +35,29 @@ func NewConfigRouter(mockRouter *MockRouter, logger *utils.Logger) *ConfigRouter
 
 func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
-	router.HandleFunc("/endpoints", r.endpoints)
-	router.HandleFunc("/kvstore/{key}", r.setKVStore)
+	router.HandleFunc("/endpoints", utils.RequestMustBe(http.MethodGet, "application/json", "application/json", r.endpoints))
+	router.HandleFunc("/kvstore/{key}", utils.RequestMustBe(http.MethodPut, "application/json", "application/json", r.setKVStore))
 	r.router = router
 }
 
 func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Request) {
-	if request.Method == http.MethodPut {
-		if request.Header.Get("Content-Type") == "application/json" {
-			vars := mux.Vars(request)
-			key := vars["key"]
-			if len(key) == 0 {
-				http.Error(writer, "Need a key", http.StatusNotFound)
-				return
-			}
-			body, err := io.ReadAll(request.Body)
-			if err != nil {
-				http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			err = r.mockRouter.kvstore.Put(key, string(body))
-			if err != nil {
-				http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
-				return
-			}
-			writer.WriteHeader(http.StatusNoContent)
-		} else {
-			http.Error(writer, "Content-Type must be json", http.StatusUnsupportedMediaType)
-			return
-		}
-	} else {
-		http.Error(writer, "Only PUT is allowed", http.StatusMethodNotAllowed)
+	vars := mux.Vars(request)
+	key := vars["key"]
+	if len(key) == 0 {
+		http.Error(writer, "Need a key", http.StatusNotFound)
+		return
 	}
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = r.mockRouter.kvstore.Put(key, string(body))
+	if err != nil {
+		http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
 }
 
 func (r *ConfigRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearchNode) []*model.MockEndpoint {
@@ -84,7 +75,6 @@ func (r *ConfigRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearc
 }
 
 func (r *ConfigRouter) endpoints(writer http.ResponseWriter, request *http.Request) {
-	r.logger.LogAlways(fmt.Sprintf("Received request %v", request))
 	endpoints := []*model.MockEndpoint{}
 	endpoints = r.getEndpoints(endpoints, r.mockRouter.endpoints)
 	endPointResponse := &EndpointsResponse{Endpoints: endpoints}
