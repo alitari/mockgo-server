@@ -36,9 +36,30 @@ func NewConfigRouter(mockRouter *MockRouter, logger *utils.Logger) *ConfigRouter
 
 func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
-	router.NewRoute().Name("endpoints").Path("/endpoints").HandlerFunc(utils.RequestMustHave(http.MethodGet, "application/json", "application/json", nil, r.endpoints))
-	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "application/json", []string{"key"}, r.setKVStore))
+	router.NewRoute().Name("endpoints").Path("/endpoints").HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.endpoints))
+	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
+	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
 	r.router = router
+}
+
+func (r *ConfigRouter) getKVStore(writer http.ResponseWriter, request *http.Request) {
+	vars := mux.Vars(request)
+	key := vars["key"]
+	val, err := r.mockRouter.kvstore.Get(key)
+	if err != nil {
+		http.Error(writer, "Problem with getting kvstore value "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp, err := json.MarshalIndent(val, "", "    ")
+	if err != nil {
+		http.Error(writer, fmt.Sprintf("Cannot marshall response: %v", err), http.StatusInternalServerError)
+		return
+	}
+	_, err = io.WriteString(writer, string(resp))
+	if err != nil {
+		http.Error(writer, fmt.Sprintf("Cannot write response: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Request) {

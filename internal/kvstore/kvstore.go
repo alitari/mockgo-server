@@ -20,6 +20,6 @@ func (s *KVStore) Put(key string, value string) error {
 	return nil
 }
 
-func (s *KVStore) Get(key string) (interface{}, error) {
+func (s *KVStore) Get(key string) (*map[string]interface{}, error) {
 	return s.store[key], nil
 }

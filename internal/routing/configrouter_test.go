@@ -39,7 +39,7 @@ func TestConfigRouter_Endpoints(t *testing.T) {
 	assertConfigRouterResponse(configRouter.router.Get("endpoints").GetHandler(), testCases, t)
 }
 
-func TestConfigRouter_KVStore(t *testing.T) {
+func TestConfigRouter_SetKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
@@ -61,14 +61,35 @@ func TestConfigRouter_KVStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	switch value := value.(type) {
-	case *map[string]interface{}:
-		if fmt.Sprintf("%v", value) != "&map[mykey:myvalue]" {
-			t.Errorf("Expected kv store value of key %s, is %s , but is %s", "myapp", "&map[mykey:myvalue]", fmt.Sprintf("%v", value))
-		}
-	default:
-		t.Errorf("Wrong expected kvstore value type, expected is map[string]string, but is %T", value)
+	if fmt.Sprintf("%v", value) != "&map[mykey:myvalue]" {
+		t.Errorf("Expected kv store value of key %s, is %s , but is %s", "myapp", "&map[mykey:myvalue]", fmt.Sprintf("%v", value))
 	}
+}
+
+func TestConfigRouter_GetKVStore(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	val := "{ \"myconfig\": \"is here!\" }"
+	err := mockRouter.kvstore.Put("testapp", val)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testCases := []*configRouterTestCase{
+		{name: "GetKVStore",
+			request: createRequest(
+				http.MethodGet,
+				"http://somehost/kvstore/testapp",
+				"",
+				map[string][]string{headers.Accept: {"application/json"}},
+				map[string]string{"key": "testapp"},
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "../../test/expectedResponses/kvstoreValue.json",
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("getKVStore").GetHandler(), testCases, t)
 }
 
 func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterTestCase, t *testing.T) {
