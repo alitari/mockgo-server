@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/go-http-utils/headers"
 )
@@ -37,6 +39,57 @@ func TestConfigRouter_Endpoints(t *testing.T) {
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("endpoints").GetHandler(), testCases, t)
+}
+
+func TestConfigRouter_UploadKVStore(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	testCases := []*configRouterTestCase{
+		{name: "UploadKVStore",
+			request: createRequest(
+				http.MethodPut,
+				"http://somehost/kvstore/",
+				"{ \"store1\" : { \"mykey1\" : \"myvalue1\"}, \"store2\" : { \"mykey2\" : \"myvalue2\"} }",
+				map[string][]string{headers.ContentType: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusNoContent,
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("uploadKVStore").GetHandler(), testCases, t)
+	value := mockRouter.kvstore.GetAll()
+
+	if !strings.HasPrefix(fmt.Sprintf("%v", value), "map[store1:") {
+		t.Errorf("Expected kv store starts with  map[store1 , but is %s", fmt.Sprintf("%v", value))
+	}
+}
+
+func TestConfigRouter_DownloadKVStore(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+	store , err := kvstore.NewStoreWithContent("{ \"store1\" : { \"mykey1\" : \"myvalue1\"}, \"store2\" : { \"mykey2\" : \"myvalue2\"} }")
+	if err != nil {
+		t.Fatal(err)
+	}
+	configRouter.mockRouter.kvstore = store
+	
+	testCases := []*configRouterTestCase{
+		{name: "DownloadKVStore",
+			request: createRequest(
+				http.MethodGet,
+				"http://somehost/kvstore/",
+				"",
+				map[string][]string{headers.Accept: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "../../test/expectedResponses/kvstoreAll.json",
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("downloadKVStore").GetHandler(), testCases, t)
 }
 
 func TestConfigRouter_SetKVStore(t *testing.T) {

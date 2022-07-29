@@ -10,6 +10,15 @@ func NewStore() *KVStore {
 	return &KVStore{store: map[string]*map[string]interface{}{}}
 }
 
+func NewStoreWithContent(content string) (*KVStore, error) {
+	store := &map[string]*map[string]interface{}{}
+	err := json.Unmarshal([]byte(content), store)
+	if err != nil {
+		return nil, err
+	}
+	return &KVStore{store: *store}, nil
+}
+
 func (s *KVStore) Put(key string, value string) error {
 	jsonvalue := &map[string]interface{}{}
 	err := json.Unmarshal([]byte(value), jsonvalue)
@@ -22,4 +31,8 @@ func (s *KVStore) Put(key string, value string) error {
 
 func (s *KVStore) Get(key string) (*map[string]interface{}, error) {
 	return s.store[key], nil
+}
+
+func (s *KVStore) GetAll() map[string]*map[string]interface{} {
+	return s.store
 }

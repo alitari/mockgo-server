@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 
@@ -39,7 +40,38 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("endpoints").Path("/endpoints").HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.endpoints))
 	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
 	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
+	router.NewRoute().Name("uploadKVStore").Path("/kvstore/").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", nil, r.uploadKVStore))
+	router.NewRoute().Name("downloadKVStore").Path("/kvstore/").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.downloadKVStore))
 	r.router = router
+}
+
+func (r *ConfigRouter) downloadKVStore(writer http.ResponseWriter, request *http.Request) {
+	store := r.mockRouter.kvstore.GetAll()
+	storeBytes, err := json.Marshal(store)
+	if err != nil {
+		http.Error(writer, fmt.Sprintf("Cannot marshall response: %v", err), http.StatusInternalServerError)
+		return
+	}
+	_, err = io.WriteString(writer, string(storeBytes))
+	if err != nil {
+		http.Error(writer, fmt.Sprintf("Cannot write response: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (r *ConfigRouter) uploadKVStore(writer http.ResponseWriter, request *http.Request) {
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	store, err := kvstore.NewStoreWithContent(string(body))
+	if err != nil {
+		http.Error(writer, "Problem creating kvstore: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	r.mockRouter.kvstore = store
+	writer.WriteHeader(http.StatusNoContent)
 }
 
 func (r *ConfigRouter) getKVStore(writer http.ResponseWriter, request *http.Request) {
