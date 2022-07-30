@@ -145,6 +145,46 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 	assertConfigRouterResponse(configRouter.router.Get("getKVStore").GetHandler(), testCases, t)
 }
 
+func TestConfigRouter_SyncWithCluster(t *testing.T) {
+	var clusterNode1Request *http.Request
+	var clusterNode2Request *http.Request
+	clusterNode1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clusterNode1Request = r
+		io.WriteString(w, `{ "store1": { "key1" : "value1" }}`)
+	}))
+	defer clusterNode1.Close()
+
+	clusterNode2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clusterNode2Request = r
+	}))
+	defer clusterNode2.Close()
+
+	mockRouter := createMockRouter("simplemocks", t)
+	configRouter := NewConfigRouter(mockRouter, []string{clusterNode1.URL, clusterNode2.URL}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+	configRouter.SyncWithCluster()
+	if clusterNode1Request == nil {
+		t.Error("clusterNode1Request must exist")
+	}
+	if clusterNode2Request != nil {
+		t.Error("clusterNode2Request must not exist")
+	}
+
+	if clusterNode1Request.Method != http.MethodGet {
+		t.Errorf("clusterNode1Request.Method must be GET, but is %s ", clusterNode1Request.Method)
+	}
+
+	if clusterNode1Request.URL.Path != "/kvstore" {
+		t.Errorf("clusterNode1Request path must be /kvstore, but is '%s' ", clusterNode1Request.URL.Path)
+	}
+	store := mockRouter.kvstore.GetAll()
+
+	if !strings.HasPrefix(fmt.Sprintf("%v", store),"map[store1") {
+		t.Errorf("store:  must be map[store1, but is %s ", fmt.Sprintf("%v", store))
+	}
+
+}
+
 func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterTestCase, t *testing.T) {
 	for _, testCase := range testCases {
 		recorder := httptest.NewRecorder()
