@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,22 +20,26 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const NoAdvertiseHeader = "No-advertise"
+
 type ConfigRouter struct {
-	logger     *utils.Logger
-	router     *mux.Router
-	mockRouter *MockRouter
-	id         string
+	logger      *utils.Logger
+	router      *mux.Router
+	mockRouter  *MockRouter
+	id          string
+	clusterUrls []string
 }
 
 type EndpointsResponse struct {
 	Endpoints []*model.MockEndpoint
 }
 
-func NewConfigRouter(mockRouter *MockRouter, logger *utils.Logger) *ConfigRouter {
+func NewConfigRouter(mockRouter *MockRouter, clusterUrls []string, logger *utils.Logger) *ConfigRouter {
 	configRouter := &ConfigRouter{
-		mockRouter: mockRouter,
-		logger:     logger,
-		id:         uuid.New().String(),
+		mockRouter:  mockRouter,
+		clusterUrls: clusterUrls,
+		logger:      logger,
+		id:          uuid.New().String(),
 	}
 	configRouter.newRouter()
 	return configRouter
@@ -54,15 +59,14 @@ func (r *ConfigRouter) newRouter() {
 
 func (r *ConfigRouter) health(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
-
 }
 
-func (r *ConfigRouter) SyncWithCluster(clusterUrls []string) error {
-	if len(clusterUrls) == 0 {
+func (r *ConfigRouter) SyncWithCluster() error {
+	if len(r.clusterUrls) == 0 {
 		return nil
 	}
 	httpClient := http.Client{Timeout: time.Duration(1) * time.Second}
-	for _, clusterUrl := range clusterUrls {
+	for _, clusterUrl := range r.clusterUrls {
 		r.logger.LogWhenVerbose(fmt.Sprintf("syncing with : '%s'...", clusterUrl))
 		downloadKvstoreRequest, err := http.NewRequest(http.MethodGet, clusterUrl+"/kvstore", nil)
 		if err != nil {
@@ -98,41 +102,31 @@ func (r *ConfigRouter) SyncWithCluster(clusterUrls []string) error {
 	return nil
 }
 
-// func (r *ConfigRouter) identifyMyself(clusterUrls []string) error{
-// 	if len(clusterUrls) == 0 {
-// 		return nil
-// 	}
-// 	httpClient := http.Client{Timeout: time.Duration(1) * time.Second}
-// 	for _, clusterUrl := range clusterUrls {
-// 		idRequest, err := http.NewRequest("GET", clusterUrl+"/id", nil)
-// 		if err != nil {
-// 			r.logger.LogWhenVerbose(fmt.Sprintf("cluster server can't create request, answered with error: %v", err))
-// 			continue
-// 		}
-// 		idRequest.Header.Add("Accept", `application/text`)
-// 		idResponse, err := httpClient.Do(idRequest)
-// 		if err != nil {
-// 			r.logger.LogWhenVerbose(fmt.Sprintf("cluster server can't process request, answered with error: %v", err))
-// 			continue
-// 		}
-// 		if idResponse.StatusCode != http.StatusOK {
-// 			r.logger.LogWhenVerbose(fmt.Sprintf("cluster server can't process request, answered with status: %v", resp.StatusCode))
-// 			continue
-// 		}
-
-// 		defer idResponse.Body.Close()
-// 		idBytes, err := ioutil.ReadAll(idResponse.Body)
-// 		if err != nil {
-// 			r.logger.LogAlways(fmt.Sprintf("(ERROR) reading response from cluster url failed: %v ", err))
-// 			return err
-// 		}
-// 		if string(idBytes) == r.id {
-// 			r.myClusterUrl = clusterUrl
-// 			r.logger.LogWhenVerbose( fmt.Sprintf("Identified own url as %s",r.myClusterUrl))
-// 			return nil
-// 		}
-// 	}
-// }
+func (r *ConfigRouter) advertiseKVStore(key, value string) error {
+	httpClient := http.Client{Timeout: time.Duration(1) * time.Second}
+	for _, clusterUrl := range r.clusterUrls {
+		r.logger.LogWhenVerbose(fmt.Sprintf("syncing kvstore key '%s' with : '%s'...", key, clusterUrl))
+		setKVstoreRequest, err := http.NewRequest(http.MethodPut, clusterUrl+"/kvstore/"+key, bytes.NewBufferString(value))
+		if err != nil {
+			r.logger.LogWhenVerbose(fmt.Sprintf("advertise KVStore: can't create request, error: %v", err))
+			return err
+		}
+		setKVstoreRequest.Header.Add(NoAdvertiseHeader, "true")
+		setKVstoreRequest.Header.Add(headers.ContentType, "application/json")
+		setKVstoreResponse, err := httpClient.Do(setKVstoreRequest)
+		if err != nil {
+			r.logger.LogWhenVerbose(fmt.Sprintf("advertise KVStore: cluster node can't process request, answered with error: %v", err))
+			return err
+		}
+		defer setKVstoreResponse.Body.Close()
+		if setKVstoreResponse.StatusCode != http.StatusNoContent {
+			r.logger.LogWhenVerbose(fmt.Sprintf("advertise KVStore: cluster node can't process request, answered with status: %v\n", setKVstoreResponse.StatusCode))
+			return err
+		}
+		r.logger.LogWhenVerbose("synced successfully!")
+	}
+	return nil
+}
 
 func (r *ConfigRouter) serverId(writer http.ResponseWriter, request *http.Request) {
 	_, err := io.WriteString(writer, r.id)
@@ -200,12 +194,21 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	err = r.mockRouter.kvstore.Put(key, string(body))
-	if err != nil {
-		http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
-		return
+	if request.Header.Get(NoAdvertiseHeader) == "true" {
+		err = r.mockRouter.kvstore.Put(key, string(body))
+		if err != nil {
+			http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	} else {
+		err := r.advertiseKVStore(key, string(body))
+		if err != nil {
+			http.Error(writer, "Problem advertising kvstore value : "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writer.WriteHeader(http.StatusNoContent)
 	}
-	writer.WriteHeader(http.StatusNoContent)
 }
 
 func (r *ConfigRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearchNode) []*model.MockEndpoint {

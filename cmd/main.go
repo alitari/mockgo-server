@@ -56,8 +56,8 @@ func main() {
 		log.Fatalf("(FATAL) Can't load files: %v", err)
 	}
 
-	configRouter := routing.NewConfigRouter(mockRouter, logger)
-	err = configRouter.SyncWithCluster(config.ClusterUrls)
+	configRouter := routing.NewConfigRouter(mockRouter, config.ClusterUrls, logger)
+	err = configRouter.SyncWithCluster()
 	if err != nil {
 		log.Fatalf("(FATAL) Can't sync with cluster: %v\n", err)
 	}

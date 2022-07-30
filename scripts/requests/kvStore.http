@@ -1,0 +1,29 @@
+@port = 8085
+@host = localhost
+@protocol = http
+
+### set kvstore value no adv
+
+PUT {{protocol}}://{{host}}:{{port}}/kvstore/store1
+Content-Type: application/json
+No-advertise: true
+
+{
+    "store1Key": "8081 change"
+}
+
+### set kvstore value
+
+PUT {{protocol}}://{{host}}:{{port}}/kvstore/store1
+Content-Type: application/json
+
+{
+    "store1Key": "8081 change"
+}
+
+### get kvstore value
+
+GET {{protocol}}://{{host}}:{{port}}/kvstore/store1
+Accept: application/json
+
+
