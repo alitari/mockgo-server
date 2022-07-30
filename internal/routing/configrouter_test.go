@@ -1,17 +1,16 @@
 package routing
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/go-http-utils/headers"
+	"github.com/stretchr/testify/assert"
 )
 
 type configRouterTestCase struct {
@@ -59,11 +58,7 @@ func TestConfigRouter_UploadKVStore(t *testing.T) {
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("uploadKVStore").GetHandler(), testCases, t)
-	value := mockRouter.kvstore.GetAll()
-
-	if !strings.HasPrefix(fmt.Sprintf("%v", value), "map[store1:") {
-		t.Errorf("Expected kv store starts with  map[store1 , but is %s", fmt.Sprintf("%v", value))
-	}
+	assert.Equal(t, map[string]*map[string]interface{}{"store1": {"mykey1": "myvalue1"}, "store2": {"mykey2": "myvalue2"}}, mockRouter.kvstore.GetAll())
 }
 
 func TestConfigRouter_DownloadKVStore(t *testing.T) {
@@ -71,9 +66,7 @@ func TestConfigRouter_DownloadKVStore(t *testing.T) {
 	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 	store, err := kvstore.NewStoreWithContent("{ \"store1\" : { \"mykey1\" : \"myvalue1\"}, \"store2\" : { \"mykey2\" : \"myvalue2\"} }")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	configRouter.mockRouter.kvstore = store
 
 	testCases := []*configRouterTestCase{
@@ -111,12 +104,8 @@ func TestConfigRouter_SetKVStore(t *testing.T) {
 	}
 	assertConfigRouterResponse(configRouter.router.Get("setKVStore").GetHandler(), testCases, t)
 	value, err := mockRouter.kvstore.Get("testapp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if fmt.Sprintf("%v", value) != "&map[mykey:myvalue]" {
-		t.Errorf("Expected kv store value of key %s, is %s , but is %s", "myapp", "&map[mykey:myvalue]", fmt.Sprintf("%v", value))
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, &map[string]interface{}{"mykey": "myvalue"}, value)
 }
 
 func TestConfigRouter_GetKVStore(t *testing.T) {
@@ -126,9 +115,8 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 
 	val := "{ \"myconfig\": \"is here!\" }"
 	err := mockRouter.kvstore.Put("testapp", val)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
+
 	testCases := []*configRouterTestCase{
 		{name: "GetKVStore",
 			request: createRequest(
@@ -163,52 +151,26 @@ func TestConfigRouter_SyncWithCluster(t *testing.T) {
 	configRouter := NewConfigRouter(mockRouter, []string{clusterNode1.URL, clusterNode2.URL}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 	configRouter.SyncWithCluster()
-	if clusterNode1Request == nil {
-		t.Error("clusterNode1Request must exist")
-	}
-	if clusterNode2Request != nil {
-		t.Error("clusterNode2Request must not exist")
-	}
 
-	if clusterNode1Request.Method != http.MethodGet {
-		t.Errorf("clusterNode1Request.Method must be GET, but is %s ", clusterNode1Request.Method)
-	}
-
-	if clusterNode1Request.URL.Path != "/kvstore" {
-		t.Errorf("clusterNode1Request path must be /kvstore, but is '%s' ", clusterNode1Request.URL.Path)
-	}
-	store := mockRouter.kvstore.GetAll()
-
-	if !strings.HasPrefix(fmt.Sprintf("%v", store),"map[store1") {
-		t.Errorf("store:  must be map[store1, but is %s ", fmt.Sprintf("%v", store))
-	}
-
+	assert.NotNil(t, clusterNode1Request, "clusterNode1Request must exist")
+	assert.Nil(t, clusterNode2Request, "clusterNode2Request must not exist")
+	assert.Equal(t, http.MethodGet, clusterNode1Request.Method, "clusterNode1Request.Method unexpected")
+	assert.Equal(t, "/kvstore", clusterNode1Request.URL.Path, "clusterNode1Request path unexpected")
+	assert.Equal(t, map[string]*map[string]interface{}{"store1": {"key1": "value1"}}, mockRouter.kvstore.GetAll())
 }
 
 func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterTestCase, t *testing.T) {
 	for _, testCase := range testCases {
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder, testCase.request)
-		if testCase.expectedResponseStatusCode != recorder.Result().StatusCode {
-			t.Errorf("Expected status code %v, but is %v", testCase.expectedResponseStatusCode, recorder.Result().StatusCode)
-		}
+		assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode, "response status code unexpected")
 		responseBody, err := io.ReadAll(recorder.Result().Body)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NoError(t, err)
 
 		if len(testCase.expectedResponseFile) > 0 {
 			expectedResponse, err := os.ReadFile(testCase.expectedResponseFile)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if string(expectedResponse) != string(responseBody) {
-				t.Errorf("Expected response  is:\n%s,\nbut is:\n%s", expectedResponse, responseBody)
-			}
-		}
-
-		if !t.Failed() {
-			t.Logf("testcase '%s':'%s' passed", t.Name(), testCase.name)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedResponse, responseBody)
 		}
 	}
 }
