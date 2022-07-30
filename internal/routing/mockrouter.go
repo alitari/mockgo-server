@@ -44,9 +44,9 @@ type MockRouter struct {
 	mockFilepattern     string
 	responseDir         string
 	responseFilepattern string
+	responseFiles       map[string]*template.Template // responseFilename -> template
 	logger              *utils.Logger
 	endpoints           *epSearchNode
-	responseFiles       map[string]*template.Template // responseFilename -> template
 	router              *mux.Router
 	kvstore             *kvstore.KVStore
 }
@@ -406,7 +406,3 @@ func (r *MockRouter) ListenAndServe(port int) {
 		log.Fatalf("Can't serve on port %v", port)
 	}
 }
-
-
-
-

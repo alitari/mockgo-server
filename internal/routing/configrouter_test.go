@@ -23,7 +23,7 @@ type configRouterTestCase struct {
 
 func TestConfigRouter_Endpoints(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 	testCases := []*configRouterTestCase{
 		{name: "Endpoints",
@@ -43,7 +43,7 @@ func TestConfigRouter_Endpoints(t *testing.T) {
 
 func TestConfigRouter_UploadKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
 	testCases := []*configRouterTestCase{
@@ -68,14 +68,14 @@ func TestConfigRouter_UploadKVStore(t *testing.T) {
 
 func TestConfigRouter_DownloadKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
-	store , err := kvstore.NewStoreWithContent("{ \"store1\" : { \"mykey1\" : \"myvalue1\"}, \"store2\" : { \"mykey2\" : \"myvalue2\"} }")
+	store, err := kvstore.NewStoreWithContent("{ \"store1\" : { \"mykey1\" : \"myvalue1\"}, \"store2\" : { \"mykey2\" : \"myvalue2\"} }")
 	if err != nil {
 		t.Fatal(err)
 	}
 	configRouter.mockRouter.kvstore = store
-	
+
 	testCases := []*configRouterTestCase{
 		{name: "DownloadKVStore",
 			request: createRequest(
@@ -94,7 +94,7 @@ func TestConfigRouter_DownloadKVStore(t *testing.T) {
 
 func TestConfigRouter_SetKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
 	testCases := []*configRouterTestCase{
@@ -121,7 +121,7 @@ func TestConfigRouter_SetKVStore(t *testing.T) {
 
 func TestConfigRouter_GetKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
 	val := "{ \"myconfig\": \"is here!\" }"
