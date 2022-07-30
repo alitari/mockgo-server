@@ -4,13 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
+	"github.com/google/uuid"
 
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
@@ -20,6 +23,7 @@ type ConfigRouter struct {
 	logger     *utils.Logger
 	router     *mux.Router
 	mockRouter *MockRouter
+	id         string
 }
 
 type EndpointsResponse struct {
@@ -30,6 +34,7 @@ func NewConfigRouter(mockRouter *MockRouter, logger *utils.Logger) *ConfigRouter
 	configRouter := &ConfigRouter{
 		mockRouter: mockRouter,
 		logger:     logger,
+		id:         uuid.New().String(),
 	}
 	configRouter.newRouter()
 	return configRouter
@@ -40,9 +45,102 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("endpoints").Path("/endpoints").HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.endpoints))
 	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
 	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
-	router.NewRoute().Name("uploadKVStore").Path("/kvstore/").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", nil, r.uploadKVStore))
-	router.NewRoute().Name("downloadKVStore").Path("/kvstore/").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.downloadKVStore))
+	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", nil, r.uploadKVStore))
+	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.downloadKVStore))
+	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "", nil, r.health))
+	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/text", nil, r.serverId))
 	r.router = router
+}
+
+func (r *ConfigRouter) health(writer http.ResponseWriter, request *http.Request) {
+	writer.WriteHeader(http.StatusOK)
+
+}
+
+func (r *ConfigRouter) SyncWithCluster(clusterUrls []string) error {
+	if len(clusterUrls) == 0 {
+		return nil
+	}
+	httpClient := http.Client{Timeout: time.Duration(1) * time.Second}
+	for _, clusterUrl := range clusterUrls {
+		r.logger.LogWhenVerbose(fmt.Sprintf("syncing with : '%s'...", clusterUrl))
+		downloadKvstoreRequest, err := http.NewRequest(http.MethodGet, clusterUrl+"/kvstore", nil)
+		if err != nil {
+			r.logger.LogWhenVerbose(fmt.Sprintf("can't create request, error: %v", err))
+			continue
+		}
+		downloadKvstoreRequest.Header.Add(headers.Accept, `application/json`)
+		downloadKvstoreResponse, err := httpClient.Do(downloadKvstoreRequest)
+		if err != nil {
+			r.logger.LogWhenVerbose(fmt.Sprintf("cluster node can't process request, answered with error: %v", err))
+			continue
+		}
+		defer downloadKvstoreResponse.Body.Close()
+		if downloadKvstoreResponse.StatusCode != http.StatusOK {
+			r.logger.LogWhenVerbose(fmt.Sprintf("cluster node can't process request, answered with status: %v\n", downloadKvstoreResponse.StatusCode))
+			continue
+		}
+
+		storeBytes, err := ioutil.ReadAll(downloadKvstoreResponse.Body)
+		if err != nil {
+			r.logger.LogAlways(fmt.Sprintf("(ERROR) reading response from cluster url failed: %v ", err))
+			return err
+		}
+		store, err := kvstore.NewStoreWithContent(string(storeBytes))
+		if err != nil {
+			r.logger.LogAlways(fmt.Sprintf("(ERROR) creating new kvstore downloaded from clusterurl '%s' failed: %v ", clusterUrl, err))
+			return err
+		}
+		r.mockRouter.kvstore = store
+		r.logger.LogWhenVerbose(fmt.Sprintf("syncing completed, kvstore successfully downloaded from clusterurl '%s' ", clusterUrl))
+		return nil
+	}
+	return nil
+}
+
+// func (r *ConfigRouter) identifyMyself(clusterUrls []string) error{
+// 	if len(clusterUrls) == 0 {
+// 		return nil
+// 	}
+// 	httpClient := http.Client{Timeout: time.Duration(1) * time.Second}
+// 	for _, clusterUrl := range clusterUrls {
+// 		idRequest, err := http.NewRequest("GET", clusterUrl+"/id", nil)
+// 		if err != nil {
+// 			r.logger.LogWhenVerbose(fmt.Sprintf("cluster server can't create request, answered with error: %v", err))
+// 			continue
+// 		}
+// 		idRequest.Header.Add("Accept", `application/text`)
+// 		idResponse, err := httpClient.Do(idRequest)
+// 		if err != nil {
+// 			r.logger.LogWhenVerbose(fmt.Sprintf("cluster server can't process request, answered with error: %v", err))
+// 			continue
+// 		}
+// 		if idResponse.StatusCode != http.StatusOK {
+// 			r.logger.LogWhenVerbose(fmt.Sprintf("cluster server can't process request, answered with status: %v", resp.StatusCode))
+// 			continue
+// 		}
+
+// 		defer idResponse.Body.Close()
+// 		idBytes, err := ioutil.ReadAll(idResponse.Body)
+// 		if err != nil {
+// 			r.logger.LogAlways(fmt.Sprintf("(ERROR) reading response from cluster url failed: %v ", err))
+// 			return err
+// 		}
+// 		if string(idBytes) == r.id {
+// 			r.myClusterUrl = clusterUrl
+// 			r.logger.LogWhenVerbose( fmt.Sprintf("Identified own url as %s",r.myClusterUrl))
+// 			return nil
+// 		}
+// 	}
+// }
+
+func (r *ConfigRouter) serverId(writer http.ResponseWriter, request *http.Request) {
+	_, err := io.WriteString(writer, r.id)
+	if err != nil {
+		http.Error(writer, fmt.Sprintf("Cannot write response: %v", err), http.StatusInternalServerError)
+		return
+	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (r *ConfigRouter) downloadKVStore(writer http.ResponseWriter, request *http.Request) {
@@ -148,6 +246,6 @@ func (r *ConfigRouter) endpoints(writer http.ResponseWriter, request *http.Reque
 }
 
 func (r *ConfigRouter) ListenAndServe(port int) {
-	r.logger.LogAlways(fmt.Sprintf("Serving admin endpoints on port %v", port))
+	r.logger.LogAlways(fmt.Sprintf("Serving config endpoints on port %v", port))
 	http.ListenAndServe(":"+strconv.Itoa(port), r.router)
 }
