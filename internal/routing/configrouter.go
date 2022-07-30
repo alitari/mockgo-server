@@ -194,7 +194,7 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if request.Header.Get(NoAdvertiseHeader) == "true" {
+	if len(r.clusterUrls) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
 		err = r.mockRouter.kvstore.Put(key, string(body))
 		if err != nil {
 			http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
