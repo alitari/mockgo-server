@@ -11,6 +11,7 @@ import (
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/kelseyhightower/envconfig"
+
 )
 
 const banner = `
@@ -23,9 +24,6 @@ Configuration:     |___/
 `
 
 var logger *utils.Logger
-
-var mockRouter *mock.MockRouter
-var configRouter *config.ConfigRouter
 
 type Configuration struct {
 	Verbose             bool     `default:"true"`
@@ -50,31 +48,43 @@ Cluster URLs: '%v'`, c.Verbose, c.ConfigPort, c.MockPort, c.MockDir, c.MockFilep
 }
 
 func main() {
+	configuration := createConfiguration()
+	logger = &utils.Logger{Verbose: configuration.Verbose}
+	logger.LogAlways(banner + configuration.info())
+
+	mockRouter := createMockRouter(configuration, logger)
+	configRouter := createConfigRouter(configuration, mockRouter, logger)
+
+	go startServe(configRouter)
+	startServe(mockRouter)
+}
+
+func createConfiguration() *Configuration {
 	configuration := Configuration{}
 	if err := envconfig.Process("", &configuration); err != nil {
 		log.Fatal(err)
 	}
-	logger = &utils.Logger{Verbose: configuration.Verbose}
+	return &configuration
+}
 
-	logger.LogAlways(banner + configuration.info())
-
-	var err error
-	mockRouter, err = mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.ResponseFilepattern, configuration.MockPort, logger)
+func createMockRouter(configuration *Configuration, logger *utils.Logger) *mock.MockRouter {
+	mockRouter, err := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.ResponseFilepattern, configuration.MockPort, logger)
 	if err != nil {
 		log.Fatalf("(FATAL) Can't load files: %v", err)
 	}
+	return mockRouter
+}
 
-	configRouter = config.NewConfigRouter(mockRouter, configuration.ConfigPort, configuration.ClusterUrls, logger)
-	err = configRouter.SyncWithCluster()
+func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, logger *utils.Logger) *config.ConfigRouter {
+	configRouter := config.NewConfigRouter(mockRouter, configuration.ConfigPort, configuration.ClusterUrls, logger)
+	err := configRouter.SyncWithCluster()
 	if err != nil {
 		log.Fatalf("(FATAL) Can't sync with cluster: %v\n", err)
 	}
-
-	go listenAndServe(configRouter)
-	listenAndServe(mockRouter)
+	return configRouter
 }
 
-func listenAndServe(serving model.Serving) error {
+func startServe(serving model.Serving) error {
 	logger.LogAlways(fmt.Sprintf("Serving on port %v", serving.Port()))
 	s := serving.Server()
 	err := s.ListenAndServe()
@@ -85,7 +95,7 @@ func listenAndServe(serving model.Serving) error {
 }
 
 func stopServe(serving model.Serving) {
-	logger.LogAlways("Stop Serving ")
+	logger.LogAlways(fmt.Sprintf("Stop Serving on port %d", serving.Port()))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := serving.Server().Shutdown(ctx); err != nil {
