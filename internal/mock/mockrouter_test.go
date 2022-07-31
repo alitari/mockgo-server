@@ -1,4 +1,4 @@
-package routing
+package mock
 
 import (
 	"io"
@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig"
+	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/gorilla/mux"
@@ -127,6 +128,7 @@ func TestMatchRequestToEndpoint_Prio(t *testing.T) {
 
 func TestRenderResponse_Simple(t *testing.T) {
 	mockRouter := createMockRouter("responseRendering", t)
+	kvstore.NewStore()
 	expectedResponseResult := `{
     "requestUrl": "https://coolhost.cooldomain.com/coolpath",
     "requestPathParams": "map[myparam1:myvalue]",
@@ -188,7 +190,7 @@ func createRequest(method, url, bodyStr string, header map[string][]string, urlV
 func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestCase, t *testing.T) {
 	for _, testCase := range testCases {
 		if len(testCase.kvstoreJson) > 0 {
-			err := mockRouter.kvstore.Put("testkey", testCase.kvstoreJson)
+			err := kvstore.TheKVStore.Put("testkey", testCase.kvstoreJson)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -260,7 +262,7 @@ func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingT
 }
 
 func createMockRouter(testMockDir string, t *testing.T) *MockRouter {
-	mockRouter, err := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	mockRouter, err := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json",0, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	if err != nil {
 		t.Fatalf("Can't create mock router: %v", err)
 	}

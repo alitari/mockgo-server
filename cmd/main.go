@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"time"
 
-	"github.com/alitari/mockgo-server/internal/routing"
+	"github.com/alitari/mockgo-server/internal/config"
+	"github.com/alitari/mockgo-server/internal/mock"
+	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -19,6 +23,9 @@ Configuration:     |___/
 `
 
 var logger *utils.Logger
+
+var mockRouter *mock.MockRouter
+var configRouter *config.ConfigRouter
 
 type Configuration struct {
 	Verbose             bool     `default:"true"`
@@ -43,26 +50,45 @@ Cluster URLs: '%v'`, c.Verbose, c.ConfigPort, c.MockPort, c.MockDir, c.MockFilep
 }
 
 func main() {
-	config := Configuration{}
-	if err := envconfig.Process("", &config); err != nil {
+	configuration := Configuration{}
+	if err := envconfig.Process("", &configuration); err != nil {
 		log.Fatal(err)
 	}
-	logger = &utils.Logger{Verbose: config.Verbose}
+	logger = &utils.Logger{Verbose: configuration.Verbose}
 
-	logger.LogAlways(banner + config.info())
+	logger.LogAlways(banner + configuration.info())
 
-	mockRouter, err := routing.NewMockRouter(config.MockDir, config.MockFilepattern, config.ResponseDir, config.ResponseFilepattern, logger)
+	var err error
+	mockRouter, err = mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.ResponseFilepattern, configuration.MockPort, logger)
 	if err != nil {
 		log.Fatalf("(FATAL) Can't load files: %v", err)
 	}
 
-	configRouter := routing.NewConfigRouter(mockRouter, config.ClusterUrls, logger)
+	configRouter = config.NewConfigRouter(mockRouter, configuration.ConfigPort, configuration.ClusterUrls, logger)
 	err = configRouter.SyncWithCluster()
 	if err != nil {
 		log.Fatalf("(FATAL) Can't sync with cluster: %v\n", err)
 	}
 
-	go configRouter.ListenAndServe(config.ConfigPort)
+	go listenAndServe(configRouter)
+	listenAndServe(mockRouter)
+}
 
-	mockRouter.ListenAndServe(config.MockPort)
+func listenAndServe(serving model.Serving) error {
+	logger.LogAlways(fmt.Sprintf("Serving on port %v", serving.Port()))
+	s := serving.Server()
+	err := s.ListenAndServe()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func stopServe(serving model.Serving) {
+	logger.LogAlways("Stop Serving ")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := serving.Server().Shutdown(ctx); err != nil {
+		log.Fatalf("Can't stop server %v", err)
+	}
 }
