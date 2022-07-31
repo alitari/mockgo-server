@@ -6,17 +6,20 @@ type KVStore struct {
 	store map[string]*map[string]interface{}
 }
 
-func NewStore() *KVStore {
-	return &KVStore{store: map[string]*map[string]interface{}{}}
+var TheKVStore *KVStore
+
+func NewStore() {
+	TheKVStore = &KVStore{store: map[string]*map[string]interface{}{}}
 }
 
-func NewStoreWithContent(content string) (*KVStore, error) {
+func NewStoreWithContent(content string) error {
 	store := &map[string]*map[string]interface{}{}
 	err := json.Unmarshal([]byte(content), store)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &KVStore{store: *store}, nil
+	TheKVStore = &KVStore{store: *store}
+	return nil
 }
 
 func (s *KVStore) Put(key string, value string) error {

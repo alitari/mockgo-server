@@ -1,4 +1,4 @@
-package routing
+package config
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/alitari/mockgo-server/internal/kvstore"
+	"github.com/alitari/mockgo-server/internal/mock"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/google/uuid"
@@ -23,26 +24,41 @@ import (
 const NoAdvertiseHeader = "No-advertise"
 
 type ConfigRouter struct {
-	logger      *utils.Logger
+	mockRouter  *mock.MockRouter
 	router      *mux.Router
-	mockRouter  *MockRouter
+	server      *http.Server
+	port        int
 	id          string
 	clusterUrls []string
+	logger      *utils.Logger
 }
 
 type EndpointsResponse struct {
 	Endpoints []*model.MockEndpoint
 }
 
-func NewConfigRouter(mockRouter *MockRouter, clusterUrls []string, logger *utils.Logger) *ConfigRouter {
+func NewConfigRouter(mockRouter *mock.MockRouter, port int, clusterUrls []string, logger *utils.Logger) *ConfigRouter {
 	configRouter := &ConfigRouter{
 		mockRouter:  mockRouter,
+		port:        port,
 		clusterUrls: clusterUrls,
-		logger:      logger,
 		id:          uuid.New().String(),
+		logger:      logger,
 	}
 	configRouter.newRouter()
 	return configRouter
+}
+
+func (r *ConfigRouter) Router() *mux.Router {
+	return r.router
+}
+
+func (r *ConfigRouter) Server() *http.Server {
+	return r.server
+}
+
+func (r *ConfigRouter) Port() int {
+	return r.port
 }
 
 func (r *ConfigRouter) newRouter() {
@@ -55,6 +71,7 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "", nil, r.health))
 	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/text", nil, r.serverId))
 	r.router = router
+	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: router}
 }
 
 func (r *ConfigRouter) health(writer http.ResponseWriter, request *http.Request) {
@@ -90,12 +107,12 @@ func (r *ConfigRouter) SyncWithCluster() error {
 			r.logger.LogAlways(fmt.Sprintf("(ERROR) reading response from cluster url failed: %v ", err))
 			return err
 		}
-		store, err := kvstore.NewStoreWithContent(string(storeBytes))
+		err = kvstore.NewStoreWithContent(string(storeBytes))
 		if err != nil {
 			r.logger.LogAlways(fmt.Sprintf("(ERROR) creating new kvstore downloaded from clusterurl '%s' failed: %v ", clusterUrl, err))
 			return err
 		}
-		r.mockRouter.kvstore = store
+
 		r.logger.LogWhenVerbose(fmt.Sprintf("syncing completed, kvstore successfully downloaded from clusterurl '%s' ", clusterUrl))
 		return nil
 	}
@@ -138,7 +155,7 @@ func (r *ConfigRouter) serverId(writer http.ResponseWriter, request *http.Reques
 }
 
 func (r *ConfigRouter) downloadKVStore(writer http.ResponseWriter, request *http.Request) {
-	store := r.mockRouter.kvstore.GetAll()
+	store := kvstore.TheKVStore.GetAll()
 	storeBytes, err := json.Marshal(store)
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("Cannot marshall response: %v", err), http.StatusInternalServerError)
@@ -157,19 +174,18 @@ func (r *ConfigRouter) uploadKVStore(writer http.ResponseWriter, request *http.R
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	store, err := kvstore.NewStoreWithContent(string(body))
+	err = kvstore.NewStoreWithContent(string(body))
 	if err != nil {
 		http.Error(writer, "Problem creating kvstore: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	r.mockRouter.kvstore = store
 	writer.WriteHeader(http.StatusNoContent)
 }
 
 func (r *ConfigRouter) getKVStore(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	key := vars["key"]
-	val, err := r.mockRouter.kvstore.Get(key)
+	val, err := kvstore.TheKVStore.Get(key)
 	if err != nil {
 		http.Error(writer, "Problem with getting kvstore value "+err.Error(), http.StatusInternalServerError)
 		return
@@ -195,7 +211,7 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	if len(r.clusterUrls) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
-		err = r.mockRouter.kvstore.Put(key, string(body))
+		err = kvstore.TheKVStore.Put(key, string(body))
 		if err != nil {
 			http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
 			return
@@ -211,14 +227,14 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 	}
 }
 
-func (r *ConfigRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearchNode) []*model.MockEndpoint {
-	for _, sns := range sn.searchNodes {
-		if sns.endpoints != nil {
-			for _, epMethodMap := range sns.endpoints {
+func (r *ConfigRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *model.EpSearchNode) []*model.MockEndpoint {
+	for _, sns := range sn.SearchNodes {
+		if sns.Endpoints != nil {
+			for _, epMethodMap := range sns.Endpoints {
 				endpoints = append(endpoints, epMethodMap...)
 			}
 		}
-		if sns.searchNodes != nil {
+		if sns.SearchNodes != nil {
 			endpoints = append(endpoints, r.getEndpoints(endpoints, sns)...)
 		}
 	}
@@ -227,7 +243,7 @@ func (r *ConfigRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *epSearc
 
 func (r *ConfigRouter) endpoints(writer http.ResponseWriter, request *http.Request) {
 	endpoints := []*model.MockEndpoint{}
-	endpoints = r.getEndpoints(endpoints, r.mockRouter.endpoints)
+	endpoints = r.getEndpoints(endpoints, r.mockRouter.EpSearchNode)
 	sort.SliceStable(endpoints, func(i, j int) bool {
 		return endpoints[i].Id < endpoints[j].Id
 	})
@@ -246,9 +262,4 @@ func (r *ConfigRouter) endpoints(writer http.ResponseWriter, request *http.Reque
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-}
-
-func (r *ConfigRouter) ListenAndServe(port int) {
-	r.logger.LogAlways(fmt.Sprintf("Serving config endpoints on port %v", port))
-	http.ListenAndServe(":"+strconv.Itoa(port), r.router)
 }

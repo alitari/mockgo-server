@@ -1,6 +1,17 @@
 package model
 
-import "text/template"
+import (
+	"net/http"
+	"text/template"
+
+	"github.com/gorilla/mux"
+)
+
+type Serving interface {
+	Router() *mux.Router
+	Server() *http.Server
+	Port() int
+}
 
 type MatchRequest struct {
 	Scheme  string            `yaml:"scheme" json:"scheme"`
@@ -30,4 +41,10 @@ type MockEndpoint struct {
 type Mock struct {
 	Name      string          `yaml:"name" json:"name"`
 	Endpoints []*MockEndpoint `yaml:"endpoints" json:"-"`
+}
+
+type EpSearchNode struct {
+	SearchNodes   map[string]*EpSearchNode
+	Endpoints     map[string][]*MockEndpoint
+	PathParamName string
 }

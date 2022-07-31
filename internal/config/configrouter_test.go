@@ -1,15 +1,18 @@
-package routing
+package config
 
 import (
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/alitari/mockgo-server/internal/kvstore"
+	"github.com/alitari/mockgo-server/internal/mock"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/go-http-utils/headers"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +25,7 @@ type configRouterTestCase struct {
 
 func TestConfigRouter_Endpoints(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter, 0,[]string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 	testCases := []*configRouterTestCase{
 		{name: "Endpoints",
@@ -42,7 +45,7 @@ func TestConfigRouter_Endpoints(t *testing.T) {
 
 func TestConfigRouter_UploadKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter,0, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
 	testCases := []*configRouterTestCase{
@@ -58,16 +61,15 @@ func TestConfigRouter_UploadKVStore(t *testing.T) {
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("uploadKVStore").GetHandler(), testCases, t)
-	assert.Equal(t, map[string]*map[string]interface{}{"store1": {"mykey1": "myvalue1"}, "store2": {"mykey2": "myvalue2"}}, mockRouter.kvstore.GetAll())
+	assert.Equal(t, map[string]*map[string]interface{}{"store1": {"mykey1": "myvalue1"}, "store2": {"mykey2": "myvalue2"}}, kvstore.TheKVStore.GetAll())
 }
 
 func TestConfigRouter_DownloadKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter, 0, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
-	store, err := kvstore.NewStoreWithContent("{ \"store1\" : { \"mykey1\" : \"myvalue1\"}, \"store2\" : { \"mykey2\" : \"myvalue2\"} }")
+	err := kvstore.NewStoreWithContent("{ \"store1\" : { \"mykey1\" : \"myvalue1\"}, \"store2\" : { \"mykey2\" : \"myvalue2\"} }")
 	assert.NoError(t, err)
-	configRouter.mockRouter.kvstore = store
 
 	testCases := []*configRouterTestCase{
 		{name: "DownloadKVStore",
@@ -87,7 +89,7 @@ func TestConfigRouter_DownloadKVStore(t *testing.T) {
 
 func TestConfigRouter_SetKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter,0, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
 	testCases := []*configRouterTestCase{
@@ -103,18 +105,18 @@ func TestConfigRouter_SetKVStore(t *testing.T) {
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("setKVStore").GetHandler(), testCases, t)
-	value, err := mockRouter.kvstore.Get("testapp")
+	value, err := kvstore.TheKVStore.Get("testapp")
 	assert.NoError(t, err)
 	assert.Equal(t, &map[string]interface{}{"mykey": "myvalue"}, value)
 }
 
 func TestConfigRouter_GetKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter,0, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
 	val := "{ \"myconfig\": \"is here!\" }"
-	err := mockRouter.kvstore.Put("testapp", val)
+	err := kvstore.TheKVStore.Put("testapp", val)
 	assert.NoError(t, err)
 
 	testCases := []*configRouterTestCase{
@@ -148,7 +150,7 @@ func TestConfigRouter_SyncWithCluster(t *testing.T) {
 	defer clusterNode2.Close()
 
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, []string{clusterNode1.URL, clusterNode2.URL}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter,0, []string{clusterNode1.URL, clusterNode2.URL}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 	configRouter.SyncWithCluster()
 
@@ -156,7 +158,7 @@ func TestConfigRouter_SyncWithCluster(t *testing.T) {
 	assert.Nil(t, clusterNode2Request, "clusterNode2Request must not exist")
 	assert.Equal(t, http.MethodGet, clusterNode1Request.Method, "clusterNode1Request.Method unexpected")
 	assert.Equal(t, "/kvstore", clusterNode1Request.URL.Path, "clusterNode1Request path unexpected")
-	assert.Equal(t, map[string]*map[string]interface{}{"store1": {"key1": "value1"}}, mockRouter.kvstore.GetAll())
+	assert.Equal(t, map[string]*map[string]interface{}{"store1": {"key1": "value1"}}, kvstore.TheKVStore.GetAll())
 }
 
 func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterTestCase, t *testing.T) {
@@ -173,4 +175,21 @@ func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterT
 			assert.Equal(t, expectedResponse, responseBody)
 		}
 	}
+}
+
+func createMockRouter(testMockDir string, t *testing.T) *mock.MockRouter {
+	mockRouter, err := mock.NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	assert.NoError(t, err, "Can't create mock router")
+	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
+	return mockRouter
+}
+
+func createRequest(method, url, bodyStr string, header map[string][]string, urlVars map[string]string, t *testing.T) *http.Request {
+	body := io.NopCloser(strings.NewReader(bodyStr))
+	request:= httptest.NewRequest(method, url, body)
+	request.Header = header
+	if urlVars != nil {
+		request = mux.SetURLVars(request, urlVars)
+	}
+	return request
 }

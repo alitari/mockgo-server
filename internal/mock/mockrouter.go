@@ -1,11 +1,10 @@
-package routing
+package mock
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -14,19 +13,12 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig"
-	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"gopkg.in/yaml.v2"
 
 	"github.com/gorilla/mux"
 )
-
-type epSearchNode struct {
-	searchNodes   map[string]*epSearchNode
-	endpoints     map[string][]*model.MockEndpoint
-	pathParamName string
-}
 
 type ResponseTemplateData struct {
 	RequestPathParams   map[string]string
@@ -44,23 +36,24 @@ type MockRouter struct {
 	mockFilepattern     string
 	responseDir         string
 	responseFilepattern string
+	port                int
 	responseFiles       map[string]*template.Template // responseFilename -> template
 	logger              *utils.Logger
-	endpoints           *epSearchNode
+	EpSearchNode        *model.EpSearchNode
 	router              *mux.Router
-	kvstore             *kvstore.KVStore
+	server              *http.Server
 }
 
-func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, logger *utils.Logger) (*MockRouter, error) {
+func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, port int, logger *utils.Logger) (*MockRouter, error) {
 	mockRouter := &MockRouter{
 		mockDir:             mockDir,
 		mockFilepattern:     mockFilepattern,
 		responseDir:         responseDir,
 		responseFilepattern: responseFilepattern,
+		port:                port,
 		responseFiles:       make(map[string]*template.Template),
 		logger:              logger,
-		endpoints:           &epSearchNode{},
-		kvstore:             kvstore.NewStore(),
+		EpSearchNode:        &model.EpSearchNode{},
 	}
 	err := mockRouter.loadFiles()
 	if err != nil {
@@ -69,8 +62,20 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 	return mockRouter, nil
 }
 
+func (r *MockRouter) Router() *mux.Router {
+	return r.router
+}
+
+func (r *MockRouter) Server() *http.Server {
+	return r.server
+}
+
+func (r *MockRouter) Port() int {
+	return r.port
+}
+
 func (r *MockRouter) loadFiles() error {
-	r.endpoints = &epSearchNode{}
+	r.EpSearchNode = &model.EpSearchNode{}
 	endPointCounter := 0
 	mockFiles, err := utils.WalkMatch(r.mockDir, r.mockFilepattern)
 	if err != nil {
@@ -175,6 +180,7 @@ func (r *MockRouter) newRouter() {
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		r.renderResponse(writer, request, endPoint, requestPathParam)
 	})
+	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: r.router}
 }
 
 func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
@@ -185,35 +191,35 @@ func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 		endpoint.Request.Method = "GET"
 	}
 
-	sn := r.endpoints
+	sn := r.EpSearchNode
 	pathSegments := strings.Split(endpoint.Request.Path, "/")
 	for _, pathSegment := range pathSegments[1:] {
-		if sn.searchNodes == nil {
-			sn.searchNodes = make(map[string]*epSearchNode)
+		if sn.SearchNodes == nil {
+			sn.SearchNodes = make(map[string]*model.EpSearchNode)
 		}
 		pathParamName := ""
 		if strings.HasPrefix(pathSegment, "{") && strings.HasSuffix(pathSegment, "}") {
 			pathParamName = pathSegment[1 : len(pathSegment)-1]
 			pathSegment = "*"
 		}
-		sn.searchNodes[pathSegment] = &epSearchNode{}
-		sn = sn.searchNodes[pathSegment]
-		sn.pathParamName = pathParamName
+		sn.SearchNodes[pathSegment] = &model.EpSearchNode{}
+		sn = sn.SearchNodes[pathSegment]
+		sn.PathParamName = pathParamName
 	}
-	if sn.endpoints == nil {
-		sn.endpoints = make(map[string][]*model.MockEndpoint)
+	if sn.Endpoints == nil {
+		sn.Endpoints = make(map[string][]*model.MockEndpoint)
 	}
 
-	if sn.endpoints[endpoint.Request.Method] == nil {
-		sn.endpoints[endpoint.Request.Method] = []*model.MockEndpoint{}
+	if sn.Endpoints[endpoint.Request.Method] == nil {
+		sn.Endpoints[endpoint.Request.Method] = []*model.MockEndpoint{}
 	}
-	sn.endpoints[endpoint.Request.Method] = append(sn.endpoints[endpoint.Request.Method], endpoint)
+	sn.Endpoints[endpoint.Request.Method] = append(sn.Endpoints[endpoint.Request.Method], endpoint)
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.Id, endpoint.Request.Path, endpoint.Request.Method))
 }
 
 func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockEndpoint, map[string]string) {
 	requestPathParams := map[string]string{}
-	sn := r.endpoints
+	sn := r.EpSearchNode
 	getPathSegment := func(segments []string, pos int) string {
 		if pos < len(segments) {
 			return segments[pos]
@@ -225,7 +231,7 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 	allMatch := false
 	pathSegment := getPathSegment(pathSegments, 0)
 	for pos := 1; pathSegment != ""; pos++ {
-		if sn.searchNodes == nil {
+		if sn.SearchNodes == nil {
 			if allMatch {
 				break
 			} else {
@@ -234,7 +240,7 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 		} else {
 			if allMatch {
 				for i := pos; pathSegment != ""; i++ {
-					if sn.searchNodes[pathSegment] != nil {
+					if sn.SearchNodes[pathSegment] != nil {
 						pos = i
 						break
 					}
@@ -242,28 +248,28 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 				}
 				allMatch = false
 			}
-			if sn.searchNodes[pathSegment] == nil {
-				if sn.searchNodes["*"] == nil {
-					if sn.searchNodes["**"] == nil {
+			if sn.SearchNodes[pathSegment] == nil {
+				if sn.SearchNodes["*"] == nil {
+					if sn.SearchNodes["**"] == nil {
 						return nil, requestPathParams
 					} else {
 						allMatch = true
-						sn = sn.searchNodes["**"]
+						sn = sn.SearchNodes["**"]
 					}
 				} else {
-					sn = sn.searchNodes["*"]
-					if len(sn.pathParamName) > 0 {
-						requestPathParams[sn.pathParamName] = pathSegment
+					sn = sn.SearchNodes["*"]
+					if len(sn.PathParamName) > 0 {
+						requestPathParams[sn.PathParamName] = pathSegment
 					}
 				}
 			} else {
-				sn = sn.searchNodes[pathSegment]
+				sn = sn.SearchNodes[pathSegment]
 			}
 			pathSegment = getPathSegment(pathSegments, pos)
 		}
 	}
-	if sn != nil && sn.endpoints != nil && sn.endpoints[request.Method] != nil {
-		return r.matchEndPointsAttributes(sn.endpoints[request.Method], request), requestPathParams
+	if sn != nil && sn.Endpoints != nil && sn.Endpoints[request.Method] != nil {
+		return r.matchEndPointsAttributes(sn.Endpoints[request.Method], request), requestPathParams
 	}
 	return nil, requestPathParams
 }
@@ -397,12 +403,4 @@ func (r *MockRouter) executeResponseFileTemplate(responseFilename string, respon
 	}
 	r.logger.LogWhenDebugRR(fmt.Sprintf("Rendered response file:\n%s", responseExcecuted))
 	return responseExcecuted.String(), nil
-}
-
-func (r *MockRouter) ListenAndServe(port int) {
-	r.logger.LogAlways(fmt.Sprintf("Serving mocks on port %v", port))
-	err := http.ListenAndServe(":"+strconv.Itoa(port), r.router)
-	if err != nil {
-		log.Fatalf("Can't serve on port %v", port)
-	}
 }
