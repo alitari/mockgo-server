@@ -63,6 +63,10 @@ func (r *ConfigRouter) Port() int {
 	return r.port
 }
 
+func (r *ConfigRouter) Logger() *utils.Logger {
+	return r.logger
+}
+
 func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
 	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "", nil, r.health))

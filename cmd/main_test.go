@@ -165,11 +165,7 @@ func serveNode(nodeNr int) {
 
 	configuration := createConfiguration()
 	logger := &utils.Logger{Verbose: configuration.Verbose}
-	logger.LogAlways("Mockgo SERVER Nr. " + strconv.Itoa(len(mockRouters)+1) + "\n" + configuration.info())
-
-	kvstore := kvstore.NewStore()
-	mockRouter := createMockRouter(configuration, kvstore, logger)
-	configRouter := createConfigRouter(configuration, mockRouter, kvstore, logger)
+	mockRouter, configRouter := createRouters(kvstore.CreateTheStore(), logger)
 	mockRouterChan <- mockRouter
 	configRouterChan <- configRouter
 	go startServe(configRouter)

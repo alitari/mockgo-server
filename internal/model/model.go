@@ -3,7 +3,7 @@ package model
 import (
 	"net/http"
 	"text/template"
-
+	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/gorilla/mux"
 )
 
@@ -11,6 +11,7 @@ type Serving interface {
 	Router() *mux.Router
 	Server() *http.Server
 	Port() int
+	Logger() *utils.Logger
 }
 
 type MatchRequest struct {
