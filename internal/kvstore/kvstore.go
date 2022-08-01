@@ -8,18 +8,13 @@ type KVStore struct {
 
 var TheKVStore *KVStore
 
-func NewStore() {
-	TheKVStore = &KVStore{store: map[string]*map[string]interface{}{}}
+func CreateTheStore() *KVStore {
+	TheKVStore = NewStore()
+	return TheKVStore
 }
 
-func NewStoreWithContent(content string) error {
-	store := &map[string]*map[string]interface{}{}
-	err := json.Unmarshal([]byte(content), store)
-	if err != nil {
-		return err
-	}
-	TheKVStore = &KVStore{store: *store}
-	return nil
+func NewStore() *KVStore {
+	return &KVStore{store: map[string]*map[string]interface{}{}}
 }
 
 func (s *KVStore) Put(key string, value string) error {
@@ -38,4 +33,18 @@ func (s *KVStore) Get(key string) (*map[string]interface{}, error) {
 
 func (s *KVStore) GetAll() map[string]*map[string]interface{} {
 	return s.store
+}
+
+func (s *KVStore) PutAll(content map[string]*map[string]interface{}) {
+	s.store = content
+}
+
+func (s *KVStore) PutAllJson(content string) error {
+	store := &map[string]*map[string]interface{}{}
+	err := json.Unmarshal([]byte(content), store)
+	if err != nil {
+		return err
+	}
+	s.PutAll(*store)
+	return nil
 }

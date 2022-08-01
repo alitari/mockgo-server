@@ -31,19 +31,21 @@ type ConfigRouter struct {
 	id          string
 	clusterUrls []string
 	logger      *utils.Logger
+	kvstore     *kvstore.KVStore
 }
 
 type EndpointsResponse struct {
 	Endpoints []*model.MockEndpoint
 }
 
-func NewConfigRouter(mockRouter *mock.MockRouter, port int, clusterUrls []string, logger *utils.Logger) *ConfigRouter {
+func NewConfigRouter(mockRouter *mock.MockRouter, port int, clusterUrls []string, kvstore *kvstore.KVStore, logger *utils.Logger) *ConfigRouter {
 	configRouter := &ConfigRouter{
 		mockRouter:  mockRouter,
 		port:        port,
 		clusterUrls: clusterUrls,
 		id:          uuid.New().String(),
 		logger:      logger,
+		kvstore:     kvstore,
 	}
 	configRouter.newRouter()
 	return configRouter
@@ -63,13 +65,13 @@ func (r *ConfigRouter) Port() int {
 
 func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
+	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "", nil, r.health))
+	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/text", nil, r.serverId))
 	router.NewRoute().Name("endpoints").Path("/endpoints").HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.endpoints))
 	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
 	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
 	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", nil, r.uploadKVStore))
 	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.downloadKVStore))
-	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "", nil, r.health))
-	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/text", nil, r.serverId))
 	r.router = router
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: router}
 }
@@ -107,7 +109,7 @@ func (r *ConfigRouter) SyncWithCluster() error {
 			r.logger.LogAlways(fmt.Sprintf("(ERROR) reading response from cluster url failed: %v ", err))
 			return err
 		}
-		err = kvstore.NewStoreWithContent(string(storeBytes))
+		err = r.kvstore.PutAllJson(string(storeBytes))
 		if err != nil {
 			r.logger.LogAlways(fmt.Sprintf("(ERROR) creating new kvstore downloaded from clusterurl '%s' failed: %v ", clusterUrl, err))
 			return err
@@ -155,7 +157,7 @@ func (r *ConfigRouter) serverId(writer http.ResponseWriter, request *http.Reques
 }
 
 func (r *ConfigRouter) downloadKVStore(writer http.ResponseWriter, request *http.Request) {
-	store := kvstore.TheKVStore.GetAll()
+	store := r.kvstore.GetAll()
 	storeBytes, err := json.Marshal(store)
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("Cannot marshall response: %v", err), http.StatusInternalServerError)
@@ -174,7 +176,7 @@ func (r *ConfigRouter) uploadKVStore(writer http.ResponseWriter, request *http.R
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	err = kvstore.NewStoreWithContent(string(body))
+	err = r.kvstore.PutAllJson(string(body))
 	if err != nil {
 		http.Error(writer, "Problem creating kvstore: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -185,7 +187,7 @@ func (r *ConfigRouter) uploadKVStore(writer http.ResponseWriter, request *http.R
 func (r *ConfigRouter) getKVStore(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	key := vars["key"]
-	val, err := kvstore.TheKVStore.Get(key)
+	val, err := r.kvstore.Get(key)
 	if err != nil {
 		http.Error(writer, "Problem with getting kvstore value "+err.Error(), http.StatusInternalServerError)
 		return
@@ -211,7 +213,7 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	if len(r.clusterUrls) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
-		err = kvstore.TheKVStore.Put(key, string(body))
+		err = r.kvstore.Put(key, string(body))
 		if err != nil {
 			http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
 			return

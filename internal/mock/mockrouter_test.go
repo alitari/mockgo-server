@@ -127,8 +127,8 @@ func TestMatchRequestToEndpoint_Prio(t *testing.T) {
 }
 
 func TestRenderResponse_Simple(t *testing.T) {
+	kvstore.CreateTheStore()
 	mockRouter := createMockRouter("responseRendering", t)
-	kvstore.NewStore()
 	expectedResponseResult := `{
     "requestUrl": "https://coolhost.cooldomain.com/coolpath",
     "requestPathParams": "map[myparam1:myvalue]",
@@ -179,7 +179,7 @@ func TestRenderResponse_Simple(t *testing.T) {
 
 func createRequest(method, url, bodyStr string, header map[string][]string, urlVars map[string]string, t *testing.T) *http.Request {
 	body := io.NopCloser(strings.NewReader(bodyStr))
-	request:= httptest.NewRequest(method, url, body)
+	request := httptest.NewRequest(method, url, body)
 	request.Header = header
 	if urlVars != nil {
 		request = mux.SetURLVars(request, urlVars)
@@ -262,7 +262,7 @@ func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingT
 }
 
 func createMockRouter(testMockDir string, t *testing.T) *MockRouter {
-	mockRouter, err := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json",0, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	mockRouter, err := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	if err != nil {
 		t.Fatalf("Can't create mock router: %v", err)
 	}
