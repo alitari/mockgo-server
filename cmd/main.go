@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/alitari/mockgo-server/internal/config"
+	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/mock"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/kelseyhightower/envconfig"
-
 )
 
 const banner = `
@@ -51,9 +51,10 @@ func main() {
 	configuration := createConfiguration()
 	logger = &utils.Logger{Verbose: configuration.Verbose}
 	logger.LogAlways(banner + configuration.info())
+	kvstore.CreateTheStore()
 
-	mockRouter := createMockRouter(configuration, logger)
-	configRouter := createConfigRouter(configuration, mockRouter, logger)
+	mockRouter := createMockRouter(configuration, kvstore.TheKVStore, logger)
+	configRouter := createConfigRouter(configuration, mockRouter, kvstore.TheKVStore, logger)
 
 	go startServe(configRouter)
 	startServe(mockRouter)
@@ -67,16 +68,16 @@ func createConfiguration() *Configuration {
 	return &configuration
 }
 
-func createMockRouter(configuration *Configuration, logger *utils.Logger) *mock.MockRouter {
-	mockRouter, err := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.ResponseFilepattern, configuration.MockPort, logger)
+func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, logger *utils.Logger) *mock.MockRouter {
+	mockRouter, err := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.ResponseFilepattern, configuration.MockPort, kvstore, logger)
 	if err != nil {
 		log.Fatalf("(FATAL) Can't load files: %v", err)
 	}
 	return mockRouter
 }
 
-func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, logger *utils.Logger) *config.ConfigRouter {
-	configRouter := config.NewConfigRouter(mockRouter, configuration.ConfigPort, configuration.ClusterUrls, logger)
+func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, kvStore *kvstore.KVStore, logger *utils.Logger) *config.ConfigRouter {
+	configRouter := config.NewConfigRouter(mockRouter, configuration.ConfigPort, configuration.ClusterUrls, kvStore, logger)
 	err := configRouter.SyncWithCluster()
 	if err != nil {
 		log.Fatalf("(FATAL) Can't sync with cluster: %v\n", err)

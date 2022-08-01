@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig"
+	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"gopkg.in/yaml.v2"
@@ -42,9 +43,10 @@ type MockRouter struct {
 	EpSearchNode        *model.EpSearchNode
 	router              *mux.Router
 	server              *http.Server
+	kvstore             *kvstore.KVStore
 }
 
-func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, port int, logger *utils.Logger) (*MockRouter, error) {
+func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, port int, kvstore *kvstore.KVStore, logger *utils.Logger) (*MockRouter, error) {
 	mockRouter := &MockRouter{
 		mockDir:             mockDir,
 		mockFilepattern:     mockFilepattern,
@@ -54,6 +56,7 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 		responseFiles:       make(map[string]*template.Template),
 		logger:              logger,
 		EpSearchNode:        &model.EpSearchNode{},
+		kvstore:             kvstore,
 	}
 	err := mockRouter.loadFiles()
 	if err != nil {

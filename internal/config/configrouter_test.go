@@ -25,7 +25,7 @@ type configRouterTestCase struct {
 
 func TestConfigRouter_Endpoints(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, 0,[]string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter, 0,[]string{},kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 	testCases := []*configRouterTestCase{
 		{name: "Endpoints",
@@ -45,7 +45,7 @@ func TestConfigRouter_Endpoints(t *testing.T) {
 
 func TestConfigRouter_UploadKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter,0, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter,0, []string{},kvstore.CreateTheStore(), &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
 	testCases := []*configRouterTestCase{
@@ -66,10 +66,11 @@ func TestConfigRouter_UploadKVStore(t *testing.T) {
 
 func TestConfigRouter_DownloadKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter, 0, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
-	configRouter.newRouter()
-	err := kvstore.NewStoreWithContent("{ \"store1\" : { \"mykey1\" : \"myvalue1\"}, \"store2\" : { \"mykey2\" : \"myvalue2\"} }")
+	kvstore.CreateTheStore()
+	err := kvstore.TheKVStore.PutAllJson("{ \"store1\" : { \"mykey1\" : \"myvalue1\"}, \"store2\" : { \"mykey2\" : \"myvalue2\"} }")
 	assert.NoError(t, err)
+	configRouter := NewConfigRouter(mockRouter, 0, []string{}, kvstore.TheKVStore,&utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
 
 	testCases := []*configRouterTestCase{
 		{name: "DownloadKVStore",
@@ -89,7 +90,7 @@ func TestConfigRouter_DownloadKVStore(t *testing.T) {
 
 func TestConfigRouter_SetKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter,0, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter,0, []string{}, kvstore.TheKVStore,&utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
 	testCases := []*configRouterTestCase{
@@ -112,7 +113,7 @@ func TestConfigRouter_SetKVStore(t *testing.T) {
 
 func TestConfigRouter_GetKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter,0, []string{}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter,0, []string{}, kvstore.TheKVStore,&utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
 	val := "{ \"myconfig\": \"is here!\" }"
@@ -150,7 +151,7 @@ func TestConfigRouter_SyncWithCluster(t *testing.T) {
 	defer clusterNode2.Close()
 
 	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter(mockRouter,0, []string{clusterNode1.URL, clusterNode2.URL}, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter := NewConfigRouter(mockRouter,0, []string{clusterNode1.URL, clusterNode2.URL},kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 	configRouter.SyncWithCluster()
 
@@ -178,7 +179,7 @@ func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterT
 }
 
 func createMockRouter(testMockDir string, t *testing.T) *mock.MockRouter {
-	mockRouter, err := mock.NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	mockRouter, err := mock.NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0,kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	assert.NoError(t, err, "Can't create mock router")
 	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	return mockRouter
