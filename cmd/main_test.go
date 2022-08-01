@@ -63,14 +63,20 @@ func TestMain_uploadKvStore(t *testing.T) {
 
 	kvstore := `{"store1":{"mykey":"myvalue"}}`
 	requestToNode(t, 0, true, http.MethodPut, "/kvstore", "application/json", "", kvstore, http.StatusNoContent, nil)
-	requestToNode(t, 0,true, http.MethodGet, "/kvstore", "", "application/json", "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodGet, "/kvstore", "", "application/json", "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, kvstore, responseBody)
 	})
-	requestToNode(t, 1,true, http.MethodGet, "/kvstore", "", "application/json", "", http.StatusOK, func(responseBody string) {
+	// upload kvstore not advertised
+	requestToNode(t, 1, true, http.MethodGet, "/kvstore", "", "application/json", "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{}", responseBody)
 	})
-
-	
+	stopNode(1)
+	startNode(1)
+	time.Sleep(100 * time.Millisecond)
+	// kvstore synced from node 0 at boot time
+	requestToNode(t, 1, true, http.MethodGet, "/kvstore", "", "application/json", "", http.StatusOK, func(responseBody string) {
+		assert.Equal(t, kvstore, responseBody)
+	})
 }
 
 func requestToAllNodes(t *testing.T, config bool, method, path, contentType, acceptHeader, body string, expectedStatus int, assertBody func(responseBody string)) {
@@ -123,14 +129,32 @@ func getClusterUrls() string {
 
 func startCluster() {
 	for i := 0; i < clusterSize; i++ {
-		go startNode(i)
-		mockRouters = append(mockRouters, <-mockRouterChan)
-		configRouters = append(configRouters, <-configRouterChan)
+		startNode(i)
 	}
 }
 
+func stopCluster() {
+	for i := 0; i < len(mockRouters); i++ {
+		stopServe(mockRouters[i])
+		stopServe(configRouters[i])
+	}
+}
+
+func stopNode(nodeNr int) {
+	stopServe(mockRouters[nodeNr])
+	stopServe(configRouters[nodeNr])
+	mockRouters = append(mockRouters[:nodeNr], mockRouters[nodeNr+1:]...)
+	configRouters = append(configRouters[:nodeNr], configRouters[nodeNr+1:]...)
+}
+
 func startNode(nodeNr int) {
-	mockPort := startPort+(nodeNr*2)
+	go serveNode(nodeNr)
+	mockRouters = append(mockRouters, <-mockRouterChan)
+	configRouters = append(configRouters, <-configRouterChan)
+}
+
+func serveNode(nodeNr int) {
+	mockPort := startPort + (nodeNr * 2)
 	configPort := mockPort + 1
 	os.Setenv("VERBOSE", "true")
 	os.Setenv("MOCK_PORT", strconv.Itoa(mockPort))
@@ -153,10 +177,3 @@ func startNode(nodeNr int) {
 }
 
 // func stopNode() {
-
-func stopCluster() {
-	for i, mockRouter := range mockRouters {
-		stopServe(mockRouter)
-		stopServe(configRouters[i])
-	}
-}
