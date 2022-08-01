@@ -77,6 +77,10 @@ func (r *MockRouter) Port() int {
 	return r.port
 }
 
+func (r *MockRouter) Logger() *utils.Logger {
+	return r.logger
+}
+
 func (r *MockRouter) loadFiles() error {
 	r.EpSearchNode = &model.EpSearchNode{}
 	endPointCounter := 0

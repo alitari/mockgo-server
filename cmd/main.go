@@ -23,8 +23,6 @@ Configuration:     |___/
 ==============
 `
 
-var logger *utils.Logger
-
 type Configuration struct {
 	Verbose             bool     `default:"true"`
 	ConfigPort          int      `default:"8081" split_words:"true"`
@@ -48,16 +46,20 @@ Cluster URLs: '%v'`, c.Verbose, c.ConfigPort, c.MockPort, c.MockDir, c.MockFilep
 }
 
 func main() {
-	configuration := createConfiguration()
-	logger = &utils.Logger{Verbose: configuration.Verbose}
-	logger.LogAlways(banner + configuration.info())
-	kvstore.CreateTheStore()
-
-	mockRouter := createMockRouter(configuration, kvstore.TheKVStore, logger)
-	configRouter := createConfigRouter(configuration, mockRouter, kvstore.TheKVStore, logger)
-
+	mockRouter, configRouter := createRouters(kvstore.CreateTheStore(), &utils.Logger{})
 	go startServe(configRouter)
 	startServe(mockRouter)
+}
+
+func createRouters(kvstore *kvstore.KVStore, logger *utils.Logger) (*mock.MockRouter, *config.ConfigRouter) {
+	configuration := createConfiguration()
+	logger.Verbose = configuration.Verbose
+	logger.LogAlways(banner + configuration.info())
+
+	mockRouter := createMockRouter(configuration, kvstore, logger)
+	configRouter := createConfigRouter(configuration, mockRouter, kvstore, logger)
+	return mockRouter, configRouter
+
 }
 
 func createConfiguration() *Configuration {
@@ -86,7 +88,7 @@ func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRoute
 }
 
 func startServe(serving model.Serving) error {
-	logger.LogAlways(fmt.Sprintf("Serving on port %v", serving.Port()))
+	serving.Logger().LogAlways(fmt.Sprintf("Serving on port %v", serving.Port()))
 	s := serving.Server()
 	err := s.ListenAndServe()
 	if err != nil {
@@ -96,7 +98,7 @@ func startServe(serving model.Serving) error {
 }
 
 func stopServe(serving model.Serving) {
-	logger.LogAlways(fmt.Sprintf("Stop Serving on port %d", serving.Port()))
+	serving.Logger().LogAlways(fmt.Sprintf("Stop Serving on port %d", serving.Port()))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := serving.Server().Shutdown(ctx); err != nil {
