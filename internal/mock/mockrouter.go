@@ -65,6 +65,10 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 	return mockRouter, nil
 }
 
+func (r *MockRouter) Name() string {
+	return "Mockrouter"
+}
+
 func (r *MockRouter) Router() *mux.Router {
 	return r.router
 }

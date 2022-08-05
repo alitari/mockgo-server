@@ -25,8 +25,8 @@ Configuration:     |___/
 
 type Configuration struct {
 	Verbose             bool     `default:"true"`
-	ConfigPort          int      `default:"8081" split_words:"true"`
-	MockPort            int      `default:"8080" split_words:"true"`
+	ConfigPort          int      `default:"8080" split_words:"true"`
+	MockPort            int      `default:"8081" split_words:"true"`
 	MockDir             string   `default:"." split_words:"true"`
 	MockFilepattern     string   `default:"*-mock.*" split_words:"true"`
 	ResponseDir         string   `default:"./responses" split_words:"true"`
@@ -88,7 +88,7 @@ func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRoute
 }
 
 func startServe(serving model.Serving) error {
-	serving.Logger().LogAlways(fmt.Sprintf("Serving on port %v", serving.Port()))
+	serving.Logger().LogAlways(fmt.Sprintf("Serving %s on port %v", serving.Name(), serving.Port()))
 	s := serving.Server()
 	err := s.ListenAndServe()
 	if err != nil {
@@ -98,7 +98,7 @@ func startServe(serving model.Serving) error {
 }
 
 func stopServe(serving model.Serving) {
-	serving.Logger().LogAlways(fmt.Sprintf("Stop Serving on port %d", serving.Port()))
+	serving.Logger().LogAlways(fmt.Sprintf("Stop Serving %s on port %d", serving.Name(), serving.Port()))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := serving.Server().Shutdown(ctx); err != nil {

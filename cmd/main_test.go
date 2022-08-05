@@ -87,7 +87,7 @@ func requestToAllNodes(t *testing.T, config bool, method, path, contentType, acc
 
 func requestToNode(t *testing.T, nodeNr int, config bool, method, path, contentType, acceptHeader, body string, expectedStatus int, assertBody func(responseBody string)) {
 	port := startPort + nodeNr*2
-	if config {
+	if !config {
 		port++
 	}
 	url := "http://localhost:" + strconv.Itoa(port) + path
@@ -122,7 +122,7 @@ func requestToNode(t *testing.T, nodeNr int, config bool, method, path, contentT
 func getClusterUrls() string {
 	var clusterUrls []string
 	for i := 0; i < clusterSize; i++ {
-		clusterUrls = append(clusterUrls, "http://localhost:"+strconv.Itoa(startPort+(i*2)+1))
+		clusterUrls = append(clusterUrls, "http://localhost:"+strconv.Itoa(startPort+(i*2)))
 	}
 	return strings.Join(clusterUrls, ",")
 }
@@ -154,8 +154,8 @@ func startNode(nodeNr int) {
 }
 
 func serveNode(nodeNr int) {
-	mockPort := startPort + (nodeNr * 2)
-	configPort := mockPort + 1
+	configPort := startPort + (nodeNr * 2)
+	mockPort := configPort + 1
 	os.Setenv("VERBOSE", "true")
 	os.Setenv("MOCK_PORT", strconv.Itoa(mockPort))
 	os.Setenv("CONFIG_PORT", strconv.Itoa(configPort))
