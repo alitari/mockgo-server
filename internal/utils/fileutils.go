@@ -16,7 +16,7 @@ func WalkMatch(root, pattern string) ([]string, error) {
 		}
 		if matched, err := filepath.Match(pattern, filepath.Base(path)); err != nil {
 			return err
-		} else if matched {
+		} else if matched && filepath.Dir(path) == root {
 			matches = append(matches, path)
 		}
 		return nil

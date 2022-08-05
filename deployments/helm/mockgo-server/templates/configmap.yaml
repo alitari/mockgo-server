@@ -8,6 +8,6 @@ data:
 {{ .config | indent 4 }}
   {{- end }}
    {{- range .Values.responses }}
-  {{ .name }}: |-
+  {{ .name }}-response.{{ .type }}: |-
 {{ .config | indent 4 }}
   {{- end }}
