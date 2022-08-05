@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mockgoserver.fullname" . }}
+  namespace: {{ include "mockgoserver.namespace" . }}
+  labels:
+    {{- include "mockgoserver.labels" . | nindent 4 }}
+  {{- if .Values.serviceAnnotations}}
+  annotations:
+    {{- toYaml .Values.serviceAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    {{- include "mockgoserver.selectorLabels" . | nindent 4 }}
+  ports:
+  - name: config
+    targetPort: {{ .Values.configEndpoint.containerPort }}
+    port: {{ .Values.configEndpoint.servicePort }}
+  - name: mock
+    targetPort: {{ .Values.mockEndpoint.containerPort }}
+    port: {{ .Values.mockEndpoint.servicePort }}
