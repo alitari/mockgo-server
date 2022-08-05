@@ -8,7 +8,8 @@ mocks:
         bodyFilename: "hello-response.json"
 
 responses:
-- name: hello-response.json
+- name: hello
+  type: json
   config: |
     {
       "hello": "World"
@@ -39,6 +40,17 @@ healthcheck:
     periodSeconds: 10
     successThreshold: 1
     failureThreshold: 3
+
+ingress:
+  enabled: false
+  annotations: {}
+  ingressClassName: nginx
+  configHost: "confighost"
+  configPath: "/"
+  configPathType: Prefix
+  mockHost: "mockhost"
+  mockPath: "/"
+  mockPathType: Prefix
 
 # securityContext for the mockgo-server container
 securityContext: {}
