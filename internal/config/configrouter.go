@@ -51,6 +51,10 @@ func NewConfigRouter(mockRouter *mock.MockRouter, port int, clusterUrls []string
 	return configRouter
 }
 
+func (r *ConfigRouter) Name() string {
+	return "Configrouter"
+}
+
 func (r *ConfigRouter) Router() *mux.Router {
 	return r.router
 }

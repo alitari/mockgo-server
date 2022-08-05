@@ -8,6 +8,7 @@ import (
 )
 
 type Serving interface {
+	Name() string
 	Router() *mux.Router
 	Server() *http.Server
 	Port() int
