@@ -1,0 +1,7 @@
+*
+!cmd/
+!go.*
+!internal/
+!scripts/go-build.sh
+!/bin/mockgo-server
+!test/main
