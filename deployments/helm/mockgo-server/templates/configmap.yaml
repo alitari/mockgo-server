@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mockgoserver.fullname" . }}
+data:
+   {{- range .Values.mocks }}
+  {{ .name }}-mock.yaml: |-
+{{ .config | indent 4 }}
+  {{- end }}
+   {{- range .Values.responses }}
+  {{ .name }}: |-
+{{ .config | indent 4 }}
+  {{- end }}

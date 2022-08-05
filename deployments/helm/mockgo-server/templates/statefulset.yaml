@@ -1,0 +1,158 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "mockgoserver.fullname" . }}
+  namespace: {{ include "mockgoserver.namespace" . }}
+  labels:
+    {{- include "mockgoserver.labels" . | nindent 4 }}
+  {{- if .Values.statefulSetAnnotations }}
+  annotations:
+    {{- toYaml .Values.statefulSetAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "mockgoserver.selectorLabels" . | nindent 6 }}
+  {{- if .Values.cluster.enabled }}
+  replicas: {{ .Values.cluster.replicas }}
+  {{- else }}
+  replicas: 1
+  {{- end }}
+  serviceName: {{ include "mockgoserver.fullname" . }}
+
+  podManagementPolicy: {{ .Values.podManagementPolicy }}
+
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- if .Values.podAnnotations }}
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "mockgoserver.selectorLabels" . | nindent 8 }}
+        {{- if .Values.statefulSetPodLabels }}
+        {{- tpl (toYaml .Values.statefulSetPodLabels) . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+      {{- range .Values.topologySpreadConstraints }}
+      {{- if and .maxSkew .topologyKey }}
+      - maxSkew: {{ .maxSkew }}
+        topologyKey: {{ .topologyKey }}
+        {{- if .whenUnsatisfiable }}
+        whenUnsatisfiable: {{ .whenUnsatisfiable }}
+        {{- end }}
+        labelSelector:
+          matchLabels:
+            {{- include "mockgoserver.selectorLabels" $ | nindent 12 }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName | quote }}
+      {{- end }}
+      # Common volumes for the containers.
+      volumes:
+      - name: config-volume
+        configMap:
+          name: {{ include "mockgoserver.fullname" . }}-config
+      # Local volume shared with the reloader.
+      - name: pid
+        emptyDir: {}
+
+      serviceAccountName: {{ include "mockgoserver.serviceAccountName" . }}
+
+      # Required to be able to HUP signal and apply config
+      # reload to the server without restarting the pod.
+      shareProcessNamespace: true
+
+      containers:
+      - name: mockgoserver
+        image: {{ .Values.image }}
+        imagePullPolicy: {{ .Values.pullPolicy }}
+        {{- if .Values.securityContext }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        ports:
+        - containerPort: {{ .Values.configEndpoint.containerPort }}
+          name: config
+        - containerPort: {{ .Values.mockEndpoint.containerPort }}
+          name: mock
+        command:
+        - "mockgoserver"
+        env:
+        - name: VERBOSE
+          value: {{ .Values.logs.verbose | quote }}
+        - name: CONFIG_PORT
+          value: {{ .Values.configEndpoint.containerPort | quote }}
+        - name: MOCK_PORT
+          value: {{ .Values.mockEndpoint.containerPort | quote }}
+        - name: MOCK_DIR
+          value: '/etc/mockgoserver-config'
+        - name: MOCKFILE_PATTERN
+          value: '*-mock.yaml'
+        - name: RESPONSE_DIR
+          value: '/etc/mockgoserver-config'
+        - name: RESPONSEFILE_PATTERN
+          value: '*.*'
+        - name: CLUSTER_URLS
+          value: "{{ include "mockgoserver.clusterUrls" . }}"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/mockgoserver-config
+        - name: pid
+          mountPath: /var/run/mockgoserver
+        
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.configEndpoint.containerPort }}
+          {{- with .Values.healthcheck.liveness }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          failureThreshold: {{ .failureThreshold }}
+          {{- if .terminationGracePeriodSeconds }}
+          terminationGracePeriodSeconds: {{ .terminationGracePeriodSeconds }}
+          {{- end }}
+          {{- end }}
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.configEndpoint.containerPort }}
+        {{- with .Values.healthcheck.readiness }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          failureThreshold: {{ .failureThreshold }}
+        {{- end }}
+
+
+
