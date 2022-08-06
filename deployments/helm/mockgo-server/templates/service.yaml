@@ -10,6 +10,7 @@ metadata:
     {{- toYaml .Values.serviceAnnotations | nindent 4 }}
   {{- end }}
 spec:
+  clusterIP: None
   selector:
     {{- include "mockgoserver.selectorLabels" . | nindent 4 }}
   ports:
