@@ -77,9 +77,6 @@ spec:
       - name: config-volume
         configMap:
           name: {{ include "mockgoserver.fullname" . }}
-      # Local volume shared with the reloader.
-      - name: pid
-        emptyDir: {}
 
       serviceAccountName: {{ include "mockgoserver.serviceAccountName" . }}
 
@@ -104,7 +101,7 @@ spec:
           name: mock
         env:
         - name: VERBOSE
-          value: {{ .Values.logs.verbose | quote }}
+          value: {{ .Values.logging.verbose | quote }}
         - name: CONFIG_PORT
           value: {{ .Values.configEndpoint.containerPort | quote }}
         - name: MOCK_PORT
@@ -122,9 +119,6 @@ spec:
         volumeMounts:
         - name: config-volume
           mountPath: /etc/mockgoserver-config
-        - name: pid
-          mountPath: /var/run/mockgoserver
-        
         livenessProbe:
           httpGet:
             path: /health

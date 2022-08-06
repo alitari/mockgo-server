@@ -57,28 +57,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- end }}
 
-
-{{/*
-Return the proper mockgoserver image name
-*/}}
-{{- define "mockgoserver.clusterAdvertise" -}}
-{{- if $.Values.useFQDN }}
-{{- printf "$(POD_NAME).%s.$(POD_NAMESPACE).svc.%s" (include "mockgoserver.fullname" . ) $.Values.k8sClusterDomain }}
-{{- else }}
-{{- printf "$(POD_NAME).%s.$(POD_NAMESPACE)" (include "mockgoserver.fullname" . ) }}
-{{- end }}
-{{- end }}
-
-{{/*
-Return the mockgoserver cluster auth.
-*/}}
-{{- define "mockgoserver.clusterAuth" -}}
-{{- if $.Values.cluster.authorization }}
-{{- printf "%s:%s@" (urlquery $.Values.cluster.authorization.user) (urlquery $.Values.cluster.authorization.password) -}}
-{{- else }}
-{{- end }}
-{{- end }}
-
 {{/*
 Return the mockgoserver cluster routes.
 */}}
@@ -86,38 +64,18 @@ Return the mockgoserver cluster routes.
 {{- if .Values.cluster.enabled }}
 {{- $name := (include "mockgoserver.fullname" . ) -}}
 {{- $namespace := (include "mockgoserver.namespace" . ) -}}
+{{- $clusterDomain := .Values.k8sClusterDomain -}}
+{{- $port := .Values.configEndpoint.servicePort -}}
+
 {{- range $i, $e := until (.Values.cluster.replicas | int) -}}
-{{- printf "http://%s-%d.%s.%s:8080," $name $i $name $namespace -}}
+{{- if $.Values.cluster.useFQDN }}
+{{- printf "http://%s-%d.%s.%s.svc.%s:%.0f," $name $i $name $namespace $clusterDomain $port -}}
+{{- else }}
+{{- printf "http://%s-%d.%s.%s.:%.0f," $name $i $name $namespace $port -}}
 {{- end }}
 {{- end }}
 {{- end }}
-
-
-
-
-{{/*
-Return the appropriate apiVersion for networkpolicy.
-*/}}
-{{- define "networkPolicy.apiVersion" -}}
-{{- if semverCompare ">=1.4-0, <1.7-0" .Capabilities.KubeVersion.GitVersion -}}
-{{- print "extensions/v1beta1" -}}
-{{- else -}}
-{{- print "networking.k8s.io/v1" -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Renders a value that contains template.
-Usage:
-{{ include "tplvalues.render" ( dict "value" .Values.path.to.the.Value "context" $) }}
-*/}}
-{{- define "tplvalues.render" -}}
-  {{- if typeIs "string" .value }}
-    {{- tpl .value .context }}
-  {{- else }}
-    {{- tpl (toYaml .value) .context }}
-  {{- end }}
-{{- end -}}
+{{- end }}
 
 
 {{/*

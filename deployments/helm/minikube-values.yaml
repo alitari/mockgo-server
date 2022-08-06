@@ -4,3 +4,7 @@ ingress:
   enabled: true
   configHost: "config.192.168.67.2.nip.io"
   mockHost: "mock.192.168.67.2.nip.io"
+
+cluster:
+  enabled: true
+  replicas: 3
