@@ -1,29 +1,30 @@
-@port = 8085
-@host = localhost
+@port = 80
+@confighost = config.192.168.67.2.nip.io
 @protocol = http
+
+
+### set kvstore value
+
+PUT {{protocol}}://{{confighost}}:{{port}}/kvstore/store1
+Content-Type: application/json
+
+{
+    "store1Key": "All"
+}
 
 ### set kvstore value no adv
 
-PUT {{protocol}}://{{host}}:{{port}}/kvstore/store1
+PUT {{protocol}}://{{confighost}}:{{port}}/kvstore/store1
 Content-Type: application/json
 No-advertise: true
 
 {
-    "store1Key": "8081 change"
-}
-
-### set kvstore value
-
-PUT {{protocol}}://{{host}}:{{port}}/kvstore/store1
-Content-Type: application/json
-
-{
-    "store1Key": "8081 change"
+    "store1Key": "One"
 }
 
 ### get kvstore value
 
-GET {{protocol}}://{{host}}:{{port}}/kvstore/store1
+GET {{protocol}}://{{confighost}}:{{port}}/kvstore/store1
 Accept: application/json
 
 
