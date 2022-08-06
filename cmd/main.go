@@ -34,7 +34,14 @@ type Configuration struct {
 	ClusterUrls         []string `default:"" split_words:"true"`
 }
 
-func (c Configuration) info() string {
+func (c *Configuration) validateAndFix() *Configuration {
+	if len(c.ClusterUrls) > 0 && c.ClusterUrls[len(c.ClusterUrls)-1] == "" {
+		c.ClusterUrls = c.ClusterUrls[:len(c.ClusterUrls)-1]
+	}
+	return c
+}
+
+func (c *Configuration) info() string {
 	return fmt.Sprintf(`Verbose: %v
 Config Port: %v
 Mock Port: %v
@@ -52,7 +59,7 @@ func main() {
 }
 
 func createRouters(kvstore *kvstore.KVStore, logger *utils.Logger) (*mock.MockRouter, *config.ConfigRouter) {
-	configuration := createConfiguration()
+	configuration := createConfiguration().validateAndFix()
 	logger.Verbose = configuration.Verbose
 	logger.LogAlways(banner + configuration.info())
 
