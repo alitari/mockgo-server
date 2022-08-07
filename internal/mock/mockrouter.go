@@ -125,9 +125,20 @@ func (r *MockRouter) readMockFile(mockFile string) (*model.Mock, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	mockfileTplt, err := r.createTemplate("request", string(mockFileContent))
+	if err != nil {
+		return nil, err
+	}
+	mockFileExcecuted := &bytes.Buffer{}
+	err = mockfileTplt.Execute(mockFileExcecuted, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	mock := &model.Mock{}
 	if strings.HasSuffix(mockFile, ".yaml") || strings.HasSuffix(mockFile, ".yml") {
-		err = yaml.Unmarshal(mockFileContent, mock)
+		err = yaml.Unmarshal(mockFileExcecuted.Bytes(), mock)
 	}
 	if err != nil {
 		return nil, err
@@ -143,7 +154,7 @@ func (r *MockRouter) initResponseTemplate(endpoint *model.MockEndpoint) error {
 	if err != nil {
 		return err
 	}
-	responseTplt, err := r.createTemplate(string(responseTpltSourceBytes))
+	responseTplt, err := r.createTemplate("response", string(responseTpltSourceBytes))
 	if err != nil {
 		return err
 	}
@@ -163,7 +174,7 @@ func (r *MockRouter) loadResponseFiles() error {
 		if err != nil {
 			return err
 		}
-		responseFileTplt, err := r.createTemplate(string(responseFileContent))
+		responseFileTplt, err := r.createTemplate("response", string(responseFileContent))
 		if err != nil {
 			return err
 		}
@@ -172,8 +183,8 @@ func (r *MockRouter) loadResponseFiles() error {
 	return nil
 }
 
-func (r *MockRouter) createTemplate(content string) (*template.Template, error) {
-	tplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Funcs(r.templateFuncMap()).Parse(string(content))
+func (r *MockRouter) createTemplate(name, content string) (*template.Template, error) {
+	tplt, err := template.New(name).Funcs(sprig.TxtFuncMap()).Funcs(r.templateFuncMap()).Parse(string(content))
 	if err != nil {
 		return nil, err
 	}

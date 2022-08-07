@@ -1,10 +1,12 @@
 package mock
 
 import (
+	"encoding/base64"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"text/template"
@@ -13,6 +15,7 @@ import (
 	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
+	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
 )
 
@@ -122,6 +125,23 @@ func TestMatchRequestToEndpoint_Prio(t *testing.T) {
 	mockRouter := createMockRouter("prioMocks", t)
 	testCases := []*matchingTestCase{
 		{name: "Simple prio, match ", request: &http.Request{URL: &url.URL{Path: "/prio"}, Method: "GET"}, expectedMatch: true, expectedMatchedEndpointId: "mustwin"},
+	}
+	assertMatchRequestToEndpoint(mockRouter, testCases, t)
+}
+
+// map[string][]string{ headers.Authorization : {"Basic blabla"}}
+func TestMatchRequest_Rendering(t *testing.T) {
+	user := "Alex"
+	password := "mysecretpassword"
+	os.Setenv("USER", user)
+	os.Setenv("PASSWORD", password)
+	mockRouter := createMockRouter("requestRendering", t)
+	basicAuth := base64.StdEncoding.EncodeToString([]byte(user + ":" + password))
+	testCases := []*matchingTestCase{
+		{name: "BasicAuth, match ",
+			request: createRequest("GET", "http://host/auth", "",
+				map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {"Basic " + basicAuth}}, nil, t),
+			expectedMatch: true, expectedMatchedEndpointId: "basicauth"},
 	}
 	assertMatchRequestToEndpoint(mockRouter, testCases, t)
 }
