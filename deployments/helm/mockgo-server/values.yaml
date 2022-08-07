@@ -23,17 +23,17 @@ pullPolicy: IfNotPresent
 
 healthcheck:
   liveness:
-    initialDelaySeconds: 10
+    initialDelaySeconds: 5
     timeoutSeconds: 5
-    periodSeconds: 30
+    periodSeconds: 5
     successThreshold: 1
     failureThreshold: 3
     # Only for Kubernetes +1.22 that have pod level probes enabled.
     terminationGracePeriodSeconds:
   readiness:
-    initialDelaySeconds: 10
+    initialDelaySeconds: 5
     timeoutSeconds: 5
-    periodSeconds: 10
+    periodSeconds: 5
     successThreshold: 1
     failureThreshold: 3
 

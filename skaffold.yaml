@@ -1,0 +1,18 @@
+apiVersion: skaffold/v2beta28
+kind: Config
+build:
+  artifacts:
+    - image: dev.local/mockgo-server
+      context: .
+      docker:
+        dockerfile: build/docker/Dockerfile
+
+deploy:
+  helm:
+    releases:
+      - name: mockgo-server
+        chartPath: deployments/helm/mockgo-server
+        artifactOverrides:
+          image: dev.local/mockgo-server
+        valuesFiles:
+          - deployments/helm/minikube-values.yaml
