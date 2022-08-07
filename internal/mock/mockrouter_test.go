@@ -17,6 +17,7 @@ import (
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/assert"
 )
 
 type matchingTestCase struct {
@@ -211,15 +212,11 @@ func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestC
 	for _, testCase := range testCases {
 		if len(testCase.kvstoreJson) > 0 {
 			err := kvstore.TheKVStore.Put("testkey", testCase.kvstoreJson)
-			if err != nil {
-				t.Fatal(err)
-			}
+			assert.NoError(t, err)
 		}
 		recorder := httptest.NewRecorder()
 		tplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Funcs(mockRouter.templateFuncMap()).Parse(testCase.responseTemplate)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NoError(t, err)
 		endpoint := &model.MockEndpoint{Response: &model.MockResponse{Template: tplt}}
 
 		if testCase.request == nil {
@@ -227,30 +224,21 @@ func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestC
 		}
 		mockRouter.renderResponse(recorder, testCase.request, endpoint, testCase.requestParams)
 
-		if testCase.expectedResponseStatusCode != recorder.Result().StatusCode {
-			t.Errorf("Expected status code %v, but is %v", testCase.expectedResponseStatusCode, recorder.Result().StatusCode)
-		}
+		assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode,"unexpected statuscode")
 
 		responseBody, err := io.ReadAll(recorder.Result().Body)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NoError(t, err)
 
-		if testCase.expectedResponseBody != string(responseBody) {
-			t.Errorf("Expected response body is:\n%s,\nbut is:\n%s", testCase.expectedResponseBody, responseBody)
-		}
+		assert.Equal(t,testCase.expectedResponseBody, string(responseBody),"unexped responseBody")
 
 		if testCase.expectedResponseHeader != nil {
 			for expectedParamName, expectedParamValue := range testCase.expectedResponseHeader {
-				if recorder.Header().Get(expectedParamName) != expectedParamValue {
-					t.Errorf("testcase '%s' failed:  expect a response header param with key: '%s' and value: '%s'. but get '%s' ", testCase.name, expectedParamName, expectedParamValue, recorder.Header().Get(expectedParamName))
-				}
+				assert.Equal(t, recorder.Header().Get(expectedParamName),expectedParamValue,"unexpected header param")
 			}
 		}
 		if !t.Failed() {
 			t.Logf("testcase '%s':'%s' passed", t.Name(), testCase.name)
 		}
-
 	}
 }
 
@@ -265,15 +253,11 @@ func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingT
 
 		if testCase.expectedRequestParams != nil {
 			for expectedParamName, expectedParamValue := range testCase.expectedRequestParams {
-				if requestParams[expectedParamName] != expectedParamValue {
-					t.Errorf("testcase '%s' failed:  expect a request param with key: '%s' and value: '%s'. but get '%s' ", testCase.name, expectedParamName, expectedParamValue, requestParams[expectedParamName])
-				}
+				assert.Equal(t, requestParams[expectedParamName], expectedParamValue,"unexpected request param")
 			}
 		}
 		if testCase.expectedMatchedEndpointId != "" {
-			if ep.Id != testCase.expectedMatchedEndpointId {
-				t.Errorf("testcase '%s' failed:  expect matched endpoint id is '%s' but is '%s' ", testCase.name, testCase.expectedMatchedEndpointId, ep.Id)
-			}
+			assert.Equal(t,testCase.expectedMatchedEndpointId,ep.Id,"unexpected endpoint id")
 		}
 		if !t.Failed() {
 			t.Logf("testcase '%s':'%s' passed", t.Name(), testCase.name)
@@ -283,14 +267,7 @@ func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingT
 
 func createMockRouter(testMockDir string, t *testing.T) *MockRouter {
 	mockRouter, err := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
-	if err != nil {
-		t.Fatalf("Can't create mock router: %v", err)
-	}
-	if mockRouter == nil {
-		t.Fatal("Mockrouter must not be nil")
-	}
-	if err != nil {
-		t.Fatalf("Can't load mocks . %v", err)
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t,mockRouter,"Mockrouter must not be nil")
 	return mockRouter
 }
