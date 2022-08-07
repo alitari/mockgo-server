@@ -1,0 +1,12 @@
+endpoints:
+  - id: basicauth
+    request:
+      scheme: "http"
+      method: "GET"
+      path: "/auth"
+      headers:
+        Content-Type: "application/json"
+        Authorization: 'Basic {{ expandenv "$USER:$PASSWORD" | b64enc }}'
+
+    response:
+      statusCode: 204
