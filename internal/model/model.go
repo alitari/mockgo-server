@@ -2,7 +2,10 @@ package model
 
 import (
 	"net/http"
+	"net/url"
 	"text/template"
+	"time"
+
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/gorilla/mux"
 )
@@ -13,6 +16,19 @@ type Serving interface {
 	Server() *http.Server
 	Port() int
 	Logger() *utils.Logger
+}
+
+type Match struct {
+	MockEndpoint *MockEndpoint
+	Timestamp time.Time
+	ActualRequest *ActualRequest
+}
+
+type ActualRequest struct {
+	Method string
+	URL url.URL
+	Header map[string][]string
+	Host string
 }
 
 type MatchRequest struct {

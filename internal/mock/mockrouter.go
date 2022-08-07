@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/Masterminds/sprig"
 	"github.com/alitari/mockgo-server/internal/kvstore"
@@ -44,6 +45,7 @@ type MockRouter struct {
 	router              *mux.Router
 	server              *http.Server
 	kvstore             *kvstore.KVStore
+	matches             map[string][]*model.Match
 }
 
 func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, port int, kvstore *kvstore.KVStore, logger *utils.Logger) (*MockRouter, error) {
@@ -57,6 +59,7 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 		logger:              logger,
 		EpSearchNode:        &model.EpSearchNode{},
 		kvstore:             kvstore,
+		matches:             make(map[string][]*model.Match),
 	}
 	err := mockRouter.loadFiles()
 	if err != nil {
@@ -304,6 +307,7 @@ func (r *MockRouter) matchEndPointsAttributes(endPoints []*model.MockEndpoint, r
 		if !r.matchHeaderValues(ep.Request, request) {
 			continue
 		}
+		r.addMatch(ep, request)
 		return ep
 	}
 	return nil
@@ -333,6 +337,12 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 	} else {
 		return true
 	}
+}
+
+func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Request) {
+	actualRequest := &model.ActualRequest{Method: request.Method, URL: *request.URL, Header: request.Header, Host: request.Host}
+	match := &model.Match{MockEndpoint: endPoint, Timestamp: time.Now(), ActualRequest: actualRequest}
+	r.matches[endPoint.Id] = append(r.matches[endPoint.Id], match)
 }
 
 func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, requestPathParams map[string]string) {
