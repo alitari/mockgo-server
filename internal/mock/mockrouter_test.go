@@ -78,6 +78,23 @@ func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
 
 }
 
+func TestMatchRequestToEndpoint_Matches(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+
+	request := createRequest(http.MethodGet, "http://host/minimal", "", nil, nil, t)
+	ep, _ := mockRouter.matchRequestToEndpoint(request)
+	assert.Equal(t, "minimal", ep.Id)
+	endPointMatches := mockRouter.matches[ep.Id]
+	assert.NotNil(t, endPointMatches)
+	assert.Equal(t, 1, len(endPointMatches))
+	assert.Equal(t, ep, endPointMatches[0].MockEndpoint)
+	assert.NotNil(t, endPointMatches[0].ActualRequest)
+	assert.Equal(t, http.MethodGet, endPointMatches[0].ActualRequest.Method)
+	assert.Equal(t, "host", endPointMatches[0].ActualRequest.Host)
+	assert.Equal(t, "http://host/minimal", endPointMatches[0].ActualRequest.URL.String())
+	
+}
+
 func TestMatchRequestToEndpoint_Wildcardmocks(t *testing.T) {
 	mockRouter := createMockRouter("wildcardmocks", t)
 
@@ -224,16 +241,16 @@ func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestC
 		}
 		mockRouter.renderResponse(recorder, testCase.request, endpoint, testCase.requestParams)
 
-		assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode,"unexpected statuscode")
+		assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode, "unexpected statuscode")
 
 		responseBody, err := io.ReadAll(recorder.Result().Body)
 		assert.NoError(t, err)
 
-		assert.Equal(t,testCase.expectedResponseBody, string(responseBody),"unexped responseBody")
+		assert.Equal(t, testCase.expectedResponseBody, string(responseBody), "unexped responseBody")
 
 		if testCase.expectedResponseHeader != nil {
 			for expectedParamName, expectedParamValue := range testCase.expectedResponseHeader {
-				assert.Equal(t, recorder.Header().Get(expectedParamName),expectedParamValue,"unexpected header param")
+				assert.Equal(t, recorder.Header().Get(expectedParamName), expectedParamValue, "unexpected header param")
 			}
 		}
 		if !t.Failed() {
@@ -245,22 +262,21 @@ func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestC
 func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingTestCase, t *testing.T) {
 	for _, testCase := range testCases {
 		ep, requestParams := mockRouter.matchRequestToEndpoint(testCase.request)
-		if testCase.expectedMatch && ep == nil {
-			t.Errorf("testcase '%s' failed:  expect a match for request: %v", testCase.name, testCase.request)
-		} else if !testCase.expectedMatch && ep != nil {
-			t.Errorf("testcase '%s' failed:  expect a no match for request: %v", testCase.name, testCase.request)
+
+		if testCase.expectedMatch {
+			assert.NotNil(t, ep, "expect a match for request: %v", testCase.name, testCase.request)
+			assert.LessOrEqual(t, 1, len(mockRouter.matches[ep.Id]), "unexpected entries in matches")
+		} else {
+			assert.Nil(t, ep, "expect a no match for request: %v", testCase.name, testCase.request)
 		}
 
 		if testCase.expectedRequestParams != nil {
 			for expectedParamName, expectedParamValue := range testCase.expectedRequestParams {
-				assert.Equal(t, requestParams[expectedParamName], expectedParamValue,"unexpected request param")
+				assert.Equal(t, requestParams[expectedParamName], expectedParamValue, "unexpected request param")
 			}
 		}
 		if testCase.expectedMatchedEndpointId != "" {
-			assert.Equal(t,testCase.expectedMatchedEndpointId,ep.Id,"unexpected endpoint id")
-		}
-		if !t.Failed() {
-			t.Logf("testcase '%s':'%s' passed", t.Name(), testCase.name)
+			assert.Equal(t, testCase.expectedMatchedEndpointId, ep.Id, "unexpected endpoint id")
 		}
 	}
 }
@@ -268,6 +284,6 @@ func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingT
 func createMockRouter(testMockDir string, t *testing.T) *MockRouter {
 	mockRouter, err := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	assert.NoError(t, err)
-	assert.NotNil(t,mockRouter,"Mockrouter must not be nil")
+	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	return mockRouter
 }

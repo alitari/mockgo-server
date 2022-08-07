@@ -1,5 +1,6 @@
 endpoints:
-  - request:
+  - id: "minimal"
+    request:
       path: "/minimal"
     response:
       statusCode: 204
