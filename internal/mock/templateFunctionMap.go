@@ -3,6 +3,7 @@ package mock
 import (
 	"fmt"
 	"text/template"
+	"time"
 
 	"github.com/alitari/mockgo-server/internal/model"
 )
@@ -31,8 +32,12 @@ func (r *MockRouter) templateFuncMap() template.FuncMap {
 			}
 			return ids
 		},
-		"matches": func( id string) []*model.Match {
+		"matches": func(id string) []*model.Match {
 			return r.matches[id]
+		},
+		"delay": func(millis int) string {
+			time.Sleep(time.Duration(millis) * time.Millisecond)
+			return ""
 		},
 	}
 }
