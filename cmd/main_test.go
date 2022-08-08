@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -19,6 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const testCoverageTreshold = 0.65
+
 var httpClient = http.Client{Timeout: time.Duration(1) * time.Second}
 var clusterSize = 2
 var startPort = 8080
@@ -32,6 +35,13 @@ var mockRouterChan = make(chan *mock.MockRouter)
 func TestMain(m *testing.M) {
 	startCluster()
 	code := m.Run()
+	if code == 0 && testing.CoverMode() != "" {
+		coverage := testing.Coverage()
+		if coverage < testCoverageTreshold {
+			log.Printf("Main Tests passed, but coverage must be above %2.2f%%, but it is %2.2f%%\n", testCoverageTreshold*100, coverage*100)
+			code = -1
+		}
+	}
 	stopCluster()
 	os.Exit(code)
 }
