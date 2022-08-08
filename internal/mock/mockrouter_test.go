@@ -168,12 +168,12 @@ func TestMatchRequest_Rendering(t *testing.T) {
 func TestRenderResponse_Delay(t *testing.T) {
 	mockRouter := createMockRouter("responseRendering", t)
 	testCases := []*renderingTestCase{
-		{name: "delay", responseTemplate: "statusCode: 204 {{ delay 100 }}",
+		{name: "delay", responseTemplate: "statusCode: 204 {{ delay 10 }}",
 			expectedResponseStatusCode: 204},
 	}
 	ts := time.Now()
 	assertRenderingResponse(mockRouter, testCases, t)
-	assert.LessOrEqual(t, 100*time.Millisecond, time.Since(ts))
+	assert.LessOrEqual(t, 10*time.Millisecond, time.Since(ts))
 }
 
 func TestRenderResponse_Matches(t *testing.T) {
