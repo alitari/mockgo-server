@@ -40,6 +40,10 @@ type renderingTestCase struct {
 	expectedResponseHeader     map[string]string
 }
 
+func TestMain(m *testing.M) {
+	os.Exit(utils.RunAndCheckCoverage("mockrouter", m, 0.65))
+}
+
 func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 
