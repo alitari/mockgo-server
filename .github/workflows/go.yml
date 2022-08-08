@@ -21,5 +21,8 @@ jobs:
     - name: Build
       run: ./scripts/go-build.sh 
 
-    #- name: Test
-    #  run: go test -v ./...
+    - name: Test
+      run: go test -coverprofile cover.out ./...
+
+    - name: Cover output
+      run: go tool cover -func=cover.out
