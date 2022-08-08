@@ -340,9 +340,32 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 }
 
 func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Request) {
-	actualRequest := &model.ActualRequest{Method: request.Method, URL: *request.URL, Header: request.Header, Host: request.Host}
+	actualRequest := &model.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
 	match := &model.Match{MockEndpoint: endPoint, Timestamp: time.Now(), ActualRequest: actualRequest}
 	r.matches[endPoint.Id] = append(r.matches[endPoint.Id], match)
+}
+
+func (r *MockRouter) AllEndpoints() []*model.MockEndpoint {
+	endpoints := []*model.MockEndpoint{}
+	endpoints = r.getEndpoints(endpoints, r.EpSearchNode)
+	sort.SliceStable(endpoints, func(i, j int) bool {
+		return endpoints[i].Id < endpoints[j].Id
+	})
+	return endpoints
+}
+
+func (r *MockRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *model.EpSearchNode) []*model.MockEndpoint {
+	for _, sns := range sn.SearchNodes {
+		if sns.Endpoints != nil {
+			for _, epMethodMap := range sns.Endpoints {
+				endpoints = append(endpoints, epMethodMap...)
+			}
+		}
+		if sns.SearchNodes != nil {
+			endpoints = append(endpoints, r.getEndpoints(endpoints, sns)...)
+		}
+	}
+	return endpoints
 }
 
 func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, requestPathParams map[string]string) {

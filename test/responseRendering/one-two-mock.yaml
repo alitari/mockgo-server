@@ -1,0 +1,11 @@
+endpoints:
+  - id: "one"
+    request:
+      path: "/one"
+    response:
+      statusCode: 204
+  - id: "two"
+    request:
+      path: "/two"
+    response:
+      statusCode: 204

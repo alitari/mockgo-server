@@ -2,7 +2,6 @@ package model
 
 import (
 	"net/http"
-	"net/url"
 	"text/template"
 	"time"
 
@@ -26,7 +25,7 @@ type Match struct {
 
 type ActualRequest struct {
 	Method string
-	URL url.URL
+	URL string
 	Header map[string][]string
 	Host string
 }

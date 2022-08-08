@@ -173,7 +173,7 @@ func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterT
 		if len(testCase.expectedResponseFile) > 0 {
 			expectedResponse, err := os.ReadFile(testCase.expectedResponseFile)
 			assert.NoError(t, err)
-			assert.Equal(t, expectedResponse, responseBody)
+			assert.Equal(t, string(expectedResponse), string(responseBody))
 		}
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"sort"
 	"strconv"
 	"time"
 
@@ -237,27 +236,8 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 	}
 }
 
-func (r *ConfigRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *model.EpSearchNode) []*model.MockEndpoint {
-	for _, sns := range sn.SearchNodes {
-		if sns.Endpoints != nil {
-			for _, epMethodMap := range sns.Endpoints {
-				endpoints = append(endpoints, epMethodMap...)
-			}
-		}
-		if sns.SearchNodes != nil {
-			endpoints = append(endpoints, r.getEndpoints(endpoints, sns)...)
-		}
-	}
-	return endpoints
-}
-
 func (r *ConfigRouter) endpoints(writer http.ResponseWriter, request *http.Request) {
-	endpoints := []*model.MockEndpoint{}
-	endpoints = r.getEndpoints(endpoints, r.mockRouter.EpSearchNode)
-	sort.SliceStable(endpoints, func(i, j int) bool {
-		return endpoints[i].Id < endpoints[j].Id
-	})
-	endPointResponse := &EndpointsResponse{Endpoints: endpoints}
+	endPointResponse := &EndpointsResponse{Endpoints: r.mockRouter.AllEndpoints()}
 	writer.Header().Set(headers.ContentType, "application/json")
 	resp, err := json.MarshalIndent(endPointResponse, "", "    ")
 	if err != nil {

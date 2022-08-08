@@ -28,7 +28,7 @@
             }
         },
         {
-            "id": "2",
+            "id": "minimal",
             "mock": {
                 "name": "minimal-mock.yaml"
             },
