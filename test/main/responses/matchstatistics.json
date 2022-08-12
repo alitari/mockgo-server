@@ -1,0 +1,25 @@
+[
+{{- range $i, $epId := endpointIds }}
+    {
+        "endpointNr" : "{{ $i }}",
+        "endpointId" : "{{ $epId }}",
+        "matches" : [
+                    {{- range $j, $match := matches $epId }}
+                        {
+                            "endpointId" : "{{ $match.MockEndpoint.Id }}",
+                            "request": { 
+                                "method" : "{{ $match.ActualRequest.Method }}",
+                                "url" : "{{ $match.ActualRequest.URL }}",
+                                "host" : "{{ $match.ActualRequest.Host }}",
+                                "header" : {
+                                    {{ range $key, $value := $match.ActualRequest.Header -}}
+                                    "{{ $key }}" : "{{ $value }}",
+                                    {{ end -}}
+                                }
+                            }
+                        },
+                    {{ end -}}
+        ]
+    },
+{{ end -}}
+]

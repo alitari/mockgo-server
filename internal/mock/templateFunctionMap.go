@@ -33,7 +33,7 @@ func (r *MockRouter) templateFuncMap() template.FuncMap {
 			return ids
 		},
 		"matches": func(id string) []*model.Match {
-			return r.matches[id]
+			return r.Matches[id]
 		},
 		"delay": func(millis int) string {
 			time.Sleep(time.Duration(millis) * time.Millisecond)

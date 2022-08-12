@@ -87,7 +87,7 @@ func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, lo
 
 func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, kvStore *kvstore.KVStore, logger *utils.Logger) *config.ConfigRouter {
 	configRouter := config.NewConfigRouter(mockRouter, configuration.ConfigPort, configuration.ClusterUrls, kvStore, logger)
-	err := configRouter.SyncWithCluster()
+	err := configRouter.SyncKvstoreWithCluster()
 	if err != nil {
 		log.Fatalf("(FATAL) Can't sync with cluster: %v\n", err)
 	}

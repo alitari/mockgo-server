@@ -89,7 +89,7 @@ func TestMatchRequestToEndpoint_Matches(t *testing.T) {
 	request := createRequest(http.MethodGet, "http://host/minimal", "", nil, nil, t)
 	ep, _ := mockRouter.matchRequestToEndpoint(request)
 	assert.Equal(t, "minimal", ep.Id)
-	endPointMatches := mockRouter.matches[ep.Id]
+	endPointMatches := mockRouter.Matches[ep.Id]
 	assert.NotNil(t, endPointMatches)
 	assert.Equal(t, 1, len(endPointMatches))
 	assert.Equal(t, ep, endPointMatches[0].MockEndpoint)
@@ -316,7 +316,7 @@ func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingT
 
 		if testCase.expectedMatch {
 			assert.NotNil(t, ep, "expect a match for request: %v", testCase.name, testCase.request)
-			assert.LessOrEqual(t, 1, len(mockRouter.matches[ep.Id]), "unexpected entries in matches")
+			assert.LessOrEqual(t, 1, len(mockRouter.Matches[ep.Id]), "unexpected entries in matches")
 		} else {
 			assert.Nil(t, ep, "expect a no match for request: %v", testCase.name, testCase.request)
 		}

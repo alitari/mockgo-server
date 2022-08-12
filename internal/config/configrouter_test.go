@@ -117,6 +117,7 @@ func TestConfigRouter_SetKVStore(t *testing.T) {
 
 func TestConfigRouter_GetKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
+	kvstore.CreateTheStore()
 	configRouter := NewConfigRouter(mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
@@ -157,7 +158,7 @@ func TestConfigRouter_SyncWithCluster(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 	configRouter := NewConfigRouter(mockRouter, 0, []string{clusterNode1.URL, clusterNode2.URL}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
-	configRouter.SyncWithCluster()
+	configRouter.SyncKvstoreWithCluster()
 
 	assert.NotNil(t, clusterNode1Request, "clusterNode1Request must exist")
 	assert.Nil(t, clusterNode2Request, "clusterNode2Request must not exist")

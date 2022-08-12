@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/go-http-utils/headers"
@@ -34,4 +36,17 @@ func RequestMustHave(method, contentType, acceptType string, urlPathParams []str
 		}
 	}
 	return f
+}
+
+func WriteEntity(writer http.ResponseWriter, entity interface{}) {	
+	entityBytes, err := json.Marshal(entity)
+	if err != nil {
+		http.Error(writer, fmt.Sprintf("Cannot marshall response: %v", err), http.StatusInternalServerError)
+		return
+	}
+	_, err = io.WriteString(writer, string(entityBytes))
+	if err != nil {
+		http.Error(writer, fmt.Sprintf("Cannot write response: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
