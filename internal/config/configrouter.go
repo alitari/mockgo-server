@@ -23,14 +23,15 @@ import (
 const NoAdvertiseHeader = "No-advertise"
 
 type ConfigRouter struct {
-	mockRouter  *mock.MockRouter
-	router      *mux.Router
-	server      *http.Server
-	port        int
-	id          string
-	clusterUrls []string
-	logger      *utils.Logger
-	kvstore     *kvstore.KVStore
+	mockRouter        *mock.MockRouter
+	router            *mux.Router
+	server            *http.Server
+	port              int
+	id                string
+	clusterUrls       []string
+	logger            *utils.Logger
+	kvstore           *kvstore.KVStore
+	httpClientTimeout time.Duration
 }
 
 type EndpointsResponse struct {
@@ -39,12 +40,13 @@ type EndpointsResponse struct {
 
 func NewConfigRouter(mockRouter *mock.MockRouter, port int, clusterUrls []string, kvstore *kvstore.KVStore, logger *utils.Logger) *ConfigRouter {
 	configRouter := &ConfigRouter{
-		mockRouter:  mockRouter,
-		port:        port,
-		clusterUrls: clusterUrls,
-		id:          uuid.New().String(),
-		logger:      logger,
-		kvstore:     kvstore,
+		mockRouter:        mockRouter,
+		port:              port,
+		clusterUrls:       clusterUrls,
+		id:                uuid.New().String(),
+		logger:            logger,
+		kvstore:           kvstore,
+		httpClientTimeout: 1 * time.Second,
 	}
 	configRouter.newRouter()
 	return configRouter
@@ -79,6 +81,7 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
 	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", nil, r.uploadKVStore))
 	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.downloadKVStore))
+	router.NewRoute().Name("matches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
 	r.router = router
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: router}
 }
@@ -87,11 +90,16 @@ func (r *ConfigRouter) health(writer http.ResponseWriter, request *http.Request)
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (r *ConfigRouter) SyncWithCluster() error {
+func (r *ConfigRouter) createHttpClient() http.Client {
+	httpClient := http.Client{Timeout: time.Duration(1) * time.Second}
+	return httpClient
+}
+
+func (r *ConfigRouter) SyncKvstoreWithCluster() error {
 	if len(r.clusterUrls) == 0 {
 		return nil
 	}
-	httpClient := http.Client{Timeout: time.Duration(1) * time.Second}
+	httpClient := r.createHttpClient()
 	for _, clusterUrl := range r.clusterUrls {
 		r.logger.LogWhenVerbose(fmt.Sprintf("syncing with : '%s'...", clusterUrl))
 		downloadKvstoreRequest, err := http.NewRequest(http.MethodGet, clusterUrl+"/kvstore", nil)
@@ -129,7 +137,7 @@ func (r *ConfigRouter) SyncWithCluster() error {
 }
 
 func (r *ConfigRouter) advertiseKVStore(key, value string) error {
-	httpClient := http.Client{Timeout: time.Duration(1) * time.Second}
+	httpClient := r.createHttpClient()
 	for _, clusterUrl := range r.clusterUrls {
 		r.logger.LogWhenVerbose(fmt.Sprintf("syncing kvstore key '%s' with : '%s'...", key, clusterUrl))
 		setKVstoreRequest, err := http.NewRequest(http.MethodPut, clusterUrl+"/kvstore/"+key, bytes.NewBufferString(value))
@@ -163,18 +171,12 @@ func (r *ConfigRouter) serverId(writer http.ResponseWriter, request *http.Reques
 	writer.WriteHeader(http.StatusOK)
 }
 
+func (r *ConfigRouter) getMatches(writer http.ResponseWriter, request *http.Request) {
+	utils.WriteEntity(writer, r.mockRouter.Matches)
+}
+
 func (r *ConfigRouter) downloadKVStore(writer http.ResponseWriter, request *http.Request) {
-	store := r.kvstore.GetAll()
-	storeBytes, err := json.Marshal(store)
-	if err != nil {
-		http.Error(writer, fmt.Sprintf("Cannot marshall response: %v", err), http.StatusInternalServerError)
-		return
-	}
-	_, err = io.WriteString(writer, string(storeBytes))
-	if err != nil {
-		http.Error(writer, fmt.Sprintf("Cannot write response: %v", err), http.StatusInternalServerError)
-		return
-	}
+	utils.WriteEntity(writer, r.kvstore.GetAll())
 }
 
 func (r *ConfigRouter) uploadKVStore(writer http.ResponseWriter, request *http.Request) {
@@ -199,15 +201,50 @@ func (r *ConfigRouter) getKVStore(writer http.ResponseWriter, request *http.Requ
 		http.Error(writer, "Problem with getting kvstore value "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	resp, err := json.MarshalIndent(val, "", "    ")
-	if err != nil {
-		http.Error(writer, fmt.Sprintf("Cannot marshall response: %v", err), http.StatusInternalServerError)
-		return
-	}
-	_, err = io.WriteString(writer, string(resp))
-	if err != nil {
-		http.Error(writer, fmt.Sprintf("Cannot write response: %v", err), http.StatusInternalServerError)
-		return
+	utils.WriteEntity(writer, val)
+}
+
+func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *http.Request) {
+	if len(r.clusterUrls) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+		r.getMatches(writer, request)
+	} else {
+		allMatches := make(map[string][]*model.Match)
+		httpClient := r.createHttpClient()
+		for _, clusterUrl := range r.clusterUrls {
+			r.logger.LogWhenVerbose(fmt.Sprintf("get matches from '%s'...", clusterUrl))
+			matchesRequest, err := http.NewRequest(http.MethodGet, clusterUrl+"/matches/", nil)
+			if err != nil {
+				http.Error(writer, fmt.Sprintf("Cannot create match request : %v", err), http.StatusInternalServerError)
+				return
+			}
+			matchesRequest.Header.Add(NoAdvertiseHeader, "true")
+			matchesRequest.Header.Add(headers.Accept, "application/json")
+			matchesResponse, err := httpClient.Do(matchesRequest)
+			if err != nil {
+				http.Error(writer, fmt.Sprintf("Cannot send match request : %v", err), http.StatusInternalServerError)
+				return
+			}
+			if matchesResponse.StatusCode != http.StatusOK {
+				http.Error(writer, fmt.Sprintf("Unexpected response from %s : %d", clusterUrl, matchesResponse.StatusCode), http.StatusInternalServerError)
+				return
+			}
+			body, err := io.ReadAll(matchesResponse.Body)
+			if err != nil {
+				http.Error(writer, "Problem reading response body: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			matchesResponse.Body.Close()
+			bodyData := &map[string][]*model.Match{}
+			err = json.Unmarshal(body, bodyData)
+			if err != nil {
+				http.Error(writer, "Problem marshalling response body: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			for k, v := range *bodyData {
+				allMatches[k] = append(allMatches[k], v...)
+			}
+		}
+		utils.WriteEntity(writer, allMatches)
 	}
 }
 

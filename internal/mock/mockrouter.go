@@ -45,7 +45,7 @@ type MockRouter struct {
 	router              *mux.Router
 	server              *http.Server
 	kvstore             *kvstore.KVStore
-	matches             map[string][]*model.Match
+	Matches             map[string][]*model.Match
 }
 
 func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, port int, kvstore *kvstore.KVStore, logger *utils.Logger) (*MockRouter, error) {
@@ -59,7 +59,7 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 		logger:              logger,
 		EpSearchNode:        &model.EpSearchNode{},
 		kvstore:             kvstore,
-		matches:             make(map[string][]*model.Match),
+		Matches:             make(map[string][]*model.Match),
 	}
 	err := mockRouter.loadFiles()
 	if err != nil {
@@ -342,7 +342,7 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Request) {
 	actualRequest := &model.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
 	match := &model.Match{MockEndpoint: endPoint, Timestamp: time.Now(), ActualRequest: actualRequest}
-	r.matches[endPoint.Id] = append(r.matches[endPoint.Id], match)
+	r.Matches[endPoint.Id] = append(r.Matches[endPoint.Id], match)
 }
 
 func (r *MockRouter) AllEndpoints() []*model.MockEndpoint {

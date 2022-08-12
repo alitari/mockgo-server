@@ -46,14 +46,14 @@ func TestMain_serverid(t *testing.T) {
 
 func TestMain_endpoints(t *testing.T) {
 	requestToAllNodes(t, true, http.MethodGet, "/endpoints", "", "application/json", "", http.StatusOK, func(responseBody string) {
-		assert.Equal(t, 582, len(responseBody))
+		assert.Equal(t, 1180, len(responseBody))
 	})
 }
 
 func TestMain_setgetKvStore(t *testing.T) {
 	requestToNode(t, 0, true, http.MethodPut, "/kvstore/store1", "application/json", "", `{ "mykey1": "myvalue1" }`, http.StatusNoContent, nil)
 	requestToAllNodes(t, true, http.MethodGet, "/kvstore/store1", "", "application/json", "", http.StatusOK, func(responseBody string) {
-		assert.Equal(t, "{\n    \"mykey1\": \"myvalue1\"\n}", responseBody)
+		assert.Equal(t, "{\"mykey1\":\"myvalue1\"}", responseBody)
 	})
 }
 
@@ -78,6 +78,13 @@ func TestMain_uploadKvStore(t *testing.T) {
 		assert.Equal(t, kvstore, responseBody)
 	})
 }
+
+// func TestMain_matchstatistics(t *testing.T) {
+// 	// TODO clean match statistics
+// 	requestToNode(t, 0, false, http.MethodGet, "/matchstatistics", "","application/json", "", http.StatusOK, func(responseBody string) {
+// 		assert.Equal(t, "", responseBody)
+// 	})
+// }
 
 func requestToAllNodes(t *testing.T, config bool, method, path, contentType, acceptHeader, body string, expectedStatus int, assertBody func(responseBody string)) {
 	for i := 0; i < len(mockRouters); i++ {
