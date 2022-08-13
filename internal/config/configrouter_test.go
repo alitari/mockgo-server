@@ -7,9 +7,11 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/mock"
+	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
@@ -122,7 +124,7 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 	configRouter.newRouter()
 
 	val := "{ \"myconfig\": \"is here!\" }"
-	err := kvstore.TheKVStore.Put("testapp", val)
+	err := configRouter.kvstore.Put("testapp", val)
 	assert.NoError(t, err)
 
 	testCases := []*configRouterTestCase{
@@ -139,6 +141,35 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("getKVStore").GetHandler(), testCases, t)
+}
+
+func TestConfigRouter_GetMatches(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+
+	actualRequest := &model.ActualRequest{Method: http.MethodGet, URL: "http://mytesturl", Header: map[string][]string{}, Host: "myhost"}
+	endpoint := &model.MockEndpoint{Id: "endpointId"}
+	match := &model.Match{MockEndpoint: endpoint, Timestamp: time.Date(
+		2009, 11, 17, 20, 34, 58, 651387237, time.UTC), ActualRequest: actualRequest}
+	mockRouter.Matches["someEndpointId"] = append(mockRouter.Matches["someEndpointId"], match)
+
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter(mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	testCases := []*configRouterTestCase{
+		{name: "GetMatches",
+			request: createRequest(
+				http.MethodGet,
+				"http://somehost/matches",
+				"",
+				map[string][]string{headers.Accept: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "../../test/expectedResponses/matches.json",
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("matches").GetHandler(), testCases, t)
 }
 
 func TestConfigRouter_SyncWithCluster(t *testing.T) {
