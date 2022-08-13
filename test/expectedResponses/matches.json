@@ -1,1 +1,1 @@
-{"someEndpointId":[{"MockEndpoint":{"id":"endpointId","mock":null,"prio":0,"request":null,"response":null},"Timestamp":"2009-11-17T20:34:58.651387237Z","ActualRequest":{"Method":"GET","URL":"http://mytesturl","Header":{},"Host":"myhost"}}]}
+{"someEndpointId":[{"endpointId":"endpointId","timestamp":"2009-11-17T20:34:58.651387237Z","actualrequest":{"method":"GET","url":"http://mytesturl","header":{},"host":"myhost"}}]}

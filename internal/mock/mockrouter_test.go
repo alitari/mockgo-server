@@ -92,7 +92,7 @@ func TestMatchRequestToEndpoint_Matches(t *testing.T) {
 	endPointMatches := mockRouter.Matches[ep.Id]
 	assert.NotNil(t, endPointMatches)
 	assert.Equal(t, 1, len(endPointMatches))
-	assert.Equal(t, ep, endPointMatches[0].MockEndpoint)
+	assert.Equal(t, ep.Id, endPointMatches[0].EndpointId)
 	assert.NotNil(t, endPointMatches[0].ActualRequest)
 	assert.Equal(t, http.MethodGet, endPointMatches[0].ActualRequest.Method)
 	assert.Equal(t, "host", endPointMatches[0].ActualRequest.Host)
@@ -190,7 +190,7 @@ func TestRenderResponse_Matches(t *testing.T) {
 		{name: "template matches",
 			responseTemplate: `body: |
   {{ range $i, $match := matches "one" -}}
-  Match-EndpointId:  {{ $match.MockEndpoint.Id }}
+  Match-EndpointId:  {{ $match.EndpointId }}
   Match-Request method:  {{ $match.ActualRequest.Method }}
   Match-Request URL:  {{ $match.ActualRequest.URL }}
   Match-Request Host:  {{ $match.ActualRequest.Host }}

@@ -18,16 +18,16 @@ type Serving interface {
 }
 
 type Match struct {
-	MockEndpoint *MockEndpoint
-	Timestamp time.Time
-	ActualRequest *ActualRequest
+	EndpointId    string         `json:"endpointId"`
+	Timestamp     time.Time      `json:"timestamp"`
+	ActualRequest *ActualRequest `json:"actualrequest"`
 }
 
 type ActualRequest struct {
-	Method string
-	URL string
-	Header map[string][]string
-	Host string
+	Method string              `json:"method" `
+	URL    string              `json:"url" `
+	Header map[string][]string `json:"header" `
+	Host   string              `json:"host" `
 }
 
 type MatchRequest struct {
