@@ -146,9 +146,8 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 func TestConfigRouter_GetMatches(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 
-	actualRequest := &model.ActualRequest{Method: http.MethodGet, URL: "http://mytesturl", Header: map[string][]string{}, Host: "myhost"}
-	endpoint := &model.MockEndpoint{Id: "endpointId"}
-	match := &model.Match{MockEndpoint: endpoint, Timestamp: time.Date(
+	actualRequest := &model.ActualRequest{Method: http.MethodGet, URL: "http://mytesturl", Header: map[string][]string{}, Host: "myhost"}	
+	match := &model.Match{EndpointId: "endpointId", Timestamp: time.Date(
 		2009, 11, 17, 20, 34, 58, 651387237, time.UTC), ActualRequest: actualRequest}
 	mockRouter.Matches["someEndpointId"] = append(mockRouter.Matches["someEndpointId"], match)
 

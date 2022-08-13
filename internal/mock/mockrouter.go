@@ -341,7 +341,7 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 
 func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Request) {
 	actualRequest := &model.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
-	match := &model.Match{MockEndpoint: endPoint, Timestamp: time.Now(), ActualRequest: actualRequest}
+	match := &model.Match{EndpointId: endPoint.Id, Timestamp: time.Now(), ActualRequest: actualRequest}
 	r.Matches[endPoint.Id] = append(r.Matches[endPoint.Id], match)
 }
 
