@@ -43,9 +43,11 @@ jobs:
       with:
         username: alitari
         password: ${{ secrets.DOCKERHUB_TOKEN }}
-    
-    - name: Build
-      run: ./scripts/docker-build.sh
-    
-    - name: Push
-      run: "docker push alitari/mockgo-server:latest"
+
+    - name: Build and push
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./build/docker/Dockerfile
+        push: true
+        tags: alitari/mockgo-server:latest
