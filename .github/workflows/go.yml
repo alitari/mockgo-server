@@ -46,3 +46,6 @@ jobs:
     
     - name: Build
       run: ./scripts/docker-build.sh
+    
+    - name: Push
+      run: "docker push alitari/mockgo-server:latest"
