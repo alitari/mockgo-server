@@ -24,7 +24,7 @@ type configRouterTestCase struct {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(utils.RunAndCheckCoverage("configrouter", m, 0.35))
+	os.Exit(utils.RunAndCheckCoverage("configrouter", m, 0.30))
 }
 
 func TestConfigRouter_Endpoints(t *testing.T) {
