@@ -146,7 +146,7 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 func TestConfigRouter_GetMatches(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 
-	actualRequest := &model.ActualRequest{Method: http.MethodGet, URL: "http://mytesturl", Header: map[string][]string{}, Host: "myhost"}	
+	actualRequest := &model.ActualRequest{Method: http.MethodGet, URL: "http://mytesturl", Header: map[string][]string{}, Host: "myhost"}
 	match := &model.Match{EndpointId: "endpointId", Timestamp: time.Date(
 		2009, 11, 17, 20, 34, 58, 651387237, time.UTC), ActualRequest: actualRequest}
 	mockRouter.Matches["someEndpointId"] = append(mockRouter.Matches["someEndpointId"], match)
@@ -168,7 +168,36 @@ func TestConfigRouter_GetMatches(t *testing.T) {
 			expectedResponseFile:       "../../test/expectedResponses/matches.json",
 		},
 	}
-	assertConfigRouterResponse(configRouter.router.Get("matches").GetHandler(), testCases, t)
+	assertConfigRouterResponse(configRouter.router.Get("getMatches").GetHandler(), testCases, t)
+}
+
+func TestConfigRouter_DeleteMatches(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+
+	actualRequest := &model.ActualRequest{Method: http.MethodGet, URL: "http://mytesturl", Header: map[string][]string{}, Host: "myhost"}
+	match := &model.Match{EndpointId: "endpointId", Timestamp: time.Date(
+		2009, 11, 17, 20, 34, 58, 651387237, time.UTC), ActualRequest: actualRequest}
+	mockRouter.Matches["someEndpointId"] = append(mockRouter.Matches["someEndpointId"], match)
+
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter(mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	testCases := []*configRouterTestCase{
+		{name: "DeleteMatches",
+			request: createRequest(
+				http.MethodDelete,
+				"http://somehost/matches",
+				"",
+				nil,
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "../../test/expectedResponses/nocontent.json",
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("deleteMatches").GetHandler(), testCases, t)
+	assert.Empty(t, mockRouter.Matches)
 }
 
 func TestConfigRouter_SyncWithCluster(t *testing.T) {
