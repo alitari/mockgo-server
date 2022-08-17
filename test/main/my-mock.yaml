@@ -1,5 +1,6 @@
 endpoints:
-  - request:
+  - id: "helloId"
+    request:
       path: '/hello'
     response:
       bodyFilename: "myresponse.json"

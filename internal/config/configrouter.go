@@ -81,7 +81,8 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
 	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", nil, r.uploadKVStore))
 	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.downloadKVStore))
-	router.NewRoute().Name("matches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
+	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
+	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
 	r.router = router
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: router}
 }
@@ -175,6 +176,10 @@ func (r *ConfigRouter) getMatches(writer http.ResponseWriter, request *http.Requ
 	utils.WriteEntity(writer, r.mockRouter.Matches)
 }
 
+func (r *ConfigRouter) deleteMatches(writer http.ResponseWriter, request *http.Request) {
+	r.mockRouter.Matches = make(map[string][]*model.Match)
+}
+
 func (r *ConfigRouter) downloadKVStore(writer http.ResponseWriter, request *http.Request) {
 	utils.WriteEntity(writer, r.kvstore.GetAll())
 }
@@ -211,8 +216,9 @@ func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *ht
 		allMatches := make(map[string][]*model.Match)
 		httpClient := r.createHttpClient()
 		for _, clusterUrl := range r.clusterUrls {
-			r.logger.LogWhenVerbose(fmt.Sprintf("get matches from '%s'...", clusterUrl))
-			matchesRequest, err := http.NewRequest(http.MethodGet, clusterUrl+"/matches/", nil)
+			matchUrl := clusterUrl + "/matches"
+			r.logger.LogWhenVerbose(fmt.Sprintf("calling '%s'...", matchUrl))
+			matchesRequest, err := http.NewRequest(http.MethodGet, matchUrl, nil)
 			if err != nil {
 				http.Error(writer, fmt.Sprintf("Cannot create match request : %v", err), http.StatusInternalServerError)
 				return
@@ -245,6 +251,34 @@ func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *ht
 			}
 		}
 		utils.WriteEntity(writer, allMatches)
+	}
+}
+
+func (r *ConfigRouter) deleteMatchesFromAll(writer http.ResponseWriter, request *http.Request) {
+	if len(r.clusterUrls) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+		r.deleteMatches(writer, request)
+	} else {
+		httpClient := r.createHttpClient()
+		for _, clusterUrl := range r.clusterUrls {
+			matchUrl := clusterUrl + "/matches"
+			r.logger.LogWhenVerbose(fmt.Sprintf("calling '%s'...", matchUrl))
+			matchesDeleteRequest, err := http.NewRequest(http.MethodDelete, matchUrl, nil)
+			if err != nil {
+				http.Error(writer, fmt.Sprintf("Cannot create match request : %v", err), http.StatusInternalServerError)
+				return
+			}
+			matchesDeleteRequest.Header.Add(NoAdvertiseHeader, "true")
+			matchesResponse, err := httpClient.Do(matchesDeleteRequest)
+			if err != nil {
+				http.Error(writer, fmt.Sprintf("Cannot send match request : %v", err), http.StatusInternalServerError)
+				return
+			}
+			if matchesResponse.StatusCode != http.StatusOK {
+				http.Error(writer, fmt.Sprintf("Unexpected response from %s : %d", clusterUrl, matchesResponse.StatusCode), http.StatusInternalServerError)
+				return
+			}
+		}
+		writer.WriteHeader(http.StatusOK)
 	}
 }
 

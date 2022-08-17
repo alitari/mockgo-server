@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/alitari/mockgo-server/internal/config"
 	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/mock"
+	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/go-http-utils/headers"
 	"github.com/stretchr/testify/assert"
@@ -46,7 +48,7 @@ func TestMain_serverid(t *testing.T) {
 
 func TestMain_endpoints(t *testing.T) {
 	requestToAllNodes(t, true, http.MethodGet, "/endpoints", "", "application/json", "", http.StatusOK, func(responseBody string) {
-		assert.Equal(t, 1180, len(responseBody))
+		assert.Equal(t, 1186, len(responseBody))
 	})
 }
 
@@ -55,6 +57,45 @@ func TestMain_setgetKvStore(t *testing.T) {
 	requestToAllNodes(t, true, http.MethodGet, "/kvstore/store1", "", "application/json", "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{\"mykey1\":\"myvalue1\"}", responseBody)
 	})
+}
+
+func TestMain_getMatches(t *testing.T) {
+	// get matches
+	requestToNode(t, 0, true, http.MethodGet, "/matches", "", "application/json", "", http.StatusOK, func(responseBody string) {
+		assert.Equal(t, "{}", responseBody)
+	})
+	// mock request
+	requestToNode(t, 0, false, http.MethodGet, "/hello", "", "application/json", "", http.StatusOK, func(responseBody string) {
+		assert.Equal(t, "{\n    \"hello\": \"from Mockgo!\"\n}", responseBody)
+	})
+
+	assertMatchesResponsesFunc := func(responseBody string) {
+		var matchData map[string][]*model.Match
+		err := json.Unmarshal([]byte(responseBody), &matchData)
+		assert.NoError(t, err)
+		matches := matchData["helloId"]
+		assert.NotNil(t, matches)
+		assert.Len(t, matches, 1)
+		match := matches[0]
+		assert.Equal(t, "helloId", match.EndpointId)
+		assert.Greater(t, time.Now(), match.Timestamp)
+		assert.Equal(t, http.MethodGet, match.ActualRequest.Method)
+		assert.Equal(t, "localhost:8081", match.ActualRequest.Host)
+		assert.Equal(t, "/hello", match.ActualRequest.URL)
+		assert.Equal(t, map[string][]string{"Accept": {"application/json"}, "Accept-Encoding": {"gzip"}, "User-Agent": {"Go-http-client/1.1"}}, match.ActualRequest.Header)
+		assert.Equal(t, http.StatusOK, match.ActualResponse.StatusCode)
+		assert.Equal(t, map[string]string{}, match.ActualResponse.Header)
+	}
+	requestToAllNodes(t, true, http.MethodGet, "/matches", "", "application/json", "", http.StatusOK, assertMatchesResponsesFunc)
+
+	requestToNode(t, 0, true, http.MethodDelete, "/matches", "", "", "", http.StatusOK, func(responseBody string) {
+		assert.Empty(t, responseBody)
+	})
+
+	requestToAllNodes(t, true, http.MethodGet, "/matches", "", "application/json", "", http.StatusOK, func(responseBody string) {
+		assert.Equal(t, "{}", responseBody)
+	})
+
 }
 
 func TestMain_uploadKvStore(t *testing.T) {
