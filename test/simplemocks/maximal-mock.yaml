@@ -1,5 +1,6 @@
 endpoints:
-  - request:
+  - id: "maximal"
+    request:
       scheme: "https"
       host: "alexkrieg.com"
       method: "POST"
@@ -10,6 +11,5 @@ endpoints:
       headers:
         Content-Type: "application/json"
         Myheader: myheaderValue
-
     response:
       statusCode: 204

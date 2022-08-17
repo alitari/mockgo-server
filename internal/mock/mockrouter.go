@@ -197,13 +197,14 @@ func (r *MockRouter) createTemplate(name, content string) (*template.Template, e
 func (r *MockRouter) newRouter() {
 	r.router = mux.NewRouter()
 	var endPoint *model.MockEndpoint
+	var match *model.Match
 	var requestPathParam map[string]string
-	route := r.router.MatcherFunc(func(request *http.Request, match *mux.RouteMatch) bool {
-		endPoint, requestPathParam = r.matchRequestToEndpoint(request)
+	route := r.router.MatcherFunc(func(request *http.Request, routematch *mux.RouteMatch) bool {
+		endPoint, match, requestPathParam = r.matchRequestToEndpoint(request)
 		return endPoint != nil
 	})
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		r.renderResponse(writer, request, endPoint, requestPathParam)
+		r.renderResponse(writer, request, endPoint, match, requestPathParam)
 	})
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: r.router}
 }
@@ -242,7 +243,7 @@ func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.Id, endpoint.Request.Path, endpoint.Request.Method))
 }
 
-func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockEndpoint, map[string]string) {
+func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockEndpoint, *model.Match, map[string]string) {
 	requestPathParams := map[string]string{}
 	sn := r.EpSearchNode
 	getPathSegment := func(segments []string, pos int) string {
@@ -260,7 +261,7 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 			if allMatch {
 				break
 			} else {
-				return nil, requestPathParams
+				return nil, nil, requestPathParams
 			}
 		} else {
 			if allMatch {
@@ -276,7 +277,7 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 			if sn.SearchNodes[pathSegment] == nil {
 				if sn.SearchNodes["*"] == nil {
 					if sn.SearchNodes["**"] == nil {
-						return nil, requestPathParams
+						return nil, nil, requestPathParams
 					} else {
 						allMatch = true
 						sn = sn.SearchNodes["**"]
@@ -294,12 +295,13 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 		}
 	}
 	if sn != nil && sn.Endpoints != nil && sn.Endpoints[request.Method] != nil {
-		return r.matchEndPointsAttributes(sn.Endpoints[request.Method], request), requestPathParams
+		ep, match := r.matchEndPointsAttributes(sn.Endpoints[request.Method], request)
+		return ep, match, requestPathParams
 	}
-	return nil, requestPathParams
+	return nil, nil, requestPathParams
 }
 
-func (r *MockRouter) matchEndPointsAttributes(endPoints []*model.MockEndpoint, request *http.Request) *model.MockEndpoint {
+func (r *MockRouter) matchEndPointsAttributes(endPoints []*model.MockEndpoint, request *http.Request) (*model.MockEndpoint, *model.Match) {
 	for _, ep := range endPoints {
 		if !r.matchQueryParams(ep.Request, request) {
 			continue
@@ -307,10 +309,10 @@ func (r *MockRouter) matchEndPointsAttributes(endPoints []*model.MockEndpoint, r
 		if !r.matchHeaderValues(ep.Request, request) {
 			continue
 		}
-		r.addMatch(ep, request)
-		return ep
+		match := r.addMatch(ep, request)
+		return ep, match
 	}
-	return nil
+	return nil, nil
 }
 
 func (r *MockRouter) matchQueryParams(matchRequest *model.MatchRequest, request *http.Request) bool {
@@ -339,10 +341,11 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 	}
 }
 
-func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Request) {
+func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Request) *model.Match {
 	actualRequest := &model.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
 	match := &model.Match{EndpointId: endPoint.Id, Timestamp: time.Now(), ActualRequest: actualRequest}
 	r.Matches[endPoint.Id] = append(r.Matches[endPoint.Id], match)
+	return match
 }
 
 func (r *MockRouter) AllEndpoints() []*model.MockEndpoint {
@@ -368,7 +371,7 @@ func (r *MockRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *model.EpS
 	return endpoints
 }
 
-func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, requestPathParams map[string]string) {
+func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, match *model.Match, requestPathParams map[string]string) {
 	responseTemplateData, err := r.createResponseTemplateData(request, requestPathParams)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -388,10 +391,9 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 			writer.Header().Set(key, val)
 		}
 	}
+	statusCode := http.StatusOK
 	if renderedResponse.StatusCode > 0 {
-		writer.WriteHeader(renderedResponse.StatusCode)
-	} else {
-		writer.WriteHeader(http.StatusOK)
+		statusCode = renderedResponse.StatusCode
 	}
 	bodyStr := ""
 	if renderedResponse.Body != "" {
@@ -404,9 +406,12 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 			fmt.Fprintf(writer, "Error rendering response: %v", err)
 			return
 		}
+
 	}
 	writer.Header().Set("Mocked", "true")
+	writer.WriteHeader(statusCode)
 	fmt.Fprint(writer, bodyStr)
+	match.ActualResponse = &model.ActualResponse{StatusCode: statusCode, Header: renderedResponse.Headers}
 }
 
 func (r *MockRouter) createResponseTemplateData(request *http.Request, requestPathParams map[string]string) (*ResponseTemplateData, error) {
