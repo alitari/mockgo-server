@@ -65,6 +65,9 @@ resources: {}
 configEndpoint:
   containerPort: 8080
   servicePort: 8080
+  username: mockgo
+  password: password
+  
 mockEndpoint:
   containerPort: 8081
   servicePort: 80

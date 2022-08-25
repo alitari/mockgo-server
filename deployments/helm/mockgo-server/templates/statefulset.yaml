@@ -26,7 +26,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}
       {{- end }}
@@ -104,6 +105,13 @@ spec:
           value: {{ .Values.logging.verbose | quote }}
         - name: CONFIG_PORT
           value: {{ .Values.configEndpoint.containerPort | quote }}
+        - name: CONFIG_USERNAME
+          value: {{ .Values.configEndpoint.username | quote }}
+        - name: CONFIG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "mockgoserver.fullname" . }}
+              key: configPassword
         - name: MOCK_PORT
           value: {{ .Values.mockEndpoint.containerPort | quote }}
         - name: MOCK_DIR

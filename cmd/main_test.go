@@ -24,6 +24,7 @@ import (
 var httpClient = http.Client{Timeout: time.Duration(1) * time.Second}
 var clusterSize = 2
 var startPort = 8080
+var configPassword = utils.RandString(10)
 
 var mockRouters []*mock.MockRouter
 var configRouters []*config.ConfigRouter
@@ -39,33 +40,54 @@ func TestMain(m *testing.M) {
 }
 
 func TestMain_health(t *testing.T) {
-	requestToAllNodes(t, true, http.MethodGet, "/health", "", "", "", http.StatusOK, nil)
+	requestToAllNodes(t, true, http.MethodGet, "/health", map[string][]string{}, "", http.StatusOK, nil)
 }
 
 func TestMain_serverid(t *testing.T) {
-	requestToAllNodes(t, true, http.MethodGet, "/id", "", "application/text", "", http.StatusOK, nil)
+	requestToAllNodes(t, true, http.MethodGet, "/id", map[string][]string{headers.Accept: {"application/text"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, nil)
 }
 
 func TestMain_endpoints(t *testing.T) {
-	requestToAllNodes(t, true, http.MethodGet, "/endpoints", "", "application/json", "", http.StatusOK, func(responseBody string) {
+	requestToAllNodes(t, true, http.MethodGet, "/endpoints", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, 1186, len(responseBody))
 	})
 }
 
 func TestMain_setgetKvStore(t *testing.T) {
-	requestToNode(t, 0, true, http.MethodPut, "/kvstore/store1", "application/json", "", `{ "mykey1": "myvalue1" }`, http.StatusNoContent, nil)
-	requestToAllNodes(t, true, http.MethodGet, "/kvstore/store1", "", "application/json", "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodPut, "/kvstore/store1", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, `{ "mykey1": "myvalue1" }`, http.StatusNoContent, nil)
+	requestToAllNodes(t, true, http.MethodGet, "/kvstore/store1", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{\"mykey1\":\"myvalue1\"}", responseBody)
 	})
 }
 
+func TestMain_uploadKvStore(t *testing.T) {
+	// delete kv store for all
+	requestToAllNodes(t, true, http.MethodPut, "/kvstore", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "{}", http.StatusNoContent, nil)
+
+	kvstore := `{"store1":{"mykey":"myvalue"}}`
+	requestToNode(t, 0, true, http.MethodPut, "/kvstore", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, kvstore, http.StatusNoContent, nil)
+	requestToNode(t, 0, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+		assert.Equal(t, kvstore, responseBody)
+	})
+	// upload kvstore not advertised
+	requestToNode(t, 1, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+		assert.Equal(t, "{}", responseBody)
+	})
+	stopNode(1)
+	startNode(1)
+	time.Sleep(100 * time.Millisecond)
+	// kvstore synced from node 0 at boot time
+	requestToNode(t, 1, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+		assert.Equal(t, kvstore, responseBody)
+	})
+}
 func TestMain_getMatches(t *testing.T) {
 	// get matches
-	requestToNode(t, 0, true, http.MethodGet, "/matches", "", "application/json", "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{}", responseBody)
 	})
 	// mock request
-	requestToNode(t, 0, false, http.MethodGet, "/hello", "", "application/json", "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, false, http.MethodGet, "/hello", map[string][]string{headers.Accept: {"application/json"}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{\n    \"hello\": \"from Mockgo!\"\n}", responseBody)
 	})
 
@@ -86,38 +108,16 @@ func TestMain_getMatches(t *testing.T) {
 		assert.Equal(t, http.StatusOK, match.ActualResponse.StatusCode)
 		assert.Equal(t, map[string]string{}, match.ActualResponse.Header)
 	}
-	requestToAllNodes(t, true, http.MethodGet, "/matches", "", "application/json", "", http.StatusOK, assertMatchesResponsesFunc)
+	requestToAllNodes(t, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, assertMatchesResponsesFunc)
 
-	requestToNode(t, 0, true, http.MethodDelete, "/matches", "", "", "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodDelete, "/matches", map[string][]string{headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Empty(t, responseBody)
 	})
 
-	requestToAllNodes(t, true, http.MethodGet, "/matches", "", "application/json", "", http.StatusOK, func(responseBody string) {
+	requestToAllNodes(t, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{}", responseBody)
 	})
 
-}
-
-func TestMain_uploadKvStore(t *testing.T) {
-	// delete kv store for all
-	requestToAllNodes(t, true, http.MethodPut, "/kvstore", "application/json", "", "{}", http.StatusNoContent, nil)
-
-	kvstore := `{"store1":{"mykey":"myvalue"}}`
-	requestToNode(t, 0, true, http.MethodPut, "/kvstore", "application/json", "", kvstore, http.StatusNoContent, nil)
-	requestToNode(t, 0, true, http.MethodGet, "/kvstore", "", "application/json", "", http.StatusOK, func(responseBody string) {
-		assert.Equal(t, kvstore, responseBody)
-	})
-	// upload kvstore not advertised
-	requestToNode(t, 1, true, http.MethodGet, "/kvstore", "", "application/json", "", http.StatusOK, func(responseBody string) {
-		assert.Equal(t, "{}", responseBody)
-	})
-	stopNode(1)
-	startNode(1)
-	time.Sleep(100 * time.Millisecond)
-	// kvstore synced from node 0 at boot time
-	requestToNode(t, 1, true, http.MethodGet, "/kvstore", "", "application/json", "", http.StatusOK, func(responseBody string) {
-		assert.Equal(t, kvstore, responseBody)
-	})
 }
 
 // func TestMain_matchstatistics(t *testing.T) {
@@ -127,13 +127,13 @@ func TestMain_uploadKvStore(t *testing.T) {
 // 	})
 // }
 
-func requestToAllNodes(t *testing.T, config bool, method, path, contentType, acceptHeader, body string, expectedStatus int, assertBody func(responseBody string)) {
+func requestToAllNodes(t *testing.T, config bool, method, path string, header map[string][]string, body string, expectedStatus int, assertBody func(responseBody string)) {
 	for i := 0; i < len(mockRouters); i++ {
-		requestToNode(t, i, config, method, path, contentType, acceptHeader, body, expectedStatus, assertBody)
+		requestToNode(t, i, config, method, path, header, body, expectedStatus, assertBody)
 	}
 }
 
-func requestToNode(t *testing.T, nodeNr int, config bool, method, path, contentType, acceptHeader, body string, expectedStatus int, assertBody func(responseBody string)) {
+func requestToNode(t *testing.T, nodeNr int, config bool, method, path string, header map[string][]string, body string, expectedStatus int, assertBody func(responseBody string)) {
 	port := startPort + nodeNr*2
 	if !config {
 		port++
@@ -147,12 +147,7 @@ func requestToNode(t *testing.T, nodeNr int, config bool, method, path, contentT
 	}
 	request, err := http.NewRequest(method, url, bodyReader)
 	assert.NoError(t, err)
-	if len(contentType) > 0 {
-		request.Header.Add(headers.ContentType, contentType)
-	}
-	if len(acceptHeader) > 0 {
-		request.Header.Add(headers.Accept, acceptHeader)
-	}
+	request.Header = header
 	response, err := httpClient.Do(request)
 	assert.NoError(t, err)
 	defer response.Body.Close()
@@ -207,6 +202,7 @@ func serveNode(nodeNr int) {
 	os.Setenv("VERBOSE", "true")
 	os.Setenv("MOCK_PORT", strconv.Itoa(mockPort))
 	os.Setenv("CONFIG_PORT", strconv.Itoa(configPort))
+	os.Setenv("CONFIG_PASSWORD", configPassword)
 	os.Setenv("MOCK_DIR", "../test/main")
 	os.Setenv("RESPONSE_DIR", "../test/main/responses")
 	os.Setenv("CLUSTER_URLS", getClusterUrls())
