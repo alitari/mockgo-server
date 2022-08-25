@@ -8,3 +8,6 @@ ingress:
 cluster:
   enabled: true
   replicas: 3
+
+configEndpoint:
+  password: asecretPassword

@@ -32,13 +32,15 @@ type ConfigRouter struct {
 	logger            *utils.Logger
 	kvstore           *kvstore.KVStore
 	httpClientTimeout time.Duration
+	basicAuthUsername string
+	basicAuthPassword string
 }
 
 type EndpointsResponse struct {
 	Endpoints []*model.MockEndpoint
 }
 
-func NewConfigRouter(mockRouter *mock.MockRouter, port int, clusterUrls []string, kvstore *kvstore.KVStore, logger *utils.Logger) *ConfigRouter {
+func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, kvstore *kvstore.KVStore, logger *utils.Logger) *ConfigRouter {
 	configRouter := &ConfigRouter{
 		mockRouter:        mockRouter,
 		port:              port,
@@ -47,6 +49,8 @@ func NewConfigRouter(mockRouter *mock.MockRouter, port int, clusterUrls []string
 		logger:            logger,
 		kvstore:           kvstore,
 		httpClientTimeout: 1 * time.Second,
+		basicAuthUsername: username,
+		basicAuthPassword: password,
 	}
 	configRouter.newRouter()
 	return configRouter
@@ -74,15 +78,15 @@ func (r *ConfigRouter) Logger() *utils.Logger {
 
 func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
-	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "", nil, r.health))
-	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/text", nil, r.serverId))
-	router.NewRoute().Name("endpoints").Path("/endpoints").HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.endpoints))
-	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
-	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
-	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(http.MethodPut, "application/json", "", nil, r.uploadKVStore))
-	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.downloadKVStore))
-	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
-	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
+	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave("", "", http.MethodGet, "", "", nil, r.health))
+	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/text", nil, r.serverId))
+	router.NewRoute().Name("endpoints").Path("/endpoints").HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.endpoints))
+	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
+	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
+	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.uploadKVStore))
+	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.downloadKVStore))
+	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
+	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
 	r.router = router
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: router}
 }
@@ -109,6 +113,7 @@ func (r *ConfigRouter) SyncKvstoreWithCluster() error {
 			continue
 		}
 		downloadKvstoreRequest.Header.Add(headers.Accept, `application/json`)
+		downloadKvstoreRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
 		downloadKvstoreResponse, err := httpClient.Do(downloadKvstoreRequest)
 		if err != nil {
 			r.logger.LogWhenVerbose(fmt.Sprintf("cluster node can't process request, answered with error: %v", err))
@@ -148,6 +153,7 @@ func (r *ConfigRouter) advertiseKVStore(key, value string) error {
 		}
 		setKVstoreRequest.Header.Add(NoAdvertiseHeader, "true")
 		setKVstoreRequest.Header.Add(headers.ContentType, "application/json")
+		setKVstoreRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
 		setKVstoreResponse, err := httpClient.Do(setKVstoreRequest)
 		if err != nil {
 			r.logger.LogWhenVerbose(fmt.Sprintf("advertise KVStore: cluster node can't process request, answered with error: %v", err))
@@ -225,6 +231,7 @@ func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *ht
 			}
 			matchesRequest.Header.Add(NoAdvertiseHeader, "true")
 			matchesRequest.Header.Add(headers.Accept, "application/json")
+			matchesRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
 			matchesResponse, err := httpClient.Do(matchesRequest)
 			if err != nil {
 				http.Error(writer, fmt.Sprintf("Cannot send match request : %v", err), http.StatusInternalServerError)
@@ -268,6 +275,7 @@ func (r *ConfigRouter) deleteMatchesFromAll(writer http.ResponseWriter, request 
 				return
 			}
 			matchesDeleteRequest.Header.Add(NoAdvertiseHeader, "true")
+			matchesDeleteRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
 			matchesResponse, err := httpClient.Do(matchesDeleteRequest)
 			if err != nil {
 				http.Error(writer, fmt.Sprintf("Cannot send match request : %v", err), http.StatusInternalServerError)

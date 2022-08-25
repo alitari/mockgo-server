@@ -19,13 +19,14 @@ const banner = `
 |  \/  |___  __| |_____ ___ 
 | |\/| / _ \/ _| / / _  / _ \
 |_|  |_\___/\__|_\_\__, \___/
-Configuration:     |___/     
-==============
+                   |___/     
 `
 
 type Configuration struct {
 	Verbose             bool     `default:"true"`
 	ConfigPort          int      `default:"8080" split_words:"true"`
+	ConfigUsername      string   `default:"mockgo" split_words:"true"`
+	ConfigPassword      string   `default:"password" split_words:"true"`
 	MockPort            int      `default:"8081" split_words:"true"`
 	MockDir             string   `default:"." split_words:"true"`
 	MockFilepattern     string   `default:"*-mock.*" split_words:"true"`
@@ -42,14 +43,31 @@ func (c *Configuration) validateAndFix() *Configuration {
 }
 
 func (c *Configuration) info() string {
-	return fmt.Sprintf(`Verbose: %v
-Config Port: %v
-Mock Port: %v
-Mock Dir: '%s'
-Mock Filepattern: '%s'
-Response Dir: '%s'
-Response Filepattern: '%s'
-Cluster URLs: '%v'`, c.Verbose, c.ConfigPort, c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, c.ResponseFilepattern, c.ClusterUrls)
+	var passwordMessage string
+	if c.ConfigPassword == "password" {
+		passwordMessage = "!! using UNSECURE password 'password'"
+	} else {
+		passwordMessage = c.ConfigPassword[:3] + "***"
+	}
+	return fmt.Sprintf(`
+Logging:
+  Verbose: %v
+
+Config API: 
+  Port: %v
+  BasicAuth User: '%s'
+  BasicAuth Password: %s
+
+Mock Server:
+  Port: %v
+  Dir: '%s'
+  Filepattern: '%s'
+  Response Dir: '%s'
+  Response Filepattern: '%s'
+
+Cluster:
+  Enabled: %v
+  URLs: '%v'`, c.Verbose, c.ConfigPort, c.ConfigUsername, passwordMessage, c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, c.ResponseFilepattern, len(c.ClusterUrls) > 0, c.ClusterUrls)
 }
 
 func main() {
@@ -86,7 +104,7 @@ func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, lo
 }
 
 func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, kvStore *kvstore.KVStore, logger *utils.Logger) *config.ConfigRouter {
-	configRouter := config.NewConfigRouter(mockRouter, configuration.ConfigPort, configuration.ClusterUrls, kvStore, logger)
+	configRouter := config.NewConfigRouter(configuration.ConfigUsername, configuration.ConfigPassword, mockRouter, configuration.ConfigPort, configuration.ClusterUrls, kvStore, logger)
 	err := configRouter.SyncKvstoreWithCluster()
 	if err != nil {
 		log.Fatalf("(FATAL) Can't sync with cluster: %v\n", err)
