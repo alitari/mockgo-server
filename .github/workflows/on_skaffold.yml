@@ -14,6 +14,8 @@ jobs:
     - name: Start Minikube
       id: minikube
       uses: hiberbee/github-action-minikube@1.7.0
+      with:
+        addons: ingress
     - name: Get Minikube IP
       run: echo "MINIKUBE_IP=${{ steps.minikube.outputs.ip }}" >> $GITHUB_ENV
     - name: Get cluster info
