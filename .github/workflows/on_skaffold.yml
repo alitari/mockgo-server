@@ -15,7 +15,7 @@ jobs:
       id: minikube
       uses: hiberbee/github-action-minikube@1.7.0
     - name: Get Minikube IP
-      run: export MINIKUBE_IP="${{ steps.minikube.outputs.ip }}"
+      run: echo "MINIKUBE_IP=${{ steps.minikube.outputs.ip }}" >> $GITHUB_ENV
     - name: Get cluster info
       run: kubectl cluster-info
 
