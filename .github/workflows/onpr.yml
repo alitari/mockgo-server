@@ -6,7 +6,7 @@ on:
 
 jobs:
 
-  build:
+  golang-build-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -25,7 +25,7 @@ jobs:
     - name: Cover output
       run: go tool cover -func=cover.out
 
-  dockerbuild:
+  docker-build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -43,3 +43,30 @@ jobs:
         file: ./build/docker/Dockerfile
         push: false
         tags: alitari/mockgo-server:latest
+
+  skaffold-run:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v3
+
+    - name: Start Minikube
+      id: minikube
+      uses: hiberbee/github-action-minikube@1.7.0
+      with:
+        addons: ingress
+    - name: Get Minikube IP
+      run: echo "MINIKUBE_IP=${{ steps.minikube.outputs.ip }}" >> $GITHUB_ENV
+    - name: Get cluster info
+      run: kubectl cluster-info
+
+    - name: Run Skaffold
+      uses: hiberbee/github-action-skaffold@1.22.0
+      with:
+        command: run
+    - name: Get Helm releases
+      run: helm list
+    - name: Show k8s resources
+      run: kubectl get pod,service,statefulset,configmap,secret,ingress
+    - name: Integration test precheck
+      run: ./scripts/integration-test-precheck.sh
