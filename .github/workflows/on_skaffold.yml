@@ -38,6 +38,8 @@ jobs:
         command: run
     - name: Get Helm releases
       run: helm list
+    - name: Describe ingress
+      run: kubectl describe ingress
     - name: Integration test precheck
       run: ./scripts/integration-test-precheck.sh
 
