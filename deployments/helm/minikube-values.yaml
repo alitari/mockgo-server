@@ -2,8 +2,8 @@ image: mockgo-server:latest
 pullPolicy: Never
 ingress:
   enabled: true
-  configHost: "config.192.168.67.2.nip.io"
-  mockHost: "mock.192.168.67.2.nip.io"
+  # configHost: "config.192.168.67.2.nip.io"
+  # mockHost: "mock.192.168.67.2.nip.io"
 
 cluster:
   enabled: true
