@@ -16,3 +16,7 @@ deploy:
           image: dev.local/mockgo-server
         valuesFiles:
           - deployments/helm/minikube-values.yaml
+        setValueTemplates:
+          ingress.configHost: "config.{{.MINIKUBE_IP}}.nip.io"
+          ingress.mockHost: "mock.{{.MINIKUBE_IP}}.nip.io"
+  

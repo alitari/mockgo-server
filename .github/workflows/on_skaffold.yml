@@ -32,8 +32,11 @@ jobs:
     #     password: ${{ secrets.DOCKERHUB_TOKEN }}
 
 
-    # - name: Run Skaffold pipeline as action
-    #   uses: hiberbee/github-action-skaffold@1.22.0
-    #   with:
-    #     command: run
-    #     repository: ghcr.io/${{ github.repository }}
+    - name: Run Skaffold
+      uses: hiberbee/github-action-skaffold@1.22.0
+      with:
+        command: run
+    - name: Intergration test precheck
+      run: ./scripts/integration-test-precheck.sh
+
+
