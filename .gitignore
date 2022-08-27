@@ -1,4 +1,4 @@
 cover.out
 bin/
 test/tavern/.pytest_cache
-test/tavern/report.html
+reports/tavern.html

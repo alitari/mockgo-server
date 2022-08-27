@@ -86,6 +86,11 @@ jobs:
       run: |
         export CONFIG_HOST=config.${MINIKUBE_IP}.nip.io
         export MOCK_HOST=mock.${MINIKUBE_IP}.nip.io
-        py.test -vv --html=./test/tavern/report.html --self-contained-html ./test/tavern/test.tavern.yaml
+        py.test -vv --html=./reports/tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
+
+    - name: Publish report 
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        folder: reports
 
 
