@@ -70,7 +70,7 @@ jobs:
       run: helm list
     - name: Show k8s resources
       run: kubectl get pod,service,statefulset,configmap,secret,ingress
-    - name: Integration test precheck
+    - name: Precheck environment
       run: ./scripts/integration-test-precheck.sh
 
     - name: Set up Python
@@ -85,7 +85,7 @@ jobs:
     - name: Run acceptance tests with tavern
       run: |
         export CONFIG_HOST=config.${MINIKUBE_IP}.nip.io
-        export MOCK_HOST=mock.${MINIKUBE_IP}.nip.io#
+        export MOCK_HOST=mock.${MINIKUBE_IP}.nip.io
         py.test -vv --html=./test/tavern/report.html --self-contained-html ./test/tavern/test.tavern.yaml
 
 
