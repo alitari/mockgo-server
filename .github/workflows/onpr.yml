@@ -44,7 +44,9 @@ jobs:
         push: false
         tags: alitari/mockgo-server:latest
 
-  skaffold-run:
+  acceptance-tests:
+    env:
+      TAVERNVER: "1.23.3"
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
@@ -68,5 +70,27 @@ jobs:
       run: helm list
     - name: Show k8s resources
       run: kubectl get pod,service,statefulset,configmap,secret,ingress
-    - name: Integration test precheck
+    - name: Precheck environment
       run: ./scripts/integration-test-precheck.sh
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.10.6
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip3 install tavern==$TAVERNVER pytest-html
+
+    - name: Run acceptance tests with tavern
+      run: |
+        export CONFIG_HOST=config.${MINIKUBE_IP}.nip.io
+        export MOCK_HOST=mock.${MINIKUBE_IP}.nip.io
+        py.test -vv --html=./reports/tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
+
+    - name: Publish report 
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        folder: reports
+
+

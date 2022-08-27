@@ -1,0 +1,19 @@
+test_name: Basic availabilty
+
+stages:
+  - name: health
+    request:
+      url: http://{tavern.env_vars.CONFIG_HOST}/health
+      method: GET
+    response:
+      status_code: 200
+  - name: hello world
+    request:
+      url: http://{tavern.env_vars.MOCK_HOST}/hello
+      method: GET
+    response:
+      status_code: 200
+      headers:
+        mocked: "true"
+      json:
+        hello: World
