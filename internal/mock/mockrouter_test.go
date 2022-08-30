@@ -46,7 +46,6 @@ func TestMain(m *testing.M) {
 
 func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
-
 	testCases := []*matchingTestCase{
 		{name: "Minimal Mock: Match, full request",
 			request: &http.Request{
@@ -60,16 +59,14 @@ func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
 		{name: "Minimal Mock: No Match, wrong path length too short", request: &http.Request{URL: &url.URL{Path: "/"}, Method: http.MethodGet}, expectedMatchEndpointId: ""},
 		{name: "Minimal Mock: No Match, wrong method", request: &http.Request{URL: &url.URL{Path: "/minimal"}, Method: "POST"}, expectedMatchEndpointId: ""},
 		{name: "Maximal Mock: Match, exact",
-			request: &http.Request{
-				URL:    &url.URL{Scheme: "https", Host: "alexkrieg.com", Path: "/maximal", RawQuery: "firstQueryParam=value1&secondQueryParam=value2"},
-				Method: "POST",
-				Header: map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}}},
+			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&secondQueryParam=value2",
+				"{\n  \"mybody\": \"is max\"\n}\n",
+				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}}, nil, t),
 			expectedMatchEndpointId: "maximal"},
 		{name: "Maximal Mock: Match, header and query superset",
-			request: &http.Request{
-				URL:    &url.URL{Scheme: "https", Host: "alexkrieg.com", Path: "/maximal", RawQuery: "firstQueryParam=value1&secondQueryParam=value2&thirdQueryParam=value3"},
-				Method: "POST",
-				Header: map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}, "Anotherheader": {"anotherheaderValue"}}},
+			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&secondQueryParam=value2&thirdQueryParam=value3",
+				"{\n  \"mybody\": \"is max\"\n}\n",
+				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}, "Anotherheader": {"anotherheaderValue"}}, nil, t),
 			expectedMatchEndpointId: "maximal"},
 		{name: "Maximal Mock: No Match, query subset",
 			request: &http.Request{
@@ -148,6 +145,25 @@ func TestMatchRequestToEndpoint_Prio(t *testing.T) {
 	mockRouter := createMockRouter("prioMocks", t)
 	testCases := []*matchingTestCase{
 		{name: "Simple prio, match ", request: &http.Request{URL: &url.URL{Path: "/prio"}, Method: http.MethodGet}, expectedMatchEndpointId: "mustwin"},
+	}
+	assertMatchRequestToEndpoint(mockRouter, testCases, t)
+}
+
+func TestMatchRequestToEndpoint_Regexp(t *testing.T) {
+	mockRouter := createMockRouter("regexpmocks", t)
+	testCases := []*matchingTestCase{
+		{name: "Regexp Mock1: Match",
+			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp1", "{ alex }", nil, nil, t),
+			expectedMatchEndpointId: "1"},
+		{name: "Regexp Mock1: No Match",
+			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp1", "{ alex ", nil, nil, t),
+			expectedMatchEndpointId: ""},
+		{name: "Regexp Mock2: Match",
+			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp2", "{\n alex \n}", nil, nil, t),
+			expectedMatchEndpointId: "2"},
+		{name: "Regexp Mock3: Match",
+			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp3", `{ "email": "foo@bar.com" }`, nil, nil, t),
+			expectedMatchEndpointId: "3"},
 	}
 	assertMatchRequestToEndpoint(mockRouter, testCases, t)
 }
@@ -238,6 +254,8 @@ func TestRenderResponse_Simple(t *testing.T) {
 		{name: "template RequestPathParams", match: &model.Match{}, responseTemplate: "body: {{ .RequestPathParams.param1 }}", requestParams: map[string]string{"param1": "Hello"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "Hello"},
+		{name: "template RequestParam statuscode", match: &model.Match{}, responseTemplate: "statusCode: {{ .RequestPathParams.param1 }}", requestParams: map[string]string{"param1": "202"},
+			expectedResponseStatusCode: 202},
 		{name: "template Request url", match: &model.Match{},
 			responseTemplate: "body: \"incoming request url: '{{ .RequestUrl }}'\"",
 			request: &http.Request{URL: &url.URL{User: url.User("alex"), Scheme: "https", Host: "myhost", Path: "/mypath"},
@@ -317,10 +335,11 @@ func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingT
 		ep, match, requestParams := mockRouter.matchRequestToEndpoint(testCase.request)
 
 		if len(testCase.expectedMatchEndpointId) > 0 {
-			assert.Equal(t, testCase.expectedMatchEndpointId, match.EndpointId, "unexpected matchEndpointId")
-			assert.NotNil(t, ep, "expect a match for request: %v", testCase.name, testCase.request)
+			assert.NotNil(t, match, "%s : expected match, but is none", testCase.name)
+			assert.Equal(t, testCase.expectedMatchEndpointId, match.EndpointId, "%s : unexpected matchEndpointId", testCase)
+			assert.NotNil(t, ep, "%s : expect a match for request: %v", testCase.name, testCase.request)
 		} else {
-			assert.Nil(t, ep, "expect no match for request: %v", testCase.name, testCase.request)
+			assert.Nil(t, ep, "%s : expect no match for request: %v", testCase.name, testCase.request)
 		}
 
 		if testCase.expectedRequestParams != nil {

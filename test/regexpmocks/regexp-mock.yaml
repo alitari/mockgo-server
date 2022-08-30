@@ -1,0 +1,29 @@
+endpoints:
+  - id: "1"
+    request:
+      scheme: "https"
+      host: "mymock.com"
+      method: "POST"
+      path: "/regexp1"
+      body:   "^{.*}$"
+    response:
+      statusCode: 204
+
+  - id: "2"
+    request:
+      scheme: "https"
+      host: "mymock.com"
+      method: "POST"
+      path: "/regexp2"
+      body:   "^{\n.*\n}$"
+    response:
+      statusCode: 204
+  - id: "3"
+    request:
+      scheme: "https"
+      host: "mymock.com"
+      method: "POST"
+      path: "/regexp3"
+      body: "^{ \"email\": \"[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,24}\\\" }$"
+    response:
+      statusCode: 204

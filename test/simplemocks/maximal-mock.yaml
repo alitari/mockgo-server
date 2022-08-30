@@ -11,5 +11,9 @@ endpoints:
       headers:
         Content-Type: "application/json"
         Myheader: myheaderValue
+      body: |
+        {
+          "mybody": "is max"
+        }
     response:
       statusCode: 204

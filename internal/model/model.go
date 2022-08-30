@@ -2,6 +2,7 @@ package model
 
 import (
 	"net/http"
+	"regexp"
 	"text/template"
 	"time"
 
@@ -37,12 +38,14 @@ type ActualResponse struct {
 }
 
 type MatchRequest struct {
-	Scheme  string            `yaml:"scheme" json:"scheme"`
-	Host    string            `yaml:"host" json:"host"`
-	Method  string            `yaml:"method" json:"method"`
-	Path    string            `yaml:"path" json:"path"`
-	Query   map[string]string `yaml:"query" json:"query"`
-	Headers map[string]string `yaml:"headers" json:"headers"`
+	Scheme     string            `yaml:"scheme" json:"scheme"`
+	Host       string            `yaml:"host" json:"host"`
+	Method     string            `yaml:"method" json:"method"`
+	Path       string            `yaml:"path" json:"path"`
+	Query      map[string]string `yaml:"query" json:"query"`
+	Headers    map[string]string `yaml:"headers" json:"headers"`
+	Body       string            `yaml:"body" json:"body"`
+	BodyRegexp *regexp.Regexp    `yaml:"-" json:"-" `
 }
 
 type MockResponse struct {
