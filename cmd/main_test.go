@@ -49,7 +49,7 @@ func TestMain_serverid(t *testing.T) {
 
 func TestMain_endpoints(t *testing.T) {
 	requestToAllNodes(t, true, http.MethodGet, "/endpoints", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
-		assert.Equal(t, 1186, len(responseBody))
+		assert.Equal(t,1242, len(responseBody))
 	})
 }
 

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -149,6 +150,15 @@ func (r *MockRouter) readMockFile(mockFile string) (*model.Mock, error) {
 	if len(mock.Name) == 0 {
 		mock.Name = filepath.Base(mockFile)
 	}
+	for _, endpoint := range mock.Endpoints {
+		if len(endpoint.Request.Body) > 0 {
+			bodyregexp, err := regexp.Compile(endpoint.Request.Body)
+			if err != nil {
+				return nil, err
+			}
+			endpoint.Request.BodyRegexp = bodyregexp
+		}
+	}
 	return mock, nil
 }
 
@@ -216,7 +226,7 @@ func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 	if endpoint.Request.Method == "" {
 		endpoint.Request.Method = "GET"
 	}
-
+	
 	sn := r.EpSearchNode
 	pathSegments := strings.Split(endpoint.Request.Path, "/")
 	for _, pathSegment := range pathSegments[1:] {
@@ -309,6 +319,9 @@ func (r *MockRouter) matchEndPointsAttributes(endPoints []*model.MockEndpoint, r
 		if !r.matchHeaderValues(ep.Request, request) {
 			continue
 		}
+		if !r.matchBody(ep.Request, request) {
+			continue
+		}
 		match := r.addMatch(ep, request)
 		return ep, match
 	}
@@ -336,6 +349,22 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 			}
 		}
 		return true
+	} else {
+		return true
+	}
+}
+
+func (r *MockRouter) matchBody(matchRequest *model.MatchRequest, request *http.Request) bool {
+	if matchRequest.BodyRegexp != nil {
+		if request.Body == nil {
+			return false
+		}
+		reqBodyBytes, err := ioutil.ReadAll(request.Body)
+		if err != nil {
+			r.logger.LogAlways( fmt.Sprintf("No match, error reading request body: %v",err))
+			return false
+		}
+		return matchRequest.BodyRegexp.Match(reqBodyBytes)
 	} else {
 		return true
 	}
