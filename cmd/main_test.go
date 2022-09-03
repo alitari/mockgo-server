@@ -149,7 +149,7 @@ func TestMain_transferMatches(t *testing.T) {
 	assertMatchesCount(1, 2) // 2 matches in node 1
 
 	//transfer matches node 0 -> node 1
-	requestToNode(t, 0, true, http.MethodPost, "/transfermatches", map[string][]string{headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodGet, "/transfermatches", nil, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "", responseBody)
 	})
 

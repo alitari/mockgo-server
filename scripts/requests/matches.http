@@ -1,0 +1,20 @@
+@port = 80
+@mockhost = mock.192.168.67.2.nip.io
+@confighost = config.192.168.67.2.nip.io
+@protocol = http
+
+
+### mock request
+
+GET {{protocol}}://{{mockhost}}:{{port}}/hello
+
+### get matches
+
+GET {{protocol}}://{{confighost}}:{{port}}/matches
+Authorization: Basic mockgo:asecretPassword
+Accept: application/json
+
+
+
+
+

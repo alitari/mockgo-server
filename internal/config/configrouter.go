@@ -90,7 +90,7 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
 	router.NewRoute().Name("addMatches").Path("/addmatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMatches))
 	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
-	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "", "", nil, r.transferMatches))
+	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave("", "", http.MethodGet, "", "", nil, r.transferMatches))
 	r.router = router
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: router}
 }
@@ -295,6 +295,7 @@ func (r *ConfigRouter) deleteMatchesFromAll(writer http.ResponseWriter, request 
 }
 
 func (r *ConfigRouter) addMatches(writer http.ResponseWriter, request *http.Request) {
+	r.logger.LogWhenVerbose("adding matches...")
 	if r.transferringMatches {
 		http.Error(writer, "Already transferring", http.StatusLocked)
 		return
@@ -314,10 +315,12 @@ func (r *ConfigRouter) addMatches(writer http.ResponseWriter, request *http.Requ
 	for k, v := range *matchData {
 		currentMatches[k] = append(currentMatches[k], v...)
 	}
+	r.logger.LogWhenVerbose(fmt.Sprintf("added %d matches sucessfully", r.matchesCount(*matchData)))
 	writer.WriteHeader(http.StatusOK)
 }
 
 func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http.Request) {
+	r.logger.LogWhenVerbose("transfer matches...")
 	r.transferringMatches = true
 	defer func() {
 		r.transferringMatches = false
@@ -343,7 +346,7 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 			continue
 		}
 		if addMatchesResponse.StatusCode == http.StatusOK {
-			r.logger.LogWhenVerbose(fmt.Sprintf("matches successfully transferred to: %s", clusterUrl))
+			r.logger.LogWhenVerbose(fmt.Sprintf("%d matches successfully transferred to: %s", r.matchesCount(r.mockRouter.Matches), clusterUrl))
 			r.deleteMatches()
 			writer.WriteHeader(http.StatusOK)
 			return
@@ -352,6 +355,14 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 		}
 	}
 	http.Error(writer, "Couldn't transfer matches.", http.StatusGone)
+}
+
+func (r *ConfigRouter) matchesCount( matches map[string][]*model.Match) int {
+	sum := 0
+	for _, matches := range matches {
+		sum = sum + len(matches)
+	}
+	return sum
 }
 
 func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Request) {
