@@ -4,9 +4,33 @@
 @protocol = http
 
 
-### mock request
+### mock hello1
+GET {{protocol}}://{{mockhost}}:{{port}}/hello1
 
-GET {{protocol}}://{{mockhost}}:{{port}}/hello
+### mock hello2
+GET {{protocol}}://{{mockhost}}:{{port}}/hello2
+
+### mock hello3
+GET {{protocol}}://{{mockhost}}:{{port}}/hello3/alex
+
+### mock hello4
+GET {{protocol}}://{{mockhost}}:{{port}}/hello4/go/joe
+
+### mock hello5
+GET {{protocol}}://{{mockhost}}:{{port}}/hello5/bill/foo
+
+### mock hello6
+GET {{protocol}}://{{mockhost}}:{{port}}/hello6/bill/sends/joe
+
+### mock hello7
+GET {{protocol}}://{{mockhost}}:{{port}}/hello7/alex/dani/foo/gdd
+
+### mock hello8
+GET {{protocol}}://{{mockhost}}:{{port}}/hello8/it/does/not/matter/last
+
+### mock hello9
+GET {{protocol}}://{{mockhost}}:{{port}}/hello9/some/stuff/sender/alex/additional/stuff/receiver/dani
+
 
 ### get matches
 
