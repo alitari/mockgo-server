@@ -23,17 +23,18 @@ import (
 const NoAdvertiseHeader = "No-advertise"
 
 type ConfigRouter struct {
-	mockRouter        *mock.MockRouter
-	router            *mux.Router
-	server            *http.Server
-	port              int
-	id                string
-	clusterUrls       []string
-	logger            *utils.Logger
-	kvstore           *kvstore.KVStore
-	httpClientTimeout time.Duration
-	basicAuthUsername string
-	basicAuthPassword string
+	mockRouter          *mock.MockRouter
+	router              *mux.Router
+	server              *http.Server
+	port                int
+	id                  string
+	clusterUrls         []string
+	logger              *utils.Logger
+	kvstore             *kvstore.KVStore
+	httpClientTimeout   time.Duration
+	basicAuthUsername   string
+	basicAuthPassword   string
+	transferringMatches bool
 }
 
 type EndpointsResponse struct {
@@ -42,15 +43,16 @@ type EndpointsResponse struct {
 
 func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, kvstore *kvstore.KVStore, logger *utils.Logger) *ConfigRouter {
 	configRouter := &ConfigRouter{
-		mockRouter:        mockRouter,
-		port:              port,
-		clusterUrls:       clusterUrls,
-		id:                uuid.New().String(),
-		logger:            logger,
-		kvstore:           kvstore,
-		httpClientTimeout: 1 * time.Second,
-		basicAuthUsername: username,
-		basicAuthPassword: password,
+		mockRouter:          mockRouter,
+		port:                port,
+		clusterUrls:         clusterUrls,
+		id:                  uuid.New().String(),
+		logger:              logger,
+		kvstore:             kvstore,
+		httpClientTimeout:   1 * time.Second,
+		basicAuthUsername:   username,
+		basicAuthPassword:   password,
+		transferringMatches: false,
 	}
 	configRouter.newRouter()
 	return configRouter
@@ -86,7 +88,9 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.uploadKVStore))
 	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.downloadKVStore))
 	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
+	router.NewRoute().Name("addMatches").Path("/addmatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMatches))
 	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
+	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "", "", nil, r.transferMatches))
 	r.router = router
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: router}
 }
@@ -182,7 +186,7 @@ func (r *ConfigRouter) getMatches(writer http.ResponseWriter, request *http.Requ
 	utils.WriteEntity(writer, r.mockRouter.Matches)
 }
 
-func (r *ConfigRouter) deleteMatches(writer http.ResponseWriter, request *http.Request) {
+func (r *ConfigRouter) deleteMatches() {
 	r.mockRouter.Matches = make(map[string][]*model.Match)
 }
 
@@ -263,7 +267,7 @@ func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *ht
 
 func (r *ConfigRouter) deleteMatchesFromAll(writer http.ResponseWriter, request *http.Request) {
 	if len(r.clusterUrls) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
-		r.deleteMatches(writer, request)
+		r.deleteMatches()
 	} else {
 		httpClient := r.createHttpClient()
 		for _, clusterUrl := range r.clusterUrls {
@@ -288,6 +292,66 @@ func (r *ConfigRouter) deleteMatchesFromAll(writer http.ResponseWriter, request 
 		}
 		writer.WriteHeader(http.StatusOK)
 	}
+}
+
+func (r *ConfigRouter) addMatches(writer http.ResponseWriter, request *http.Request) {
+	if r.transferringMatches {
+		http.Error(writer, "Already transferring", http.StatusLocked)
+		return
+	}
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	matchData := &map[string][]*model.Match{}
+	err = json.Unmarshal(body, matchData)
+	if err != nil {
+		http.Error(writer, "Problem marshalling response body: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	currentMatches := r.mockRouter.Matches
+	for k, v := range *matchData {
+		currentMatches[k] = append(currentMatches[k], v...)
+	}
+	writer.WriteHeader(http.StatusOK)
+}
+
+func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http.Request) {
+	r.transferringMatches = true
+	defer func() {
+		r.transferringMatches = false
+	}()
+	matches, err := json.Marshal(r.mockRouter.Matches)
+	if err != nil {
+		http.Error(writer, "Problem marshalling matches: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	httpClient := r.createHttpClient()
+	for _, clusterUrl := range r.clusterUrls {
+		r.logger.LogWhenVerbose(fmt.Sprintf("adding matches to : '%s'...", clusterUrl))
+		addMatchesRequest, err := http.NewRequest(http.MethodPost, clusterUrl+"/addmatches", bytes.NewBuffer(matches))
+		if err != nil {
+			r.logger.LogWhenVerbose(fmt.Sprintf("can't create request, error: %v", err))
+			continue
+		}
+		addMatchesRequest.Header.Add(headers.ContentType, `application/json`)
+		addMatchesRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
+		addMatchesResponse, err := httpClient.Do(addMatchesRequest)
+		if err != nil {
+			r.logger.LogWhenVerbose(fmt.Sprintf("can't add matches, to: %s ,error: %v", clusterUrl, err))
+			continue
+		}
+		if addMatchesResponse.StatusCode == http.StatusOK {
+			r.logger.LogWhenVerbose(fmt.Sprintf("matches successfully transferred to: %s", clusterUrl))
+			r.deleteMatches()
+			writer.WriteHeader(http.StatusOK)
+			return
+		} else {
+			r.logger.LogWhenVerbose(fmt.Sprintf("response: %d ,matches not transferred", addMatchesResponse.StatusCode))
+		}
+	}
+	http.Error(writer, "Couldn't transfer matches.", http.StatusGone)
 }
 
 func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Request) {
