@@ -21,6 +21,8 @@ logging:
 image: mockgo-server:1.0.0-alpine
 pullPolicy: IfNotPresent
 
+terminationGracePeriodSeconds: 30
+
 healthcheck:
   liveness:
     initialDelaySeconds: 5
@@ -28,8 +30,6 @@ healthcheck:
     periodSeconds: 5
     successThreshold: 1
     failureThreshold: 3
-    # Only for Kubernetes +1.22 that have pod level probes enabled.
-    terminationGracePeriodSeconds:
   readiness:
     initialDelaySeconds: 5
     timeoutSeconds: 5

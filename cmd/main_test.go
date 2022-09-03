@@ -49,7 +49,7 @@ func TestMain_serverid(t *testing.T) {
 
 func TestMain_endpoints(t *testing.T) {
 	requestToAllNodes(t, true, http.MethodGet, "/endpoints", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
-		assert.Equal(t,1242, len(responseBody))
+		assert.Equal(t, 1242, len(responseBody))
 	})
 }
 
@@ -120,12 +120,42 @@ func TestMain_getMatches(t *testing.T) {
 
 }
 
-// func TestMain_matchstatistics(t *testing.T) {
-// 	// TODO clean match statistics
-// 	requestToNode(t, 0, false, http.MethodGet, "/matchstatistics", "","application/json", "", http.StatusOK, func(responseBody string) {
-// 		assert.Equal(t, "", responseBody)
-// 	})
-// }
+func TestMain_transferMatches(t *testing.T) {
+
+	assertMatchesCount := func(node, expectedCount int) {
+		header := map[string][]string{config.NoAdvertiseHeader: {"true"}, headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}
+		requestToNode(t, node, true, http.MethodGet, "/matches", header, "", http.StatusOK, func(responseBody string) {
+			var matchData map[string][]*model.Match
+			err := json.Unmarshal([]byte(responseBody), &matchData)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedCount, len(matchData["helloId"]))
+		})
+	}
+
+	createRequests := func(node, count int) {
+		for i := 0; i < count; i++ {
+			requestToNode(t, node, false, http.MethodGet, "/hello", map[string][]string{headers.Accept: {"application/json"}}, "", http.StatusOK, func(responseBody string) {
+				assert.Equal(t, "{\n    \"hello\": \"from Mockgo!\"\n}", responseBody)
+			})
+		}
+	}
+
+	assertMatchesCount(0, 0) // 0 matches in node 0
+	assertMatchesCount(1, 0) // 0 matches in node 1
+	// assertMatchesCount(-1, 0) // 0 matches all
+	createRequests(0, 5)     // create 5 requests to node 0
+	createRequests(1, 2)     // create 2 requests to node 1
+	assertMatchesCount(0, 5) // 5 matches in node 0
+	assertMatchesCount(1, 2) // 2 matches in node 1
+
+	//transfer matches node 0 -> node 1
+	requestToNode(t, 0, true, http.MethodGet, "/transfermatches", nil, "", http.StatusOK, func(responseBody string) {
+		assert.Equal(t, "", responseBody)
+	})
+
+	assertMatchesCount(0, 0) // 0 matches in node 0
+	assertMatchesCount(1, 7) // 7 matches in node 1
+}
 
 func requestToAllNodes(t *testing.T, config bool, method, path string, header map[string][]string, body string, expectedStatus int, assertBody func(responseBody string)) {
 	for i := 0; i < len(mockRouters); i++ {

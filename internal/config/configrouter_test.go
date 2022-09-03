@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -200,6 +201,75 @@ func TestConfigRouter_DeleteMatches(t *testing.T) {
 	}
 	assertConfigRouterResponse(configRouter.router.Get("deleteMatches").GetHandler(), testCases, t)
 	assert.Empty(t, mockRouter.Matches)
+}
+
+func TestConfigRouter_AddMatches(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+	matchesToAdd1 := map[string][]*model.Match{"id1": {&model.Match{EndpointId: "id1",
+		ActualRequest: &model.ActualRequest{Method: http.MethodGet, URL: "http://myurl"}, ActualResponse: &model.ActualResponse{StatusCode: http.StatusAccepted}}}}
+
+	matchesToAddStr1, err := json.Marshal(matchesToAdd1)
+	if err != nil {
+		assert.NoError(t, err)
+	}
+
+	matchesToAdd2 := map[string][]*model.Match{"id2": {&model.Match{EndpointId: "id2",
+		ActualRequest: &model.ActualRequest{Method: http.MethodGet, URL: "http://myurl2"}, ActualResponse: &model.ActualResponse{StatusCode: http.StatusOK}}}}
+
+	matchesToAddStr2, err := json.Marshal(matchesToAdd2)
+	if err != nil {
+		assert.NoError(t, err)
+	}
+
+	matchesToAdd3 := map[string][]*model.Match{"id1": {&model.Match{EndpointId: "id1",
+		ActualRequest: &model.ActualRequest{Method: http.MethodGet, URL: "http://myurl"}, ActualResponse: &model.ActualResponse{StatusCode: http.StatusAccepted}}}}
+
+	matchesToAddStr3, err := json.Marshal(matchesToAdd3)
+	if err != nil {
+		assert.NoError(t, err)
+	}
+
+	testCases := []*configRouterTestCase{
+		{name: "AddMatches1",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/addmatches",
+				string(matchesToAddStr1),
+				map[string][]string{headers.ContentType: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "",
+		},
+		{name: "AddMatches2",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/addmatches",
+				string(matchesToAddStr2),
+				map[string][]string{headers.ContentType: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "",
+		},
+		{name: "AddMatches3",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/addmatches",
+				string(matchesToAddStr3),
+				map[string][]string{headers.ContentType: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "",
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("addMatches").GetHandler(), testCases, t)
+	expectedMatches := map[string][]*model.Match{"id1": append(matchesToAdd1["id1"], matchesToAdd3["id1"]...), "id2": matchesToAdd2["id2"]}
+	assert.EqualValues(t, expectedMatches, mockRouter.Matches)
 }
 
 func TestConfigRouter_SyncWithCluster(t *testing.T) {
