@@ -1,4 +1,4 @@
-test_name: Basic availabilty
+test_name: health
 
 stages:
   - name: health
@@ -7,9 +7,14 @@ stages:
       method: GET
     response:
       status_code: 200
-  - name: hello world
+---
+
+test_name: hello tests
+
+stages:
+  - name: hello1
     request:
-      url: http://{tavern.env_vars.MOCK_HOST}/hello
+      url: http://{tavern.env_vars.MOCK_HOST}/hello1
       method: GET
     response:
       status_code: 200
@@ -17,3 +22,86 @@ stages:
         mocked: "true"
       json:
         hello: World
+  - name: hello2
+    request:
+      url: http://{tavern.env_vars.MOCK_HOST}/hello2
+      method: GET
+    response:
+      status_code: 200
+      headers:
+        mocked: "true"
+        Content-Type: application/text
+        Content-Length: "12"
+  - name: hello3
+    request:
+      url: http://{tavern.env_vars.MOCK_HOST}/hello3/alex
+      method: GET
+    response:
+      status_code: 200
+      headers:
+        mocked: "true"
+        Content-Type: application/text
+        Content-Length: "20"
+  - name: hello4
+    request:
+      url: http://{tavern.env_vars.MOCK_HOST}/hello4/go/joe
+      method: GET
+    response:
+      status_code: 200
+      headers:
+        mocked: "true"
+        Content-Type: application/json
+      json: 
+        message: "Hello world, joe !"
+  - name: hello5
+    request:
+      url: http://{tavern.env_vars.MOCK_HOST}/hello5/bill/foo
+      method: GET
+    response:
+      status_code: 200
+      headers:
+        mocked: "true"
+        Content-Type: application/json
+      json: 
+        message: "Hello world, bill !"
+  - name: hello6
+    request:
+      url: http://{tavern.env_vars.MOCK_HOST}/hello6/bill/sends/joe
+      method: GET
+    response:
+      status_code: 200
+      headers:
+        mocked: "true"
+        Content-Type: application/json
+      json: 
+        bill: "says 'hello' to joe !"
+  - name: hello7
+    request:
+      url: http://{tavern.env_vars.MOCK_HOST}/hello7/alex/dani/foo/gdd
+      method: GET
+    response:
+      status_code: 200
+      headers:
+        mocked: "true"
+        Content-Type: application/json
+      json: 
+        alex: "says 'hello' to dani !"
+  - name: hello8
+    request:
+      url: http://{tavern.env_vars.MOCK_HOST}/hello8/it/does/not/matter/last
+      method: GET
+    response:
+      status_code: 202
+      headers:
+        mocked: "true"
+  - name: hello9
+    request:
+      url: http://{tavern.env_vars.MOCK_HOST}/hello9/some/stuff/sender/alex/additional/stuff/receiver/dani
+      method: GET
+    response:
+      status_code: 200
+      headers:
+        mocked: "true"
+        Content-Type: application/json
+      json: 
+        alex: "says 'hello' to dani !"
