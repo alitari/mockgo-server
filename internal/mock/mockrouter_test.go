@@ -299,7 +299,7 @@ func createRequest(method, url, bodyStr string, header map[string][]string, urlV
 func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestCase, t *testing.T) {
 	for _, testCase := range testCases {
 		if len(testCase.kvstoreJson) > 0 {
-			err := kvstore.TheKVStore.Put("testkey", testCase.kvstoreJson)
+			err := kvstore.TheKVStore.PutAsJson("testkey", testCase.kvstoreJson)
 			assert.NoError(t, err)
 		}
 		recorder := httptest.NewRecorder()

@@ -211,11 +211,7 @@ func (r *ConfigRouter) uploadKVStore(writer http.ResponseWriter, request *http.R
 func (r *ConfigRouter) getKVStore(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	key := vars["key"]
-	val, err := r.kvstore.Get(key)
-	if err != nil {
-		http.Error(writer, "Problem with getting kvstore value "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	val := r.kvstore.Get(key)
 	utils.WriteEntity(writer, val)
 }
 
@@ -374,7 +370,7 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	if len(r.clusterUrls) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
-		err = r.kvstore.Put(key, string(body))
+		err = r.kvstore.PutAsJson(key, string(body))
 		if err != nil {
 			http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
 			return

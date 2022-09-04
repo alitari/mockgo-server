@@ -115,8 +115,7 @@ func TestConfigRouter_SetKVStore(t *testing.T) {
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("setKVStore").GetHandler(), testCases, t)
-	value, err := kvstore.TheKVStore.Get("testapp")
-	assert.NoError(t, err)
+	value := kvstore.TheKVStore.Get("testapp")
 	assert.Equal(t, &map[string]interface{}{"mykey": "myvalue"}, value)
 }
 
@@ -127,7 +126,7 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 	configRouter.newRouter()
 
 	val := "{ \"myconfig\": \"is here!\" }"
-	err := configRouter.kvstore.Put("testapp", val)
+	err := configRouter.kvstore.PutAsJson("testapp", val)
 	assert.NoError(t, err)
 
 	testCases := []*configRouterTestCase{
