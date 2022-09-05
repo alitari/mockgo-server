@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -104,73 +105,79 @@ func (r *ConfigRouter) createHttpClient() http.Client {
 	return httpClient
 }
 
-func (r *ConfigRouter) SyncKvstoreWithCluster() error {
-	if len(r.clusterUrls) == 0 {
-		return nil
-	}
+func (r *ConfigRouter) getClusterUrls() []string {
+	return r.clusterUrls
+}
+
+func (r *ConfigRouter) clusterRequest(method, path string, header map[string]string, body string, expectedStatusCode int, continueOnError bool, responseHandler func(clusterUrl, responseBody string) (bool, error)) error {
 	httpClient := r.createHttpClient()
-	for _, clusterUrl := range r.clusterUrls {
-		r.logger.LogWhenVerbose(fmt.Sprintf("syncing with : '%s'...", clusterUrl))
-		downloadKvstoreRequest, err := http.NewRequest(http.MethodGet, clusterUrl+"/kvstore", nil)
+	clusterUrls := r.getClusterUrls()
+	for _, clusterUrl := range clusterUrls {
+		clusterRequest, err := http.NewRequest(method, clusterUrl+path, bytes.NewBufferString(body))
 		if err != nil {
 			r.logger.LogWhenVerbose(fmt.Sprintf("can't create request, error: %v", err))
-			continue
+			if continueOnError {
+				continue
+			} else {
+				return err
+			}
 		}
-		downloadKvstoreRequest.Header.Add(headers.Accept, `application/json`)
-		downloadKvstoreRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
-		downloadKvstoreResponse, err := httpClient.Do(downloadKvstoreRequest)
+		for k, v := range header {
+			clusterRequest.Header.Add(k, v)
+		}
+		clusterRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
+		r.logger.LogWhenVerbose(fmt.Sprintf("Requesting %s %s to url %s ...", clusterRequest.Method, clusterRequest.URL.String(), clusterUrl))
+		clusterResponse, err := httpClient.Do(clusterRequest)
 		if err != nil {
-			r.logger.LogWhenVerbose(fmt.Sprintf("cluster node can't process request, answered with error: %v", err))
-			continue
+			r.logger.LogWhenVerbose(fmt.Sprintf("cluster node '%s' can't process request, answered with error: %v", clusterUrl, err))
+			if continueOnError {
+				continue
+			} else {
+				return err
+			}
 		}
-		defer downloadKvstoreResponse.Body.Close()
-		if downloadKvstoreResponse.StatusCode != http.StatusOK {
-			r.logger.LogWhenVerbose(fmt.Sprintf("cluster node can't process request, answered with status: %v\n", downloadKvstoreResponse.StatusCode))
-			continue
+		bodyBytes, err := ioutil.ReadAll(clusterResponse.Body)
+		if clusterResponse.StatusCode != expectedStatusCode {
+			mess := fmt.Sprintf("cluster node '%s' can't process request, answered with status: %v body: '%s'", clusterUrl, clusterResponse.StatusCode, bodyBytes)
+			r.logger.LogWhenVerbose(mess)
+			if continueOnError {
+				continue
+			} else {
+				return errors.New(mess)
+			}
 		}
-
-		storeBytes, err := ioutil.ReadAll(downloadKvstoreResponse.Body)
 		if err != nil {
-			r.logger.LogAlways(fmt.Sprintf("(ERROR) reading response from cluster url failed: %v ", err))
+			r.logger.LogAlways(fmt.Sprintf("(ERROR) reading response from cluster node '%s' failed: %v ", clusterUrl, err))
 			return err
 		}
-		err = r.kvstore.PutAllJson(string(storeBytes))
-		if err != nil {
-			r.logger.LogAlways(fmt.Sprintf("(ERROR) creating new kvstore downloaded from clusterurl '%s' failed: %v ", clusterUrl, err))
+		stop, err := responseHandler(clusterUrl, string(bodyBytes))
+		clusterResponse.Body.Close()
+		if stop {
 			return err
 		}
-
-		r.logger.LogWhenVerbose(fmt.Sprintf("syncing completed, kvstore successfully downloaded from clusterurl '%s' ", clusterUrl))
-		return nil
 	}
 	return nil
 }
 
-func (r *ConfigRouter) advertiseKVStore(key, value string) error {
-	httpClient := r.createHttpClient()
-	for _, clusterUrl := range r.clusterUrls {
-		r.logger.LogWhenVerbose(fmt.Sprintf("syncing kvstore key '%s' with : '%s'...", key, clusterUrl))
-		setKVstoreRequest, err := http.NewRequest(http.MethodPut, clusterUrl+"/kvstore/"+key, bytes.NewBufferString(value))
-		if err != nil {
-			r.logger.LogWhenVerbose(fmt.Sprintf("advertise KVStore: can't create request, error: %v", err))
-			return err
-		}
-		setKVstoreRequest.Header.Add(NoAdvertiseHeader, "true")
-		setKVstoreRequest.Header.Add(headers.ContentType, "application/json")
-		setKVstoreRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
-		setKVstoreResponse, err := httpClient.Do(setKVstoreRequest)
-		if err != nil {
-			r.logger.LogWhenVerbose(fmt.Sprintf("advertise KVStore: cluster node can't process request, answered with error: %v", err))
-			return err
-		}
-		defer setKVstoreResponse.Body.Close()
-		if setKVstoreResponse.StatusCode != http.StatusNoContent {
-			r.logger.LogWhenVerbose(fmt.Sprintf("advertise KVStore: cluster node can't process request, answered with status: %v\n", setKVstoreResponse.StatusCode))
-			return err
-		}
-		r.logger.LogWhenVerbose("synced successfully!")
-	}
-	return nil
+func (r *ConfigRouter) DownloadKVStoreFromCluster() error {
+	return r.clusterRequest(http.MethodGet, "/kvstore", map[string]string{headers.Accept: `application/json`}, "", http.StatusOK, true,
+		func(clusterUrl, responseBody string) (bool, error) {
+			err := r.kvstore.PutAllJson(responseBody)
+			if err != nil {
+				r.logger.LogAlways(fmt.Sprintf("(ERROR) creating new kvstore downloaded from clusterurl '%s' failed: %v ", clusterUrl, err))
+				return true, err
+			}
+			r.logger.LogWhenVerbose(fmt.Sprintf("syncing completed, kvstore successfully downloaded from clusterurl '%s' ", clusterUrl))
+			return true, nil
+		})
+}
+
+func (r *ConfigRouter) setKVStoreToCluster(key, value string) error {
+	return r.clusterRequest(http.MethodPut, "/kvstore/"+key, map[string]string{NoAdvertiseHeader: "true", headers.ContentType: "application/json"}, value, http.StatusNoContent, false,
+		func(clusterUrl, responseBody string) (bool, error) {
+			r.logger.LogWhenVerbose(fmt.Sprintf("successfully set kvstore '%s' to cluster url '%s' !", key, clusterUrl))
+			return false, nil
+		})
 }
 
 func (r *ConfigRouter) serverId(writer http.ResponseWriter, request *http.Request) {
@@ -216,77 +223,43 @@ func (r *ConfigRouter) getKVStore(writer http.ResponseWriter, request *http.Requ
 }
 
 func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *http.Request) {
-	if len(r.clusterUrls) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
 		r.getMatches(writer, request)
 	} else {
 		allMatches := make(map[string][]*model.Match)
-		httpClient := r.createHttpClient()
-		for _, clusterUrl := range r.clusterUrls {
-			matchUrl := clusterUrl + "/matches"
-			r.logger.LogWhenVerbose(fmt.Sprintf("calling '%s'...", matchUrl))
-			matchesRequest, err := http.NewRequest(http.MethodGet, matchUrl, nil)
-			if err != nil {
-				http.Error(writer, fmt.Sprintf("Cannot create match request : %v", err), http.StatusInternalServerError)
-				return
-			}
-			matchesRequest.Header.Add(NoAdvertiseHeader, "true")
-			matchesRequest.Header.Add(headers.Accept, "application/json")
-			matchesRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
-			matchesResponse, err := httpClient.Do(matchesRequest)
-			if err != nil {
-				http.Error(writer, fmt.Sprintf("Cannot send match request : %v", err), http.StatusInternalServerError)
-				return
-			}
-			if matchesResponse.StatusCode != http.StatusOK {
-				http.Error(writer, fmt.Sprintf("Unexpected response from %s : %d", clusterUrl, matchesResponse.StatusCode), http.StatusInternalServerError)
-				return
-			}
-			body, err := io.ReadAll(matchesResponse.Body)
-			if err != nil {
-				http.Error(writer, "Problem reading response body: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			matchesResponse.Body.Close()
-			bodyData := &map[string][]*model.Match{}
-			err = json.Unmarshal(body, bodyData)
-			if err != nil {
-				http.Error(writer, "Problem marshalling response body: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			for k, v := range *bodyData {
-				allMatches[k] = append(allMatches[k], v...)
-			}
+		err := r.clusterRequest(http.MethodGet, "/matches", map[string]string{NoAdvertiseHeader: "true", headers.Accept: "application/json"}, "", http.StatusOK, false,
+			func(clusterUrl, responseBody string) (bool, error) {
+				var bodyData map[string][]*model.Match
+				err := json.Unmarshal([]byte(responseBody), &bodyData)
+				if err != nil {
+					return true, err
+				}
+				for k, v := range bodyData {
+					allMatches[k] = append(allMatches[k], v...)
+				}
+				return false, nil
+			})
+		if err != nil {
+			http.Error(writer, "Problem getting matches: "+err.Error(), http.StatusInternalServerError)
+		} else {
+			utils.WriteEntity(writer, allMatches)
 		}
-		utils.WriteEntity(writer, allMatches)
 	}
 }
 
 func (r *ConfigRouter) deleteMatchesFromAll(writer http.ResponseWriter, request *http.Request) {
-	if len(r.clusterUrls) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
 		r.deleteMatches()
 	} else {
-		httpClient := r.createHttpClient()
-		for _, clusterUrl := range r.clusterUrls {
-			matchUrl := clusterUrl + "/matches"
-			r.logger.LogWhenVerbose(fmt.Sprintf("calling '%s'...", matchUrl))
-			matchesDeleteRequest, err := http.NewRequest(http.MethodDelete, matchUrl, nil)
-			if err != nil {
-				http.Error(writer, fmt.Sprintf("Cannot create match request : %v", err), http.StatusInternalServerError)
-				return
-			}
-			matchesDeleteRequest.Header.Add(NoAdvertiseHeader, "true")
-			matchesDeleteRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
-			matchesResponse, err := httpClient.Do(matchesDeleteRequest)
-			if err != nil {
-				http.Error(writer, fmt.Sprintf("Cannot send match request : %v", err), http.StatusInternalServerError)
-				return
-			}
-			if matchesResponse.StatusCode != http.StatusOK {
-				http.Error(writer, fmt.Sprintf("Unexpected response from %s : %d", clusterUrl, matchesResponse.StatusCode), http.StatusInternalServerError)
-				return
-			}
+		err := r.clusterRequest(http.MethodDelete, "/matches", map[string]string{NoAdvertiseHeader: "true"}, "", http.StatusOK, false,
+			func(clusterUrl, responseBody string) (bool, error) {
+				return false, nil
+			})
+		if err != nil {
+			http.Error(writer, "Problem deleting matches: "+err.Error(), http.StatusInternalServerError)
+		} else {
+			writer.WriteHeader(http.StatusOK)
 		}
-		writer.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -316,7 +289,6 @@ func (r *ConfigRouter) addMatches(writer http.ResponseWriter, request *http.Requ
 }
 
 func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http.Request) {
-	r.logger.LogWhenVerbose("transfer matches...")
 	r.transferringMatches = true
 	defer func() {
 		r.transferringMatches = false
@@ -326,34 +298,20 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 		http.Error(writer, "Problem marshalling matches: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	httpClient := r.createHttpClient()
-	for _, clusterUrl := range r.clusterUrls {
-		r.logger.LogWhenVerbose(fmt.Sprintf("adding matches to : '%s'...", clusterUrl))
-		addMatchesRequest, err := http.NewRequest(http.MethodPost, clusterUrl+"/addmatches", bytes.NewBuffer(matches))
-		if err != nil {
-			r.logger.LogWhenVerbose(fmt.Sprintf("can't create request, error: %v", err))
-			continue
-		}
-		addMatchesRequest.Header.Add(headers.ContentType, `application/json`)
-		addMatchesRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
-		addMatchesResponse, err := httpClient.Do(addMatchesRequest)
-		if err != nil {
-			r.logger.LogWhenVerbose(fmt.Sprintf("can't add matches, to: %s ,error: %v", clusterUrl, err))
-			continue
-		}
-		if addMatchesResponse.StatusCode == http.StatusOK {
+	err = r.clusterRequest(http.MethodPost, "/addmatches", map[string]string{headers.ContentType: `application/json`}, string(matches), http.StatusOK, true,
+		func(clusterUrl, responseBody string) (bool, error) {
 			r.logger.LogWhenVerbose(fmt.Sprintf("%d matches successfully transferred to: %s", r.matchesCount(r.mockRouter.Matches), clusterUrl))
 			r.deleteMatches()
-			writer.WriteHeader(http.StatusOK)
-			return
-		} else {
-			r.logger.LogWhenVerbose(fmt.Sprintf("response: %d ,matches not transferred", addMatchesResponse.StatusCode))
-		}
+			return true, nil
+		})
+	if err != nil {
+		http.Error(writer, "Problem transferring matches: "+err.Error(), http.StatusInternalServerError)
+	} else {
+		writer.WriteHeader(http.StatusOK)
 	}
-	http.Error(writer, "Couldn't transfer matches.", http.StatusGone)
 }
 
-func (r *ConfigRouter) matchesCount( matches map[string][]*model.Match) int {
+func (r *ConfigRouter) matchesCount(matches map[string][]*model.Match) int {
 	sum := 0
 	for _, matches := range matches {
 		sum = sum + len(matches)
@@ -369,7 +327,7 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if len(r.clusterUrls) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
 		err = r.kvstore.PutAsJson(key, string(body))
 		if err != nil {
 			http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
@@ -377,7 +335,7 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 		}
 		writer.WriteHeader(http.StatusNoContent)
 	} else {
-		err := r.advertiseKVStore(key, string(body))
+		err := r.setKVStoreToCluster(key, string(body))
 		if err != nil {
 			http.Error(writer, "Problem advertising kvstore value : "+err.Error(), http.StatusInternalServerError)
 			return

@@ -272,7 +272,7 @@ func TestConfigRouter_AddMatches(t *testing.T) {
 	assert.EqualValues(t, expectedMatches, mockRouter.Matches)
 }
 
-func TestConfigRouter_SyncWithCluster(t *testing.T) {
+func TestConfigRouter_DownloadKVStoreFromCluster(t *testing.T) {
 	kvstore.CreateTheStore()
 	var clusterNode1Request *http.Request
 	var clusterNode2Request *http.Request
@@ -290,7 +290,7 @@ func TestConfigRouter_SyncWithCluster(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{clusterNode1.URL, clusterNode2.URL}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
-	configRouter.SyncKvstoreWithCluster()
+	configRouter.DownloadKVStoreFromCluster()
 
 	assert.NotNil(t, clusterNode1Request, "clusterNode1Request must exist")
 	assert.Nil(t, clusterNode2Request, "clusterNode2Request must not exist")
