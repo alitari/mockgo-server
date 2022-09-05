@@ -42,6 +42,15 @@ type EndpointsResponse struct {
 	Endpoints []*model.MockEndpoint
 }
 
+type AddKVStoreRequest struct {
+	Path  string `json:"path"`
+	Value string `json:"value"`
+}
+
+type RemoveKVStoreRequest struct {
+	Path string `json:"path"`
+}
+
 func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, kvstore *kvstore.KVStore, logger *utils.Logger) *ConfigRouter {
 	configRouter := &ConfigRouter{
 		mockRouter:          mockRouter,
@@ -86,6 +95,8 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("endpoints").Path("/endpoints").HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.endpoints))
 	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
 	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
+	router.NewRoute().Name("addKVStore").Path("/kvstore/{key}/add").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.addKVStore))
+	router.NewRoute().Name("removeKVStore").Path("/kvstore/{key}/remove").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.removeKVStore))
 	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.uploadKVStore))
 	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.downloadKVStore))
 	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
@@ -176,6 +187,24 @@ func (r *ConfigRouter) setKVStoreToCluster(key, value string) error {
 	return r.clusterRequest(http.MethodPut, "/kvstore/"+key, map[string]string{NoAdvertiseHeader: "true", headers.ContentType: "application/json"}, value, http.StatusNoContent, false,
 		func(clusterUrl, responseBody string) (bool, error) {
 			r.logger.LogWhenVerbose(fmt.Sprintf("successfully set kvstore '%s' to cluster url '%s' !", key, clusterUrl))
+			return false, nil
+		})
+}
+
+func (r *ConfigRouter) addKVStoreToCluster(key, path, value string) error {
+	body := fmt.Sprintf(`{ "path":"%s", "value":%s }`, path, value)
+	return r.clusterRequest(http.MethodPost, "/kvstore/"+key+"/add", map[string]string{NoAdvertiseHeader: "true", headers.ContentType: "application/json"}, body, http.StatusNoContent, false,
+		func(clusterUrl, responseBody string) (bool, error) {
+			r.logger.LogWhenVerbose(fmt.Sprintf("kvstore '%s': successfully added path: '%s' and value: '%s'  to  cluster url '%s' !", key, path, value, clusterUrl))
+			return false, nil
+		})
+}
+
+func (r *ConfigRouter) removeKVStoreToCluster(key, path string) error {
+	body := fmt.Sprintf(`{ "path":"%s" }`, path)
+	return r.clusterRequest(http.MethodPost, "/kvstore/"+key+"/add", map[string]string{NoAdvertiseHeader: "true", headers.ContentType: "application/json"}, body, http.StatusNoContent, false,
+		func(clusterUrl, responseBody string) (bool, error) {
+			r.logger.LogWhenVerbose(fmt.Sprintf("kvstore '%s': successfully removed path: '%s' to cluster url '%s' !", key, path, clusterUrl))
 			return false, nil
 		})
 }
@@ -338,6 +367,68 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 		err := r.setKVStoreToCluster(key, string(body))
 		if err != nil {
 			http.Error(writer, "Problem advertising kvstore value : "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (r *ConfigRouter) addKVStore(writer http.ResponseWriter, request *http.Request) {
+	vars := mux.Vars(request)
+	key := vars["key"]
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var addKvStoreRequest AddKVStoreRequest
+	err = json.Unmarshal(body, &addKvStoreRequest)
+	if err != nil {
+		http.Error(writer, "Can't parse request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+		err = r.kvstore.PatchAdd(key, addKvStoreRequest.Path, addKvStoreRequest.Value)
+		if err != nil {
+			http.Error(writer, fmt.Sprintf("Problem adding kvstore path: '%s' value: '%s', : %v ", addKvStoreRequest.Path, addKvStoreRequest.Value, err), http.StatusBadRequest)
+			return
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	} else {
+		err := r.addKVStoreToCluster(key, addKvStoreRequest.Path, addKvStoreRequest.Value)
+		if err != nil {
+			http.Error(writer, "Problem adding kvstore value : "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (r *ConfigRouter) removeKVStore(writer http.ResponseWriter, request *http.Request) {
+	vars := mux.Vars(request)
+	key := vars["key"]
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var removeKvStoreRequest RemoveKVStoreRequest
+	err = json.Unmarshal(body, &removeKvStoreRequest)
+	if err != nil {
+		http.Error(writer, "Can't parse request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+		err = r.kvstore.PatchRemove(key, removeKvStoreRequest.Path)
+		if err != nil {
+			http.Error(writer, fmt.Sprintf("Problem removing kvstore '%s', path: '%s' : %v ", key, removeKvStoreRequest.Path, err), http.StatusBadRequest)
+			return
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	} else {
+		err := r.removeKVStoreToCluster(key, removeKvStoreRequest.Path)
+		if err != nil {
+			http.Error(writer, fmt.Sprintf("Problem removing kvstore '%s', path: '%s' : %v ", key, removeKvStoreRequest.Path, err), http.StatusInternalServerError)
 			return
 		}
 		writer.WriteHeader(http.StatusNoContent)

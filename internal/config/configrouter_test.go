@@ -109,7 +109,7 @@ func TestConfigRouter_SetKVStore(t *testing.T) {
 				http.MethodPut,
 				"http://somehost/kvstore/testapp",
 				"{ \"mykey\": \"myvalue\" }",
-				map[string][]string{headers.ContentType: {"application/json"}, headers.Accept: {"application/json"}},
+				map[string][]string{headers.ContentType: {"application/json"}},
 				map[string]string{"key": "testapp"},
 				t),
 			expectedResponseStatusCode: http.StatusNoContent,
@@ -144,6 +144,60 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("getKVStore").GetHandler(), testCases, t)
+}
+
+func TestConfigRouter_AddKVStore(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	val := `{ "myconfig": "is here!" }`
+	err := configRouter.kvstore.PutAsJson("testapp", val)
+	assert.NoError(t, err)
+
+	testCases := []*configRouterTestCase{
+		{name: "AddKVStore",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/kvstore/testapp/add",
+				`{ "path": "/myconfig2", "value": "\"is also here\"" }`,
+				map[string][]string{headers.ContentType: {"application/json"}},
+				map[string]string{"key": "testapp"},
+				t),
+			expectedResponseStatusCode: http.StatusNoContent,
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("addKVStore").GetHandler(), testCases, t)
+	value := kvstore.TheKVStore.Get("testapp")
+	assert.Equal(t, map[string]interface{}{"myconfig": "is here!", "myconfig2": "is also here"}, value)
+}
+
+func TestConfigRouter_RemoveKVStore(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	val := `{ "myconfig": "is here!" }`
+	err := configRouter.kvstore.PutAsJson("testapp", val)
+	assert.NoError(t, err)
+
+	testCases := []*configRouterTestCase{
+		{name: "RemoveKVStore",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/kvstore/testapp/remove",
+				`{ "path": "/myconfig" }`,
+				map[string][]string{headers.ContentType: {"application/json"}},
+				map[string]string{"key": "testapp"},
+				t),
+			expectedResponseStatusCode: http.StatusNoContent,
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("removeKVStore").GetHandler(), testCases, t)
+	value := kvstore.TheKVStore.Get("testapp")
+	assert.Empty(t, value)
 }
 
 func TestConfigRouter_GetMatches(t *testing.T) {
