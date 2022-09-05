@@ -11,7 +11,7 @@ func TestKVStore_GetPutAll(t *testing.T) {
 	CreateTheStore()
 	all := TheKVStore.GetAll()
 	assert.Empty(t, all)
-	storeVal := map[string]*map[string]interface{}{"store1": {"storekey11": "storeval1"}, "storekey12": {"storekey12": "storeval2"}}
+	storeVal := map[string]interface{}{"store1": "storekey11", "storekey12": "storeval2"}
 	TheKVStore.PutAll(storeVal)
 	assert.Equal(t, storeVal, TheKVStore.GetAll())
 }
@@ -33,20 +33,20 @@ func TestKVStore_PutAllGetAsAllJson(t *testing.T) {
 	CreateTheStore()
 	all := TheKVStore.GetAll()
 	assert.Empty(t, all)
-	storeVal := map[string]*map[string]interface{}{"store1": {"storekey11": "storeval1"}, "storekey12": {"storekey12": "storeval2"}}
+	storeVal := map[string]interface{}{"store1": "storekey11"}
 	TheKVStore.PutAll(storeVal)
 	actualStoreJson, err := TheKVStore.GetAllJson()
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":{"storekey11":"storeval1"},"storekey12":{"storekey12":"storeval2"}}`, actualStoreJson)
+	assert.Equal(t, `{"store1":"storekey11"}`, actualStoreJson)
 }
 
 func TestKVStore_PutAllAsJsonGetAll(t *testing.T) {
-	storeVal := map[string]*map[string]interface{}{"store1": {"storekey11": "storeval1"}, "storekey12": {"storekey12": "storeval2"}}
+	storeVal := map[string]interface{}{"store1": "storeval1", "storekey12": "storeval2"}
 	CreateTheStore()
 	allJson, err := TheKVStore.GetAllJson()
 	assert.NoError(t, err)
 	assert.Equal(t, "{}", allJson)
-	err = TheKVStore.PutAllJson(`{"store1":{"storekey11":"storeval1"},"storekey12":{"storekey12":"storeval2"}}`)
+	err = TheKVStore.PutAllJson(`{"store1": "storeval1", "storekey12": "storeval2"}`)
 	assert.NoError(t, err)
 	assert.Equal(t, storeVal, TheKVStore.GetAll())
 }
@@ -58,7 +58,7 @@ func TestKVStore_GetPut(t *testing.T) {
 	assert.Empty(t, store)
 	storeVal := map[string]interface{}{"store1": "storeval11", "store2": "storeval11"}
 	TheKVStore.Put(key, &storeVal)
-	assert.Equal(t, storeVal, *TheKVStore.Get(key))
+	assert.Equal(t, &storeVal, TheKVStore.Get(key))
 }
 
 func TestKVStore_PutGetJson(t *testing.T) {
@@ -81,7 +81,93 @@ func TestKVStore_PutJsonGet(t *testing.T) {
 	storeVal := map[string]interface{}{"store1": "storeval11", "store2": "storeval11"}
 	err := TheKVStore.PutAsJson(key, `{"store1":"storeval11","store2":"storeval11"}`)
 	assert.NoError(t, err)
-	assert.Equal(t, &storeVal, TheKVStore.Get(key))
+	assert.Equal(t, storeVal, TheKVStore.Get(key))
+
+}
+
+const bookstore = `
+{
+    "store": {
+        "book": [
+            {
+                "category": "reference",
+                "author": "Nigel Rees",
+                "title": "Sayings of the Century",
+                "price": 8.95
+            },
+            {
+                "category": "fiction",
+                "author": "Evelyn Waugh",
+                "title": "Sword of Honour",
+                "price": 12.99
+            },
+            {
+                "category": "fiction",
+                "author": "Herman Melville",
+                "title": "Moby Dick",
+                "isbn": "0-553-21311-3",
+                "price": 8.99
+            },
+            {
+                "category": "fiction",
+                "author": "J. R. R. Tolkien",
+                "title": "The Lord of the Rings",
+                "isbn": "0-395-19395-8",
+                "price": 22.99
+            }
+        ],
+        "bicycle": {
+            "color": "red",
+            "price": 19.95
+        }
+    },
+    "expensive": 10
+}
+`
+
+func TestKVStore_Lookup(t *testing.T) {
+	CreateTheStoreWithLog()
+	key := "bookstore"
+	store := TheKVStore.Get(key)
+	assert.Empty(t, store)
+	err := TheKVStore.PutAsJson(key, bookstore)
+	assert.NoError(t, err)
+
+	res, err := TheKVStore.LookUp(key, `$.expensive`)
+	assert.NoError(t, err)
+	assert.Equal(t, float64(10), res)
+
+	res, err = TheKVStore.LookUp(key, `$.store.book[0].price`)
+	assert.NoError(t, err)
+	assert.Equal(t, float64(8.95), res)
+
+	res, err = TheKVStore.LookUp(key, `$.store.book[-1].isbn`)
+	assert.NoError(t, err)
+	assert.Equal(t, "0-395-19395-8", res)
+
+	res, err = TheKVStore.LookUp(key, `$.store.book[0,1].price`)
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{float64(8.95), float64(12.99)}, res)
+
+	res, err = TheKVStore.LookUp(key, `$.store.book[0:2].price`)
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{float64(8.95), float64(12.99), float64(8.99)}, res)
+
+	res, err = TheKVStore.LookUp(key, `$.store.book[?(@.isbn)].price`)
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{float64(8.99), float64(22.99)}, res)
+
+	res, err = TheKVStore.LookUp(key, `$.store.book[?(@.price > 10)].title`)
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{"Sword of Honour", "The Lord of the Rings"}, res)
+
+	jsonPath := `$.store.book[?(@.author =~ /(?i).*REES/)].author`
+	res, err = TheKVStore.LookUp(key, jsonPath)
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{"Nigel Rees"}, res)
+	resJson, err := TheKVStore.LookUpJson(key, jsonPath)
+	assert.NoError(t, err)
+	assert.Equal(t, `["Nigel Rees"]`, resJson)
 
 }
 

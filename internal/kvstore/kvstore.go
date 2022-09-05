@@ -6,11 +6,12 @@ import (
 	"log"
 
 	jsonpatch "github.com/evanphx/json-patch"
+	jsonpath "github.com/oliveagle/jsonpath"
 )
 
 type KVStore struct {
 	log   bool
-	store map[string]*map[string]interface{}
+	store map[string]interface{}
 }
 
 var TheKVStore *KVStore
@@ -47,12 +48,12 @@ func CreateTheStoreWithLog() *KVStore {
 }
 
 func NewStore() *KVStore {
-	return &KVStore{store: map[string]*map[string]interface{}{}}
+	return &KVStore{store: map[string]interface{}{}}
 }
 
 func (s *KVStore) PutAsJson(key, jsonStr string) error {
-	storeVal := &map[string]interface{}{}
-	err := json.Unmarshal([]byte(jsonStr), storeVal)
+	var storeVal interface{}
+	err := json.Unmarshal([]byte(jsonStr), &storeVal)
 	if err != nil {
 		return err
 	}
@@ -60,11 +61,11 @@ func (s *KVStore) PutAsJson(key, jsonStr string) error {
 	return nil
 }
 
-func (s *KVStore) Get(key string) *map[string]interface{} {
+func (s *KVStore) Get(key string) interface{} {
 	return s.store[key]
 }
 
-func (s *KVStore) Put(key string, storeVal *map[string]interface{}) {
+func (s *KVStore) Put(key string, storeVal interface{}) {
 	s.store[key] = storeVal
 }
 
@@ -77,16 +78,16 @@ func (s *KVStore) GetAsJson(key string) (string, error) {
 	return string(storeJson), nil
 }
 
-func (s *KVStore) GetAll() map[string]*map[string]interface{} {
+func (s *KVStore) GetAll() map[string]interface{} {
 	return s.store
 }
 
-func (s *KVStore) PutAll(content map[string]*map[string]interface{}) {
+func (s *KVStore) PutAll(content map[string]interface{}) {
 	s.store = content
 }
 
 func (s *KVStore) PutAllJson(allStoreJson string) error {
-	allStoreVal := &map[string]*map[string]interface{}{}
+	allStoreVal := &map[string]interface{}{}
 	err := json.Unmarshal([]byte(allStoreJson), allStoreVal)
 	if err != nil {
 		return err
@@ -126,6 +127,28 @@ func (s *KVStore) Patch(key string, op PatchOp, path, value string) error {
 		return err
 	}
 	return nil
+}
+
+func (s *KVStore) LookUp(key, jsonPath string) (interface{}, error) {
+	s.logStr("jsonpath=" + jsonPath)
+	res, err := jsonpath.JsonPathLookup(s.Get(key), jsonPath)
+	if err != nil {
+		return "", err
+	}
+	return res, nil
+}
+
+func (s *KVStore) LookUpJson(key, jsonPath string) (string, error) {
+	res, err := s.LookUp(key, jsonPath)
+	if err != nil {
+		return "", err
+	}
+	resJson, err := json.Marshal(res)
+	if err != nil {
+		return "", err
+	}
+	s.logStr(fmt.Sprintf("jsonPath jsonresult='%s'", resJson))
+	return string(resJson), nil
 }
 
 func (s *KVStore) logStr(message string) {

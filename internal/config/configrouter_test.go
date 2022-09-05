@@ -70,7 +70,7 @@ func TestConfigRouter_UploadKVStore(t *testing.T) {
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("uploadKVStore").GetHandler(), testCases, t)
-	assert.Equal(t, map[string]*map[string]interface{}{"store1": {"mykey1": "myvalue1"}, "store2": {"mykey2": "myvalue2"}}, kvstore.TheKVStore.GetAll())
+	assert.Equal(t, map[string]interface{}{"store1": map[string]interface{}{"mykey1": "myvalue1"}, "store2": map[string]interface{}{"mykey2": "myvalue2"}}, kvstore.TheKVStore.GetAll())
 }
 
 func TestConfigRouter_DownloadKVStore(t *testing.T) {
@@ -98,6 +98,7 @@ func TestConfigRouter_DownloadKVStore(t *testing.T) {
 }
 
 func TestConfigRouter_SetKVStore(t *testing.T) {
+	kvstore.CreateTheStore()
 	mockRouter := createMockRouter("simplemocks", t)
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
@@ -116,7 +117,7 @@ func TestConfigRouter_SetKVStore(t *testing.T) {
 	}
 	assertConfigRouterResponse(configRouter.router.Get("setKVStore").GetHandler(), testCases, t)
 	value := kvstore.TheKVStore.Get("testapp")
-	assert.Equal(t, &map[string]interface{}{"mykey": "myvalue"}, value)
+	assert.Equal(t, map[string]interface{}{"mykey": "myvalue"}, value)
 }
 
 func TestConfigRouter_GetKVStore(t *testing.T) {
@@ -272,6 +273,7 @@ func TestConfigRouter_AddMatches(t *testing.T) {
 }
 
 func TestConfigRouter_SyncWithCluster(t *testing.T) {
+	kvstore.CreateTheStore()
 	var clusterNode1Request *http.Request
 	var clusterNode2Request *http.Request
 	clusterNode1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -294,7 +296,7 @@ func TestConfigRouter_SyncWithCluster(t *testing.T) {
 	assert.Nil(t, clusterNode2Request, "clusterNode2Request must not exist")
 	assert.Equal(t, http.MethodGet, clusterNode1Request.Method, "clusterNode1Request.Method unexpected")
 	assert.Equal(t, "/kvstore", clusterNode1Request.URL.Path, "clusterNode1Request path unexpected")
-	assert.Equal(t, map[string]*map[string]interface{}{"store1": {"key1": "value1"}}, kvstore.TheKVStore.GetAll())
+	assert.Equal(t, map[string]interface{}{"store1": map[string]interface{}{"key1": "value1"}}, kvstore.TheKVStore.GetAll())
 }
 
 func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterTestCase, t *testing.T) {

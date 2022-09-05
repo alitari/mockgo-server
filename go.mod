@@ -9,6 +9,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852
 	github.com/stretchr/testify v1.8.0
 	gopkg.in/yaml.v2 v2.4.0
 )
