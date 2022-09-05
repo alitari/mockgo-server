@@ -105,8 +105,19 @@ func (s *KVStore) GetAllJson() (string, error) {
 	return string(storeJson), nil
 }
 
-func (s *KVStore) Patch(key string, op PatchOp, path, value string) error {
-	patchJson := fmt.Sprintf(`[ {"op": "%s", "path": "%s", "value": %s}]`, op.String(), path, value)
+func (s *KVStore) PatchAdd(key, path, value string) error {
+	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s","value": %s}]`, Add.String(), path, value))
+}
+
+func (s *KVStore) PatchRemove(key, path string) error {
+	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s"}]`, Remove.String(), path))
+}
+
+func (s *KVStore) PatchReplace(key, path, value string) error {
+	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s","value": %s}]`, Replace.String(), path, value))
+}
+
+func (s *KVStore) patch(key, patchJson string) error {
 	s.logStr("patchJson=" + patchJson)
 	patch, err := jsonpatch.DecodePatch([]byte(patchJson))
 	if err != nil {
