@@ -370,9 +370,10 @@ func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterT
 }
 
 func createMockRouter(testMockDir string, t *testing.T) *mock.MockRouter {
-	mockRouter, err := mock.NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
-	assert.NoError(t, err, "Can't create mock router")
+	mockRouter := mock.NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
+	err := mockRouter.LoadFiles(nil)
+	assert.NoError(t, err, "Can't load files")
 	return mockRouter
 }
 
