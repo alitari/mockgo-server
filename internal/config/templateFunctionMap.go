@@ -43,6 +43,14 @@ func (r *ConfigRouter) TemplateFuncMap() template.FuncMap {
 			}
 			return ""
 		},
+		"kvStoreJsonPath": func(key, jsonPath string) interface{} {
+			value, err := r.kvstore.LookUp(key, jsonPath)
+			if err != nil {
+				r.logger.LogAlways(fmt.Sprintf("Error get value with Jsonpath '%s' in kvStore: '%s' : %v", jsonPath, key, err))
+				return ""
+			}
+			return value
+		},
 		"matches": func(id string) []*model.Match {
 			return r.mockRouter.Matches[id]
 		},

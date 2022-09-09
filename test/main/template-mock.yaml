@@ -23,3 +23,9 @@ endpoints:
       path: '/removekvstore/{key}'
     response:
       bodyFilename: "removekvstoreresponse.json"
+  - id: "lookupKVStore"
+    request:
+      method: "POST"
+      path: '/lookupkvstore/{key}'
+    response:
+      bodyFilename: "lookupkvstoreresponse.json"

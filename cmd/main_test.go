@@ -208,6 +208,18 @@ func TestMain_templateFunctionsKVStore(t *testing.T) {
 		assert.Equal(t, `{"mainTest1":"","mainTest2":"mainTest2Value"}`, responseBody)
 	})
 
+	// lookup kvstore with jsonPath
+	requestToNode(t, 0, false, http.MethodPost, "/lookupkvstore/maintest", nil, `{ "jsonPath": "$.mainTest2" }`, 200, func(responseBody string) {
+		expectedResponseBody := `{
+    "message": "lookup kvstore successfully",
+    "key": "maintest",
+    "body": "{ \"jsonPath\": \"$.mainTest2\" }",
+    "jsonPath": "$.mainTest2",
+    "value": "mainTest2Value"
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	})
+
 }
 
 func requestToAllNodes(t *testing.T, config bool, method, path string, header map[string][]string, body string, expectedStatus int, assertBody func(responseBody string)) {
