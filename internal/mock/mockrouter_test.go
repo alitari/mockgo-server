@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 	"text/template"
-	"time"
 
 	"github.com/Masterminds/sprig"
 	"github.com/alitari/mockgo-server/internal/kvstore"
@@ -185,50 +184,6 @@ func TestMatchRequest_Rendering(t *testing.T) {
 	assertMatchRequestToEndpoint(mockRouter, testCases, t)
 }
 
-func TestRenderResponse_Delay(t *testing.T) {
-	mockRouter := createMockRouter("responseRendering", t)
-
-	testCases := []*renderingTestCase{
-		{name: "delay", match: &model.Match{}, responseTemplate: "statusCode: 204 {{ delay 10 }}",
-			expectedResponseStatusCode: 204},
-	}
-	ts := time.Now()
-	assertRenderingResponse(mockRouter, testCases, t)
-	assert.LessOrEqual(t, 10*time.Millisecond, time.Since(ts))
-}
-
-func TestRenderResponse_Matches(t *testing.T) {
-	mockRouter := createMockRouter("responseRendering", t)
-	request := createRequest(http.MethodGet, "http://host/one", "", map[string][]string{"headerKey": {"headerValue"}}, nil, t)
-	ep, _, _ := mockRouter.matchRequestToEndpoint(request)
-	assert.NotNil(t, ep)
-	assert.Equal(t, "one", ep.Id)
-	testCases := []*renderingTestCase{
-		{name: "template matches",
-			match: &model.Match{},
-			responseTemplate: `body: |
-  {{ range $i, $match := matches "one" -}}
-  Match-EndpointId:  {{ $match.EndpointId }}
-  Match-Request method:  {{ $match.ActualRequest.Method }}
-  Match-Request URL:  {{ $match.ActualRequest.URL }}
-  Match-Request Host:  {{ $match.ActualRequest.Host }}
-  Match-Request header:
-  {{ range $key, $value := $match.ActualRequest.Header -}}
-  {{ $key }}: {{ $value }}
-  {{ end }}
-  {{ end }}`,
-			expectedResponseStatusCode: 200,
-			expectedResponseBody: `Match-EndpointId:  one
-Match-Request method:  GET
-Match-Request URL:  http://host/one
-Match-Request Host:  host
-Match-Request header:
-headerKey: [headerValue]
-`},
-	}
-	assertRenderingResponse(mockRouter, testCases, t)
-}
-
 func TestRenderResponse_Simple(t *testing.T) {
 	kvstore.CreateTheStore()
 	mockRouter := createMockRouter("responseRendering", t)
@@ -268,16 +223,7 @@ func TestRenderResponse_Simple(t *testing.T) {
 			request:                    createRequest("PUT", "https://coolhost.cooldomain.com/coolpath", "{ \"requestBodyKey\": \"requestBodyValue\" }", map[string][]string{"myheaderKey": {"myheaderValue"}}, nil, t),
 			requestParams:              map[string]string{"myparam1": "myvalue"},
 			expectedResponseStatusCode: 200,
-			expectedResponseBody:       expectedResponseResult},
-		{name: "template kvstore", match: &model.Match{},
-			responseTemplate:           "body: |\n{{ kvStoreGet \"testkey\" | toPrettyJson | indent 2 }}",
-			kvstoreJson:                `{ "myResponse" : "is Great!" }`,
-			expectedResponseStatusCode: 200,
-			expectedResponseBody:       "{\n  \"myResponse\": \"is Great!\"\n}"},
-		{name: "template endpoints", match: &model.Match{},
-			responseTemplate:           "body: |\n  {{ range $i, $ep := endpointIds }}\n  Endpoint: {{ $ep -}}\n  {{ end }}",
-			expectedResponseStatusCode: 200,
-			expectedResponseBody:       "\nEndpoint: one\nEndpoint: two"},
+			expectedResponseBody:       expectedResponseResult},		
 		{name: "response no yaml", match: &model.Match{}, responseTemplate: "statusCode: 204 this is no valid json",
 			expectedResponseStatusCode: 500,
 			expectedResponseBody:       "Error rendering response: could't unmarshall response yaml:\n'statusCode: 204 this is no valid json'\nerror: yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `204 thi...` into int",
@@ -299,11 +245,11 @@ func createRequest(method, url, bodyStr string, header map[string][]string, urlV
 func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestCase, t *testing.T) {
 	for _, testCase := range testCases {
 		if len(testCase.kvstoreJson) > 0 {
-			err := kvstore.TheKVStore.Put("testkey", testCase.kvstoreJson)
+			err := kvstore.TheKVStore.PutAsJson("testkey", testCase.kvstoreJson)
 			assert.NoError(t, err)
 		}
 		recorder := httptest.NewRecorder()
-		tplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Funcs(mockRouter.templateFuncMap()).Parse(testCase.responseTemplate)
+		tplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Parse(testCase.responseTemplate)
 		assert.NoError(t, err)
 		endpoint := &model.MockEndpoint{Response: &model.MockResponse{Template: tplt}}
 
@@ -351,7 +297,8 @@ func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingT
 }
 
 func createMockRouter(testMockDir string, t *testing.T) *MockRouter {
-	mockRouter, err := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	mockRouter := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	err := mockRouter.LoadFiles(nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	return mockRouter

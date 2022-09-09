@@ -83,6 +83,10 @@ func createRouters(kvstore *kvstore.KVStore, logger *utils.Logger) (*mock.MockRo
 
 	mockRouter := createMockRouter(configuration, kvstore, logger)
 	configRouter := createConfigRouter(configuration, mockRouter, kvstore, logger)
+	err := mockRouter.LoadFiles(configRouter.TemplateFuncMap())
+	if err != nil {
+		log.Fatalf("(FATAL) Can't load files: %v", err)
+	}
 	return mockRouter, configRouter
 
 }
@@ -96,16 +100,13 @@ func createConfiguration() *Configuration {
 }
 
 func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, logger *utils.Logger) *mock.MockRouter {
-	mockRouter, err := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.ResponseFilepattern, configuration.MockPort, kvstore, logger)
-	if err != nil {
-		log.Fatalf("(FATAL) Can't load files: %v", err)
-	}
+	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.ResponseFilepattern, configuration.MockPort, kvstore, logger)	
 	return mockRouter
 }
 
 func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, kvStore *kvstore.KVStore, logger *utils.Logger) *config.ConfigRouter {
 	configRouter := config.NewConfigRouter(configuration.ConfigUsername, configuration.ConfigPassword, mockRouter, configuration.ConfigPort, configuration.ClusterUrls, kvStore, logger)
-	err := configRouter.SyncKvstoreWithCluster()
+	err := configRouter.DownloadKVStoreFromCluster()
 	if err != nil {
 		log.Fatalf("(FATAL) Can't sync with cluster: %v\n", err)
 	}

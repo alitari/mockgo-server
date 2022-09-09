@@ -45,11 +45,10 @@ type MockRouter struct {
 	EpSearchNode        *model.EpSearchNode
 	router              *mux.Router
 	server              *http.Server
-	kvstore             *kvstore.KVStore
 	Matches             map[string][]*model.Match
 }
 
-func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, port int, kvstore *kvstore.KVStore, logger *utils.Logger) (*MockRouter, error) {
+func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, port int, kvstore *kvstore.KVStore, logger *utils.Logger) *MockRouter {
 	mockRouter := &MockRouter{
 		mockDir:             mockDir,
 		mockFilepattern:     mockFilepattern,
@@ -59,14 +58,9 @@ func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern st
 		responseFiles:       make(map[string]*template.Template),
 		logger:              logger,
 		EpSearchNode:        &model.EpSearchNode{},
-		kvstore:             kvstore,
 		Matches:             make(map[string][]*model.Match),
 	}
-	err := mockRouter.loadFiles()
-	if err != nil {
-		return nil, err
-	}
-	return mockRouter, nil
+	return mockRouter
 }
 
 func (r *MockRouter) Name() string {
@@ -89,7 +83,7 @@ func (r *MockRouter) Logger() *utils.Logger {
 	return r.logger
 }
 
-func (r *MockRouter) loadFiles() error {
+func (r *MockRouter) LoadFiles(funcMap template.FuncMap) error {
 	r.EpSearchNode = &model.EpSearchNode{}
 	endPointCounter := 0
 	mockFiles, err := utils.WalkMatch(r.mockDir, r.mockFilepattern)
@@ -111,12 +105,12 @@ func (r *MockRouter) loadFiles() error {
 				endpoint.Id = strconv.Itoa(endPointCounter)
 			}
 			endpoint.Mock = mock
-			r.initResponseTemplate(endpoint)
+			r.initResponseTemplate(endpoint,funcMap)
 			r.registerEndpoint(endpoint)
 		}
 	}
 	r.newRouter()
-	err = r.loadResponseFiles()
+	err = r.loadResponseFiles(funcMap)
 	if err != nil {
 		return err
 	}
@@ -130,7 +124,7 @@ func (r *MockRouter) readMockFile(mockFile string) (*model.Mock, error) {
 		return nil, err
 	}
 
-	mockfileTplt, err := r.createTemplate("request", string(mockFileContent))
+	mockfileTplt, err := r.createTemplate("request", string(mockFileContent),nil)
 	if err != nil {
 		return nil, err
 	}
@@ -162,12 +156,12 @@ func (r *MockRouter) readMockFile(mockFile string) (*model.Mock, error) {
 	return mock, nil
 }
 
-func (r *MockRouter) initResponseTemplate(endpoint *model.MockEndpoint) error {
+func (r *MockRouter) initResponseTemplate(endpoint *model.MockEndpoint, funcMap template.FuncMap) error {
 	responseTpltSourceBytes, err := yaml.Marshal(endpoint.Response)
 	if err != nil {
 		return err
 	}
-	responseTplt, err := r.createTemplate("response", string(responseTpltSourceBytes))
+	responseTplt, err := r.createTemplate("response", string(responseTpltSourceBytes),funcMap)
 	if err != nil {
 		return err
 	}
@@ -175,7 +169,7 @@ func (r *MockRouter) initResponseTemplate(endpoint *model.MockEndpoint) error {
 	return nil
 }
 
-func (r *MockRouter) loadResponseFiles() error {
+func (r *MockRouter) loadResponseFiles(funcMap template.FuncMap) error {
 	responseFiles, err := utils.WalkMatch(r.responseDir, r.responseFilepattern)
 	if err != nil {
 		return err
@@ -187,7 +181,7 @@ func (r *MockRouter) loadResponseFiles() error {
 		if err != nil {
 			return err
 		}
-		responseFileTplt, err := r.createTemplate("response", string(responseFileContent))
+		responseFileTplt, err := r.createTemplate("response", string(responseFileContent),funcMap)
 		if err != nil {
 			return err
 		}
@@ -196,8 +190,8 @@ func (r *MockRouter) loadResponseFiles() error {
 	return nil
 }
 
-func (r *MockRouter) createTemplate(name, content string) (*template.Template, error) {
-	tplt, err := template.New(name).Funcs(sprig.TxtFuncMap()).Funcs(r.templateFuncMap()).Parse(string(content))
+func (r *MockRouter) createTemplate(name, content string, funcMap template.FuncMap) (*template.Template, error) {
+	tplt, err := template.New(name).Funcs(sprig.TxtFuncMap()).Funcs(funcMap).Parse(string(content))
 	if err != nil {
 		return nil, err
 	}
@@ -377,28 +371,7 @@ func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Reques
 	return match
 }
 
-func (r *MockRouter) AllEndpoints() []*model.MockEndpoint {
-	endpoints := []*model.MockEndpoint{}
-	endpoints = r.getEndpoints(endpoints, r.EpSearchNode)
-	sort.SliceStable(endpoints, func(i, j int) bool {
-		return endpoints[i].Id < endpoints[j].Id
-	})
-	return endpoints
-}
 
-func (r *MockRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *model.EpSearchNode) []*model.MockEndpoint {
-	for _, sns := range sn.SearchNodes {
-		if sns.Endpoints != nil {
-			for _, epMethodMap := range sns.Endpoints {
-				endpoints = append(endpoints, epMethodMap...)
-			}
-		}
-		if sns.SearchNodes != nil {
-			endpoints = append(endpoints, r.getEndpoints(endpoints, sns)...)
-		}
-	}
-	return endpoints
-}
 
 func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, match *model.Match, requestPathParams map[string]string) {
 	responseTemplateData, err := r.createResponseTemplateData(request, requestPathParams)

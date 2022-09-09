@@ -32,26 +32,6 @@ func TestMain(m *testing.M) {
 	os.Exit(utils.RunAndCheckCoverage("configrouter", m, 0.30))
 }
 
-func TestConfigRouter_Endpoints(t *testing.T) {
-	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
-	configRouter.newRouter()
-	testCases := []*configRouterTestCase{
-		{name: "Endpoints",
-			request: createRequest(
-				http.MethodGet,
-				"http://somehost/endpoints",
-				"",
-				map[string][]string{headers.ContentType: {"application/json"}, headers.Accept: {"application/json"}},
-				nil,
-				t),
-			expectedResponseStatusCode: 200,
-			expectedResponseFile:       "../../test/expectedResponses/endpoints.json",
-		},
-	}
-	assertConfigRouterResponse(configRouter.router.Get("endpoints").GetHandler(), testCases, t)
-}
-
 func TestConfigRouter_UploadKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.CreateTheStore(), &utils.Logger{Verbose: true, DebugResponseRendering: true})
@@ -70,7 +50,7 @@ func TestConfigRouter_UploadKVStore(t *testing.T) {
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("uploadKVStore").GetHandler(), testCases, t)
-	assert.Equal(t, map[string]*map[string]interface{}{"store1": {"mykey1": "myvalue1"}, "store2": {"mykey2": "myvalue2"}}, kvstore.TheKVStore.GetAll())
+	assert.Equal(t, map[string]interface{}{"store1": map[string]interface{}{"mykey1": "myvalue1"}, "store2": map[string]interface{}{"mykey2": "myvalue2"}}, kvstore.TheKVStore.GetAll())
 }
 
 func TestConfigRouter_DownloadKVStore(t *testing.T) {
@@ -98,6 +78,7 @@ func TestConfigRouter_DownloadKVStore(t *testing.T) {
 }
 
 func TestConfigRouter_SetKVStore(t *testing.T) {
+	kvstore.CreateTheStore()
 	mockRouter := createMockRouter("simplemocks", t)
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
@@ -108,16 +89,15 @@ func TestConfigRouter_SetKVStore(t *testing.T) {
 				http.MethodPut,
 				"http://somehost/kvstore/testapp",
 				"{ \"mykey\": \"myvalue\" }",
-				map[string][]string{headers.ContentType: {"application/json"}, headers.Accept: {"application/json"}},
+				map[string][]string{headers.ContentType: {"application/json"}},
 				map[string]string{"key": "testapp"},
 				t),
 			expectedResponseStatusCode: http.StatusNoContent,
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("setKVStore").GetHandler(), testCases, t)
-	value, err := kvstore.TheKVStore.Get("testapp")
-	assert.NoError(t, err)
-	assert.Equal(t, &map[string]interface{}{"mykey": "myvalue"}, value)
+	value := kvstore.TheKVStore.Get("testapp")
+	assert.Equal(t, map[string]interface{}{"mykey": "myvalue"}, value)
 }
 
 func TestConfigRouter_GetKVStore(t *testing.T) {
@@ -127,7 +107,7 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 	configRouter.newRouter()
 
 	val := "{ \"myconfig\": \"is here!\" }"
-	err := configRouter.kvstore.Put("testapp", val)
+	err := configRouter.kvstore.PutAsJson("testapp", val)
 	assert.NoError(t, err)
 
 	testCases := []*configRouterTestCase{
@@ -144,6 +124,60 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 		},
 	}
 	assertConfigRouterResponse(configRouter.router.Get("getKVStore").GetHandler(), testCases, t)
+}
+
+func TestConfigRouter_AddKVStore(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	val := `{ "myconfig": "is here!" }`
+	err := configRouter.kvstore.PutAsJson("testapp", val)
+	assert.NoError(t, err)
+
+	testCases := []*configRouterTestCase{
+		{name: "AddKVStore",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/kvstore/testapp/add",
+				`{ "path": "/myconfig2", "value": "is also here" }`,
+				map[string][]string{headers.ContentType: {"application/json"}},
+				map[string]string{"key": "testapp"},
+				t),
+			expectedResponseStatusCode: http.StatusNoContent,
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("addKVStore").GetHandler(), testCases, t)
+	value := kvstore.TheKVStore.Get("testapp")
+	assert.Equal(t, map[string]interface{}{"myconfig": "is here!", "myconfig2": "is also here"}, value)
+}
+
+func TestConfigRouter_RemoveKVStore(t *testing.T) {
+	mockRouter := createMockRouter("simplemocks", t)
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	val := `{ "myconfig": "is here!" }`
+	err := configRouter.kvstore.PutAsJson("testapp", val)
+	assert.NoError(t, err)
+
+	testCases := []*configRouterTestCase{
+		{name: "RemoveKVStore",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/kvstore/testapp/remove",
+				`{ "path": "/myconfig" }`,
+				map[string][]string{headers.ContentType: {"application/json"}},
+				map[string]string{"key": "testapp"},
+				t),
+			expectedResponseStatusCode: http.StatusNoContent,
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("removeKVStore").GetHandler(), testCases, t)
+	value := kvstore.TheKVStore.Get("testapp")
+	assert.Empty(t, value)
 }
 
 func TestConfigRouter_GetMatches(t *testing.T) {
@@ -272,7 +306,8 @@ func TestConfigRouter_AddMatches(t *testing.T) {
 	assert.EqualValues(t, expectedMatches, mockRouter.Matches)
 }
 
-func TestConfigRouter_SyncWithCluster(t *testing.T) {
+func TestConfigRouter_DownloadKVStoreFromCluster(t *testing.T) {
+	kvstore.CreateTheStore()
 	var clusterNode1Request *http.Request
 	var clusterNode2Request *http.Request
 	clusterNode1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -289,13 +324,13 @@ func TestConfigRouter_SyncWithCluster(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{clusterNode1.URL, clusterNode2.URL}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
-	configRouter.SyncKvstoreWithCluster()
+	configRouter.DownloadKVStoreFromCluster()
 
 	assert.NotNil(t, clusterNode1Request, "clusterNode1Request must exist")
 	assert.Nil(t, clusterNode2Request, "clusterNode2Request must not exist")
 	assert.Equal(t, http.MethodGet, clusterNode1Request.Method, "clusterNode1Request.Method unexpected")
 	assert.Equal(t, "/kvstore", clusterNode1Request.URL.Path, "clusterNode1Request path unexpected")
-	assert.Equal(t, map[string]*map[string]interface{}{"store1": {"key1": "value1"}}, kvstore.TheKVStore.GetAll())
+	assert.Equal(t, map[string]interface{}{"store1": map[string]interface{}{"key1": "value1"}}, kvstore.TheKVStore.GetAll())
 }
 
 func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterTestCase, t *testing.T) {
@@ -315,9 +350,10 @@ func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterT
 }
 
 func createMockRouter(testMockDir string, t *testing.T) *mock.MockRouter {
-	mockRouter, err := mock.NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
-	assert.NoError(t, err, "Can't create mock router")
+	mockRouter := mock.NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
+	err := mockRouter.LoadFiles(nil)
+	assert.NoError(t, err, "Can't load files")
 	return mockRouter
 }
 
