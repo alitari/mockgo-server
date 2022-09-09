@@ -32,26 +32,6 @@ func TestMain(m *testing.M) {
 	os.Exit(utils.RunAndCheckCoverage("configrouter", m, 0.30))
 }
 
-func TestConfigRouter_Endpoints(t *testing.T) {
-	mockRouter := createMockRouter("simplemocks", t)
-	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
-	configRouter.newRouter()
-	testCases := []*configRouterTestCase{
-		{name: "Endpoints",
-			request: createRequest(
-				http.MethodGet,
-				"http://somehost/endpoints",
-				"",
-				map[string][]string{headers.ContentType: {"application/json"}, headers.Accept: {"application/json"}},
-				nil,
-				t),
-			expectedResponseStatusCode: 200,
-			expectedResponseFile:       "../../test/expectedResponses/endpoints.json",
-		},
-	}
-	assertConfigRouterResponse(configRouter.router.Get("endpoints").GetHandler(), testCases, t)
-}
-
 func TestConfigRouter_UploadKVStore(t *testing.T) {
 	mockRouter := createMockRouter("simplemocks", t)
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.CreateTheStore(), &utils.Logger{Verbose: true, DebugResponseRendering: true})
@@ -161,7 +141,7 @@ func TestConfigRouter_AddKVStore(t *testing.T) {
 			request: createRequest(
 				http.MethodPost,
 				"http://somehost/kvstore/testapp/add",
-				`{ "path": "/myconfig2", "value": "\"is also here\"" }`,
+				`{ "path": "/myconfig2", "value": "is also here" }`,
 				map[string][]string{headers.ContentType: {"application/json"}},
 				map[string]string{"key": "testapp"},
 				t),

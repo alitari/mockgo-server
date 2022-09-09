@@ -92,7 +92,6 @@ func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
 	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave("", "", http.MethodGet, "", "", nil, r.health))
 	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/text", nil, r.serverId))
-	router.NewRoute().Name("endpoints").Path("/endpoints").HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.endpoints))
 	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
 	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
 	router.NewRoute().Name("addKVStore").Path("/kvstore/{key}/add").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.addKVStore))
@@ -192,7 +191,7 @@ func (r *ConfigRouter) setKVStoreToCluster(key, value string) error {
 }
 
 func (r *ConfigRouter) addKVStoreToCluster(key, path, value string) error {
-	body := fmt.Sprintf(`{ "path":"%s", "value":%s }`, path, value)
+	body := fmt.Sprintf(`{ "path":"%s", "value":"%s" }`, path, value)
 	return r.clusterRequest(http.MethodPost, "/kvstore/"+key+"/add", map[string]string{NoAdvertiseHeader: "true", headers.ContentType: "application/json"}, body, http.StatusNoContent, false,
 		func(clusterUrl, responseBody string) (bool, error) {
 			r.logger.LogWhenVerbose(fmt.Sprintf("kvstore '%s': successfully added path: '%s' and value: '%s'  to  cluster url '%s' !", key, path, value, clusterUrl))
@@ -384,7 +383,7 @@ func (r *ConfigRouter) addKVStore(writer http.ResponseWriter, request *http.Requ
 	var addKvStoreRequest AddKVStoreRequest
 	err = json.Unmarshal(body, &addKvStoreRequest)
 	if err != nil {
-		http.Error(writer, "Can't parse request body: "+err.Error(), http.StatusBadRequest)
+		http.Error(writer, fmt.Sprintf("Can't parse request body '%s' : %v", body, err), http.StatusBadRequest)
 		return
 	}
 	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
@@ -435,20 +434,3 @@ func (r *ConfigRouter) removeKVStore(writer http.ResponseWriter, request *http.R
 	}
 }
 
-func (r *ConfigRouter) endpoints(writer http.ResponseWriter, request *http.Request) {
-	endPointResponse := &EndpointsResponse{Endpoints: r.mockRouter.AllEndpoints()}
-	writer.Header().Set(headers.ContentType, "application/json")
-	resp, err := json.MarshalIndent(endPointResponse, "", "    ")
-	if err != nil {
-		io.WriteString(writer, fmt.Sprintf("Cannot marshall response: %v", err))
-		writer.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	r.logger.LogWhenDebugRR(fmt.Sprintf("%v", endPointResponse))
-	_, err = io.WriteString(writer, string(resp))
-	if err != nil {
-		io.WriteString(writer, fmt.Sprintf("Cannot write response: %v", err))
-		writer.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-}

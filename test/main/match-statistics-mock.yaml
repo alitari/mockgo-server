@@ -1,9 +1,0 @@
-endpoints:
-  - id: matchstatistics
-    request:
-      path: '/matchstatistics'
-      header:
-        Accept: "application/json"
-
-    response:
-      bodyFilename: "matchstatistics.json"

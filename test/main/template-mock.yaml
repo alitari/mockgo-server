@@ -1,0 +1,25 @@
+endpoints:
+  - id: "setKVStore"
+    request:
+      method: "PUT"
+      path: '/setkvstore/{key}'
+    response:
+      bodyFilename: "setkvstoreresponse.json"
+  - id: "getKVStore"
+    request:
+      method: "GET"
+      path: '/getkvstore/{key}'
+    response:
+      bodyFilename: "getkvstoreresponse.json"
+  - id: "addKVStore"
+    request:
+      method: "POST"
+      path: '/addkvstore/{key}'
+    response:
+      bodyFilename: "addkvstoreresponse.json"
+  - id: "removeKVStore"
+    request:
+      method: "POST"
+      path: '/removekvstore/{key}'
+    response:
+      bodyFilename: "removekvstoreresponse.json"

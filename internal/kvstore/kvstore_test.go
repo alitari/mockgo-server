@@ -179,13 +179,13 @@ func TestKVStore_PatchAdd(t *testing.T) {
 	storeVal := map[string]interface{}{"store1": "val1", "store2": "val2"}
 	TheKVStore.Put(key, &storeVal)
 
-	err := TheKVStore.PatchAdd(key, "/store1", `"val1patched"`)
+	err := TheKVStore.PatchAdd(key, "/store1", "val1patched")
 	assert.NoError(t, err)
 	storeJson, err := TheKVStore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1patched","store2":"val2"}`, storeJson)
 
-	err = TheKVStore.PatchAdd(key, "/store3", `"val3patched"`)
+	err = TheKVStore.PatchAdd(key, "/store3", "val3patched")
 	assert.NoError(t, err)
 	storeJson, err = TheKVStore.GetAsJson(key)
 	assert.NoError(t, err)
@@ -197,7 +197,7 @@ func TestKVStore_PatchAdd(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41"]}`, storeJson)
 
-	err = TheKVStore.PatchAdd(key, "/store4/1", `"val42"`)
+	err = TheKVStore.PatchAdd(key, "/store4/1", "val42")
 	assert.NoError(t, err)
 	storeJson, err = TheKVStore.GetAsJson(key)
 	assert.NoError(t, err)
@@ -209,7 +209,7 @@ func TestKVStore_PatchAdd(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42",{"key43":"val43"}]}`, storeJson)
 
-	err = TheKVStore.PatchAdd(key, "/store4/-", `"key44"`)
+	err = TheKVStore.PatchAdd(key, "/store4/-", "key44")
 	assert.NoError(t, err)
 	storeJson, err = TheKVStore.GetAsJson(key)
 	assert.NoError(t, err)

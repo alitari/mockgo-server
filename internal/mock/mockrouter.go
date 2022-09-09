@@ -371,28 +371,7 @@ func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Reques
 	return match
 }
 
-func (r *MockRouter) AllEndpoints() []*model.MockEndpoint {
-	endpoints := []*model.MockEndpoint{}
-	endpoints = r.getEndpoints(endpoints, r.EpSearchNode)
-	sort.SliceStable(endpoints, func(i, j int) bool {
-		return endpoints[i].Id < endpoints[j].Id
-	})
-	return endpoints
-}
 
-func (r *MockRouter) getEndpoints(endpoints []*model.MockEndpoint, sn *model.EpSearchNode) []*model.MockEndpoint {
-	for _, sns := range sn.SearchNodes {
-		if sns.Endpoints != nil {
-			for _, epMethodMap := range sns.Endpoints {
-				endpoints = append(endpoints, epMethodMap...)
-			}
-		}
-		if sns.SearchNodes != nil {
-			endpoints = append(endpoints, r.getEndpoints(endpoints, sns)...)
-		}
-	}
-	return endpoints
-}
 
 func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, match *model.Match, requestPathParams map[string]string) {
 	responseTemplateData, err := r.createResponseTemplateData(request, requestPathParams)

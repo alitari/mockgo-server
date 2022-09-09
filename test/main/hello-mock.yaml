@@ -3,4 +3,4 @@ endpoints:
     request:
       path: '/hello'
     response:
-      bodyFilename: "myresponse.json"
+      bodyFilename: "helloresponse.json"

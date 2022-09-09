@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	jsonpath "github.com/oliveagle/jsonpath"
@@ -106,6 +107,9 @@ func (s *KVStore) GetAllJson() (string, error) {
 }
 
 func (s *KVStore) PatchAdd(key, path, value string) error {
+	if !strings.HasPrefix(value, "{") && !strings.HasPrefix(value, "[")  {
+		value = "\"" + value + "\""
+	}
 	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s","value": %s}]`, Add.String(), path, value))
 }
 

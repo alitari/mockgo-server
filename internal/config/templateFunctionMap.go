@@ -29,10 +29,10 @@ func (r *ConfigRouter) TemplateFuncMap() template.FuncMap {
 			}
 			return ""
 		},
-		"kvStoreAdd": func(key, path, jsonValue string) string {
-			err := r.addKVStoreToCluster(key, path, jsonValue)
+		"kvStoreAdd": func(key, path, value string) string {
+			err := r.addKVStoreToCluster(key, path, value)
 			if err != nil {
-				r.logger.LogAlways(fmt.Sprintf("Error adding value: '%s' with path '%s' in kvStore: '%s' in kvStore: %v", jsonValue, path, key, err))
+				r.logger.LogAlways(fmt.Sprintf("Error adding value: '%s' with path '%s' in kvStore: '%s' in kvStore: %v", value, path, key, err))
 			}
 			return ""
 		},
@@ -42,13 +42,6 @@ func (r *ConfigRouter) TemplateFuncMap() template.FuncMap {
 				r.logger.LogAlways(fmt.Sprintf("Error removing value on path : '%s'  in kvStore: '%s':  %v", path, key, err))
 			}
 			return ""
-		},
-		"endpointIds": func() []string {
-			var ids []string
-			for _, ep := range r.mockRouter.AllEndpoints() {
-				ids = append(ids, ep.Id)
-			}
-			return ids
 		},
 		"matches": func(id string) []*model.Match {
 			return r.mockRouter.Matches[id]
