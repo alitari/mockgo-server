@@ -50,8 +50,8 @@ type MatchRequest struct {
 
 type MockResponse struct {
 	Template     *template.Template `yaml:"-" json:"-"`
-	StatusCode   int                `yaml:"statusCode" json:"statusCode"`
-	Headers      map[string]string  `yaml:"headers" json:"headers"`
+	StatusCode   string             `yaml:"statusCode" json:"statusCode"`
+	Headers      string             `yaml:"headers" json:"headers"`
 	Body         string             `yaml:"body" json:"body"`
 	BodyFilename string             `yaml:"bodyFilename" json:"bodyFilename"`
 }

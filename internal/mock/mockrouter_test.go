@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"encoding/base64"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,13 +8,10 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"text/template"
 
-	"github.com/Masterminds/sprig"
 	"github.com/alitari/mockgo-server/internal/kvstore"
 	"github.com/alitari/mockgo-server/internal/model"
 	"github.com/alitari/mockgo-server/internal/utils"
-	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
@@ -29,11 +25,9 @@ type matchingTestCase struct {
 
 type renderingTestCase struct {
 	name                       string
-	responseTemplate           string
 	requestParams              map[string]string
 	request                    *http.Request
-	match                      *model.Match
-	kvstoreJson                string
+	response                   *model.MockResponse
 	expectedResponseStatusCode int
 	expectedResponseBody       string
 	expectedResponseHeader     map[string]string
@@ -167,26 +161,9 @@ func TestMatchRequestToEndpoint_Regexp(t *testing.T) {
 	assertMatchRequestToEndpoint(mockRouter, testCases, t)
 }
 
-// map[string][]string{ headers.Authorization : {"Basic blabla"}}
-func TestMatchRequest_Rendering(t *testing.T) {
-	user := "Alex"
-	password := "mysecretpassword"
-	os.Setenv("USER", user)
-	os.Setenv("PASSWORD", password)
-	mockRouter := createMockRouter("requestRendering", t)
-	basicAuth := base64.StdEncoding.EncodeToString([]byte(user + ":" + password))
-	testCases := []*matchingTestCase{
-		{name: "BasicAuth, match ",
-			request: createRequest(http.MethodGet, "http://host/auth", "",
-				map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {"Basic " + basicAuth}}, nil, t),
-			expectedMatchEndpointId: "basicauth"},
-	}
-	assertMatchRequestToEndpoint(mockRouter, testCases, t)
-}
-
 func TestRenderResponse_Simple(t *testing.T) {
-	kvstore.CreateTheStore()
 	mockRouter := createMockRouter("responseRendering", t)
+
 	expectedResponseResult := `{
     "requestUrl": "https://coolhost.cooldomain.com/coolpath",
     "requestPathParams": "map[myparam1:myvalue]",
@@ -198,36 +175,35 @@ func TestRenderResponse_Simple(t *testing.T) {
 }`
 
 	testCases := []*renderingTestCase{
-		{name: "status", match: &model.Match{}, responseTemplate: "statusCode: 204",
+		{name: "status", response: &model.MockResponse{StatusCode: "204"},
 			expectedResponseStatusCode: 204},
-		{name: "body", match: &model.Match{}, responseTemplate: "body: Hello",
+		{name: "body", response: &model.MockResponse{Body: "Hello"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "Hello"},
-		{name: "body from response file", match: &model.Match{}, responseTemplate: "bodyFilename: simple-response.json",
+		{name: "body from response file", response: &model.MockResponse{BodyFilename: "simple-response.json"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "{\n    \"greets\": \"Hello\"\n}"},
-		{name: "template RequestPathParams", match: &model.Match{}, responseTemplate: "body: {{ .RequestPathParams.param1 }}", requestParams: map[string]string{"param1": "Hello"},
+		{name: "template RequestPathParams", response: &model.MockResponse{Body: "{{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "Hello"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "Hello"},
-		{name: "template RequestParam statuscode", match: &model.Match{}, responseTemplate: "statusCode: {{ .RequestPathParams.param1 }}", requestParams: map[string]string{"param1": "202"},
+		{name: "template RequestParam statuscode", response: &model.MockResponse{StatusCode: "{{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "202"},
 			expectedResponseStatusCode: 202},
-		{name: "template Request url", match: &model.Match{},
-			responseTemplate: "body: \"incoming request url: '{{ .RequestUrl }}'\"",
+		{name: "template RequestParam headers", response: &model.MockResponse{Headers: "requestParam: {{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "param1HeaderValue"},
+			expectedResponseStatusCode: 200,
+			expectedResponseHeader:     map[string]string{"requestParam": "param1HeaderValue"}},
+		{name: "template Request url",
+			response: &model.MockResponse{Body: "incoming request url: '{{ .RequestUrl }}'"},
 			request: &http.Request{URL: &url.URL{User: url.User("alex"), Scheme: "https", Host: "myhost", Path: "/mypath"},
 				Method: http.MethodGet,
 				Header: map[string][]string{"headerKey": {"headerValue"}}},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "incoming request url: 'https://alex@myhost/mypath'"},
-		{name: "template response file all request params", match: &model.Match{},
-			responseTemplate:           "bodyFilename: request-template-response.json",
+		{name: "template response file all request params",
+			response:                   &model.MockResponse{BodyFilename: "request-template-response.json"},
 			request:                    createRequest("PUT", "https://coolhost.cooldomain.com/coolpath", "{ \"requestBodyKey\": \"requestBodyValue\" }", map[string][]string{"myheaderKey": {"myheaderValue"}}, nil, t),
 			requestParams:              map[string]string{"myparam1": "myvalue"},
 			expectedResponseStatusCode: 200,
-			expectedResponseBody:       expectedResponseResult},		
-		{name: "response no yaml", match: &model.Match{}, responseTemplate: "statusCode: 204 this is no valid json",
-			expectedResponseStatusCode: 500,
-			expectedResponseBody:       "Error rendering response: could't unmarshall response yaml:\n'statusCode: 204 this is no valid json'\nerror: yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `204 thi...` into int",
-		},
+			expectedResponseBody:       expectedResponseResult},
 	}
 	assertRenderingResponse(mockRouter, testCases, t)
 }
@@ -244,30 +220,25 @@ func createRequest(method, url, bodyStr string, header map[string][]string, urlV
 
 func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestCase, t *testing.T) {
 	for _, testCase := range testCases {
-		if len(testCase.kvstoreJson) > 0 {
-			err := kvstore.TheKVStore.PutAsJson("testkey", testCase.kvstoreJson)
-			assert.NoError(t, err)
-		}
 		recorder := httptest.NewRecorder()
-		tplt, err := template.New("response").Funcs(sprig.TxtFuncMap()).Parse(testCase.responseTemplate)
-		assert.NoError(t, err)
-		endpoint := &model.MockEndpoint{Response: &model.MockResponse{Template: tplt}}
-
 		if testCase.request == nil {
-			testCase.request = &http.Request{URL: &url.URL{}}
+			testCase.request = createRequest(http.MethodGet, "http://host/minimal", "", nil, nil, t)
 		}
-		mockRouter.renderResponse(recorder, testCase.request, endpoint, testCase.match, testCase.requestParams)
+		endpoint := &model.MockEndpoint{Id: testCase.name, Response: testCase.response}
+		err := mockRouter.initResponseTemplates(endpoint, nil)
+		assert.NoError(t, err, "testcase: '"+testCase.name+"': error in initResonseTemplates")
+		mockRouter.renderResponse(recorder, testCase.request, endpoint, &model.Match{}, testCase.requestParams)
 
-		assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode, "unexpected statuscode")
+		assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode, "testcase: '"+testCase.name+"': unexpected statuscode")
 
 		responseBody, err := io.ReadAll(recorder.Result().Body)
-		assert.NoError(t, err)
+		assert.NoError(t, err, "testcase: '"+testCase.name+"': error reading responseBody")
 
-		assert.Equal(t, testCase.expectedResponseBody, string(responseBody), "unexpected responseBody")
+		assert.Equal(t, testCase.expectedResponseBody, string(responseBody), "testcase: '"+testCase.name+"': unexpected responseBody")
 
 		if testCase.expectedResponseHeader != nil {
 			for expectedParamName, expectedParamValue := range testCase.expectedResponseHeader {
-				assert.Equal(t, recorder.Header().Get(expectedParamName), expectedParamValue, "unexpected header param")
+				assert.Equal(t, recorder.Header().Get(expectedParamName), expectedParamValue, "testcase: '"+testCase.name+"': unexpected header param")
 			}
 		}
 		if !t.Failed() {

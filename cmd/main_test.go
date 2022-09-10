@@ -100,7 +100,7 @@ func TestMain_getMatches(t *testing.T) {
 		assert.Equal(t, "/hello", match.ActualRequest.URL)
 		assert.Equal(t, map[string][]string{"Accept": {"application/json"}, "Accept-Encoding": {"gzip"}, "User-Agent": {"Go-http-client/1.1"}}, match.ActualRequest.Header)
 		assert.Equal(t, http.StatusOK, match.ActualResponse.StatusCode)
-		assert.Equal(t, map[string]string{}, match.ActualResponse.Header)
+		assert.Empty(t, match.ActualResponse.Header)
 	}
 	requestToAllNodes(t, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, assertMatchesResponsesFunc)
 
