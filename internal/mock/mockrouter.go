@@ -357,12 +357,34 @@ func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Reques
 }
 
 func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, match *model.Match, requestPathParams map[string]string) {
+	writer.Header().Add("Mocked", "true")
 	responseTemplateData, err := r.createResponseTemplateData(request, requestPathParams)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Header().Set("Mocked", "false")
 		fmt.Fprintf(writer, "Error rendering response: %v", err)
 		return
+	}
+
+	var renderedHeaders bytes.Buffer
+	err = endpoint.Response.Template.ExecuteTemplate(&renderedHeaders, TEMPLATE_NAME_RESPONSEHEADERS, responseTemplateData)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Header().Set("Mocked", "false")
+		fmt.Fprintf(writer, "Error rendering response headers: %v", err)
+		return
+	}
+	
+	var headers map[string]string
+	err = yaml.Unmarshal(renderedHeaders.Bytes(), &headers)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Header().Set("Mocked", "false")
+		fmt.Fprintf(writer, "Error unmarshalling response headers: %v", err)
+		return
+	}
+	for key, val := range headers {
+		writer.Header().Add(key, val)
 	}
 
 	var renderedStatus bytes.Buffer
@@ -382,27 +404,6 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 	}
 	writer.WriteHeader(responseStatus)
 
-	var renderedHeaders bytes.Buffer
-	err = endpoint.Response.Template.ExecuteTemplate(&renderedHeaders, TEMPLATE_NAME_RESPONSEHEADERS, responseTemplateData)
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Header().Set("Mocked", "false")
-		fmt.Fprintf(writer, "Error rendering response headers: %v", err)
-		return
-	}
-
-	var headers map[string]string
-	err = yaml.Unmarshal(renderedHeaders.Bytes(), &headers)
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Header().Set("Mocked", "false")
-		fmt.Fprintf(writer, "Error unmarshalling response headers: %v", err)
-		return
-	}
-	for key, val := range headers {
-		writer.Header().Set(key, val)
-	}
-
 	var renderedBody bytes.Buffer
 	err = endpoint.Response.Template.ExecuteTemplate(&renderedBody, TEMPLATE_NAME_RESPONSEBODY, responseTemplateData)
 	if err != nil {
@@ -420,7 +421,6 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	writer.Header().Set("Mocked", "true")
 	match.ActualResponse = &model.ActualResponse{StatusCode: responseStatus, Header: headers}
 }
 
