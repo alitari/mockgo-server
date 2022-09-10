@@ -31,42 +31,42 @@ mocks:
       request:
         path: '/hello2'
       response:
-        headers:
+        headers: |
           Content-Type: "application/text"
         body: "Hello World!"
     - id: hello3
       request:
         path: '/hello3/{name}'
       response:
-        headers:
+        headers: |
           Content-Type: "application/text"
         bodyFilename: "hello3-response.txt"
     - id: hello4
       request:
         path: '/hello4/*/{name}'
       response:
-        headers:
+        headers: |
           Content-Type: "application/json"
         bodyFilename: "hello4-response.json"
     - id: hello5
       request:
         path: '/hello5/{name}/*'
       response:
-        headers:
+        headers: |
           Content-Type: "application/json"
         bodyFilename: "hello4-response.json"
     - id: hello6
       request:
         path: '/hello6/{sender}/*/{receiver}'
       response:
-        headers:
+        headers: |
           Content-Type: "application/json"
         bodyFilename: "hello6-response.json"
     - id: hello7
       request:
         path: '/hello7/{sender}/{receiver}/**'
       response:
-        headers:
+        headers: |
           Content-Type: "application/json"
         bodyFilename: "hello6-response.json"
     - id: hello8
@@ -78,7 +78,7 @@ mocks:
       request:
         path: '/hello9/**/sender/{sender}/**/receiver/{receiver}'
       response:
-        headers:
+        headers: |
           Content-Type: "application/json"
         bodyFilename: "hello6-response.json"
 
