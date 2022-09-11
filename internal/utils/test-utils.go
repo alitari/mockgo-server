@@ -8,6 +8,7 @@ import (
 func RunAndCheckCoverage(testPackage string, m *testing.M, treshold float64) int {
 
 	code := m.Run()
+	
 	if code == 0 && testing.CoverMode() != "" {
 		coverage := testing.Coverage()
 		if coverage < treshold {

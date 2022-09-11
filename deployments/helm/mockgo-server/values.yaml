@@ -15,6 +15,10 @@ responses:
       "hello": "World"
     }
 
+matches:
+  countOnly: true
+  recordMismatch: false
+
 logging:
   verbose: true
 
