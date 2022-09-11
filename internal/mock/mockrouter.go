@@ -40,28 +40,32 @@ type ResponseTemplateData struct {
 }
 
 type MockRouter struct {
-	mockDir             string
-	mockFilepattern     string
-	responseDir         string
-	responseFilepattern string
-	port                int
-	logger              *utils.Logger
-	EpSearchNode        *model.EpSearchNode
-	router              *mux.Router
-	server              *http.Server
-	Matches             map[string][]*model.Match
+	mockDir               string
+	mockFilepattern       string
+	responseDir           string
+	MatchesCountOnly      bool
+	matchesRecordMismatch bool
+	port                  int
+	logger                *utils.Logger
+	EpSearchNode          *model.EpSearchNode
+	router                *mux.Router
+	server                *http.Server
+	Matches               map[string][]*model.Match
+	MatchesCount          map[string]int64
 }
 
-func NewMockRouter(mockDir, mockFilepattern, responseDir, responseFilepattern string, port int, kvstore *kvstore.KVStore, logger *utils.Logger) *MockRouter {
+func NewMockRouter(mockDir, mockFilepattern, responseDir string, port int, kvstore *kvstore.KVStore, matchesCountOnly, matchesRecordMismatch bool, logger *utils.Logger) *MockRouter {
 	mockRouter := &MockRouter{
-		mockDir:             mockDir,
-		mockFilepattern:     mockFilepattern,
-		responseDir:         responseDir,
-		responseFilepattern: responseFilepattern,
-		port:                port,
-		logger:              logger,
-		EpSearchNode:        &model.EpSearchNode{},
-		Matches:             make(map[string][]*model.Match),
+		mockDir:               mockDir,
+		mockFilepattern:       mockFilepattern,
+		responseDir:           responseDir,
+		MatchesCountOnly:      matchesCountOnly,
+		matchesRecordMismatch: matchesRecordMismatch,
+		port:                  port,
+		logger:                logger,
+		EpSearchNode:          &model.EpSearchNode{},
+		Matches:               make(map[string][]*model.Match),
+		MatchesCount:          make(map[string]int64),
 	}
 	return mockRouter
 }
@@ -350,9 +354,12 @@ func (r *MockRouter) matchBody(matchRequest *model.MatchRequest, request *http.R
 }
 
 func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Request) *model.Match {
+	r.MatchesCount[endPoint.Id] = r.MatchesCount[endPoint.Id] + 1
 	actualRequest := &model.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
 	match := &model.Match{EndpointId: endPoint.Id, Timestamp: time.Now(), ActualRequest: actualRequest}
-	r.Matches[endPoint.Id] = append(r.Matches[endPoint.Id], match)
+	if !r.MatchesCountOnly {
+		r.Matches[endPoint.Id] = append(r.Matches[endPoint.Id], match)
+	}
 	return match
 }
 
@@ -374,7 +381,7 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 		fmt.Fprintf(writer, "Error rendering response headers: %v", err)
 		return
 	}
-	
+
 	var headers map[string]string
 	err = yaml.Unmarshal(renderedHeaders.Bytes(), &headers)
 	if err != nil {

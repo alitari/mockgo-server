@@ -84,23 +84,34 @@ func TestMain_getMatches(t *testing.T) {
 	requestToNode(t, 0, false, http.MethodGet, "/hello", map[string][]string{headers.Accept: {"application/json"}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{\n    \"hello\": \"from Mockgo!\"\n}", responseBody)
 	})
-
-	assertMatchesResponsesFunc := func(responseBody string) {
-		var matchData map[string][]*model.Match
-		err := json.Unmarshal([]byte(responseBody), &matchData)
-		assert.NoError(t, err)
-		matches := matchData["helloId"]
-		assert.NotNil(t, matches)
-		assert.Len(t, matches, 1)
-		match := matches[0]
-		assert.Equal(t, "helloId", match.EndpointId)
-		assert.Greater(t, time.Now(), match.Timestamp)
-		assert.Equal(t, http.MethodGet, match.ActualRequest.Method)
-		assert.Equal(t, "localhost:8081", match.ActualRequest.Host)
-		assert.Equal(t, "/hello", match.ActualRequest.URL)
-		assert.Equal(t, map[string][]string{"Accept": {"application/json"}, "Accept-Encoding": {"gzip"}, "User-Agent": {"Go-http-client/1.1"}}, match.ActualRequest.Header)
-		assert.Equal(t, http.StatusOK, match.ActualResponse.StatusCode)
-		assert.Empty(t, match.ActualResponse.Header)
+	var assertMatchesResponsesFunc func(responseBody string)
+	if os.Getenv("MATCHES_COUNT_ONLY") == "false" {
+		assertMatchesResponsesFunc = func(responseBody string) {
+			var matchData map[string][]*model.Match
+			err := json.Unmarshal([]byte(responseBody), &matchData)
+			assert.NoError(t, err)
+			matches := matchData["helloId"]
+			assert.NotNil(t, matches)
+			assert.Len(t, matches, 1)
+			match := matches[0]
+			assert.Equal(t, "helloId", match.EndpointId)
+			assert.Greater(t, time.Now(), match.Timestamp)
+			assert.Equal(t, http.MethodGet, match.ActualRequest.Method)
+			assert.Equal(t, "localhost:8081", match.ActualRequest.Host)
+			assert.Equal(t, "/hello", match.ActualRequest.URL)
+			assert.Equal(t, map[string][]string{"Accept": {"application/json"}, "Accept-Encoding": {"gzip"}, "User-Agent": {"Go-http-client/1.1"}}, match.ActualRequest.Header)
+			assert.Equal(t, http.StatusOK, match.ActualResponse.StatusCode)
+			assert.Empty(t, match.ActualResponse.Header)
+		}
+	} else {
+		assertMatchesResponsesFunc = func(responseBody string) {
+			var matchesCountData map[string]int64
+			err := json.Unmarshal([]byte(responseBody), &matchesCountData)
+			assert.NoError(t, err)
+			assert.NotNil(t, matchesCountData)
+			matchesCount := matchesCountData["helloId"]
+			assert.Equal(t, int64(1), matchesCount)
+		}
 	}
 	requestToAllNodes(t, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, assertMatchesResponsesFunc)
 
@@ -118,10 +129,17 @@ func TestMain_transferMatches(t *testing.T) {
 	assertMatchesCount := func(node, expectedCount int) {
 		header := map[string][]string{config.NoAdvertiseHeader: {"true"}, headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}
 		requestToNode(t, node, true, http.MethodGet, "/matches", header, "", http.StatusOK, func(responseBody string) {
-			var matchData map[string][]*model.Match
-			err := json.Unmarshal([]byte(responseBody), &matchData)
-			assert.NoError(t, err)
-			assert.Equal(t, expectedCount, len(matchData["helloId"]))
+			if os.Getenv("MATCHES_COUNT_ONLY") == "false" {
+				var matchData map[string][]*model.Match
+				err := json.Unmarshal([]byte(responseBody), &matchData)
+				assert.NoError(t, err)
+				assert.Equal(t, expectedCount, len(matchData["helloId"]))
+			} else {
+				var matchCountData map[string]int64
+				err := json.Unmarshal([]byte(responseBody), &matchCountData)
+				assert.NoError(t, err)
+				assert.Equal(t, int64(expectedCount), matchCountData["helloId"])
+			}
 		})
 	}
 
@@ -302,8 +320,11 @@ func serveNode(nodeNr int) {
 	os.Setenv("RESPONSE_DIR", "../test/main/responses")
 	os.Setenv("CLUSTER_URLS", getClusterUrls())
 
-	configuration := createConfiguration()
-	logger := &utils.Logger{Verbose: configuration.Verbose}
+	verbose, err := strconv.ParseBool(os.Getenv("VERBOSE"))
+	if err != nil {
+		verbose = true
+	}
+	logger := &utils.Logger{Verbose: verbose}
 	mockRouter, configRouter := createRouters(kvstore.CreateTheStore(), logger)
 	mockRouterChan <- mockRouter
 	configRouterChan <- configRouter

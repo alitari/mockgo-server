@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
-	mockRouter := createMockRouter("simplemocks", t)
+	mockRouter := createMockRouter(t, "simplemocks", false, true)
 	testCases := []*matchingTestCase{
 		{name: "Minimal Mock: Match, full request",
 			request: &http.Request{
@@ -74,11 +74,11 @@ func TestMatchRequestToEndpoint_Simplemocks(t *testing.T) {
 }
 
 func TestMatchRequestToEndpoint_Matches(t *testing.T) {
-	mockRouter := createMockRouter("simplemocks", t)
-
+	mockRouter := createMockRouter(t, "simplemocks", false, true)
 	request := createRequest(http.MethodGet, "http://host/minimal", "", nil, nil, t)
 	ep, _, _ := mockRouter.matchRequestToEndpoint(request)
 	assert.Equal(t, "minimal", ep.Id)
+	assert.NotNil(t, mockRouter.Matches)
 	endPointMatches := mockRouter.Matches[ep.Id]
 	assert.NotNil(t, endPointMatches)
 	assert.Equal(t, 1, len(endPointMatches))
@@ -87,11 +87,24 @@ func TestMatchRequestToEndpoint_Matches(t *testing.T) {
 	assert.Equal(t, http.MethodGet, endPointMatches[0].ActualRequest.Method)
 	assert.Equal(t, "host", endPointMatches[0].ActualRequest.Host)
 	assert.Equal(t, "http://host/minimal", endPointMatches[0].ActualRequest.URL)
+	assert.NotNil(t, mockRouter.MatchesCount)
+	assert.Equal(t, int64(1), mockRouter.MatchesCount[ep.Id])
 
 }
 
+func TestMatchRequestToEndpoint_MatchesCountOnly(t *testing.T) {
+	mockRouter := createMockRouter(t, "simplemocks", true, true)
+	request := createRequest(http.MethodGet, "http://host/minimal", "", nil, nil, t)
+	ep, _, _ := mockRouter.matchRequestToEndpoint(request)
+	assert.Equal(t, "minimal", ep.Id)
+	assert.NotNil(t, mockRouter.Matches)
+	assert.Nil(t, mockRouter.Matches[ep.Id])
+	assert.NotNil(t, mockRouter.MatchesCount)
+	assert.Equal(t, int64(1), mockRouter.MatchesCount[ep.Id])
+}
+
 func TestMatchRequestToEndpoint_Wildcardmocks(t *testing.T) {
-	mockRouter := createMockRouter("wildcardmocks", t)
+	mockRouter := createMockRouter(t, "wildcardmocks", false, true)
 
 	testCases := []*matchingTestCase{
 		{name: "Single wildcard Match 1 ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "2"},
@@ -106,7 +119,7 @@ func TestMatchRequestToEndpoint_Wildcardmocks(t *testing.T) {
 }
 
 func TestMatchRequestToEndpoint_AllMatchWildcardmocks(t *testing.T) {
-	mockRouter := createMockRouter("allMatchWildcardMocks", t)
+	mockRouter := createMockRouter(t, "allMatchWildcardMocks", false, true)
 	testCases := []*matchingTestCase{
 		{name: "Match 1 ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/bar"}, Method: http.MethodGet}, expectedMatchEndpointId: "1"},
 		{name: "Match 2 ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "1"},
@@ -125,7 +138,7 @@ func TestMatchRequestToEndpoint_AllMatchWildcardmocks(t *testing.T) {
 }
 
 func TestMatchRequestToEndpoint_PathParamsmocks(t *testing.T) {
-	mockRouter := createMockRouter("pathParamsMocks", t)
+	mockRouter := createMockRouter(t, "pathParamsMocks", false, true)
 	testCases := []*matchingTestCase{
 		{name: "Single pathparams, match ", request: &http.Request{URL: &url.URL{Path: "/pathParams/bar/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "2", expectedRequestParams: map[string]string{"pathParam": "bar"}},
 		{name: "Single pathparams, No Match last segment does not match,  ", request: &http.Request{URL: &url.URL{Path: "/pathParams/bar/foos"}, Method: http.MethodGet}, expectedMatchEndpointId: ""},
@@ -135,7 +148,7 @@ func TestMatchRequestToEndpoint_PathParamsmocks(t *testing.T) {
 }
 
 func TestMatchRequestToEndpoint_Prio(t *testing.T) {
-	mockRouter := createMockRouter("prioMocks", t)
+	mockRouter := createMockRouter(t, "prioMocks", false, true)
 	testCases := []*matchingTestCase{
 		{name: "Simple prio, match ", request: &http.Request{URL: &url.URL{Path: "/prio"}, Method: http.MethodGet}, expectedMatchEndpointId: "mustwin"},
 	}
@@ -143,7 +156,7 @@ func TestMatchRequestToEndpoint_Prio(t *testing.T) {
 }
 
 func TestMatchRequestToEndpoint_Regexp(t *testing.T) {
-	mockRouter := createMockRouter("regexpmocks", t)
+	mockRouter := createMockRouter(t, "regexpmocks", false, true)
 	testCases := []*matchingTestCase{
 		{name: "Regexp Mock1: Match",
 			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp1", "{ alex }", nil, nil, t),
@@ -162,7 +175,7 @@ func TestMatchRequestToEndpoint_Regexp(t *testing.T) {
 }
 
 func TestRenderResponse_Simple(t *testing.T) {
-	mockRouter := createMockRouter("responseRendering", t)
+	mockRouter := createMockRouter(t, "responseRendering", false, true)
 
 	expectedResponseResult := `{
     "requestUrl": "https://coolhost.cooldomain.com/coolpath",
@@ -267,10 +280,10 @@ func assertMatchRequestToEndpoint(mockRouter *MockRouter, testCases []*matchingT
 	}
 }
 
-func createMockRouter(testMockDir string, t *testing.T) *MockRouter {
-	mockRouter := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, "*-response.json", 0, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, matchesRecordMisMatch bool) *MockRouter {
+	mockRouter := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, 0, kvstore.TheKVStore, matchesCountOnly, matchesRecordMisMatch, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	err := mockRouter.LoadFiles(nil)
 	assert.NoError(t, err)
-	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	return mockRouter
 }

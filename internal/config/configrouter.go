@@ -217,12 +217,9 @@ func (r *ConfigRouter) serverId(writer http.ResponseWriter, request *http.Reques
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (r *ConfigRouter) getMatches(writer http.ResponseWriter, request *http.Request) {
-	utils.WriteEntity(writer, r.mockRouter.Matches)
-}
-
 func (r *ConfigRouter) deleteMatches() {
 	r.mockRouter.Matches = make(map[string][]*model.Match)
+	r.mockRouter.MatchesCount = make(map[string]int64)
 }
 
 func (r *ConfigRouter) downloadKVStore(writer http.ResponseWriter, request *http.Request) {
@@ -252,25 +249,46 @@ func (r *ConfigRouter) getKVStore(writer http.ResponseWriter, request *http.Requ
 
 func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *http.Request) {
 	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
-		r.getMatches(writer, request)
+		if r.mockRouter.MatchesCountOnly {
+			utils.WriteEntity(writer, r.mockRouter.MatchesCount)
+		} else {
+			utils.WriteEntity(writer, r.mockRouter.Matches)
+		}
 	} else {
 		allMatches := make(map[string][]*model.Match)
+		allMatchesCount := make(map[string]int64)
 		err := r.clusterRequest(http.MethodGet, "/matches", map[string]string{NoAdvertiseHeader: "true", headers.Accept: "application/json"}, "", http.StatusOK, false,
 			func(clusterUrl, responseBody string) (bool, error) {
-				var bodyData map[string][]*model.Match
-				err := json.Unmarshal([]byte(responseBody), &bodyData)
-				if err != nil {
-					return true, err
+				if r.mockRouter.MatchesCountOnly {
+					var bodyData map[string]int64
+					err := json.Unmarshal([]byte(responseBody), &bodyData)
+					if err != nil {
+						return true, err
+					}
+					for k, v := range bodyData {
+						allMatchesCount[k] = allMatchesCount[k] + int64(v)
+					}
+					return false, nil
+				} else {
+					var bodyData map[string][]*model.Match
+					err := json.Unmarshal([]byte(responseBody), &bodyData)
+					if err != nil {
+						return true, err
+					}
+					for k, v := range bodyData {
+						allMatches[k] = append(allMatches[k], v...)
+					}
+					return false, nil
 				}
-				for k, v := range bodyData {
-					allMatches[k] = append(allMatches[k], v...)
-				}
-				return false, nil
 			})
 		if err != nil {
 			http.Error(writer, "Problem getting matches: "+err.Error(), http.StatusInternalServerError)
 		} else {
-			utils.WriteEntity(writer, allMatches)
+			if r.mockRouter.MatchesCountOnly {
+				utils.WriteEntity(writer, allMatchesCount)
+			} else {
+				utils.WriteEntity(writer, allMatches)
+			}
 		}
 	}
 }
@@ -302,17 +320,32 @@ func (r *ConfigRouter) addMatches(writer http.ResponseWriter, request *http.Requ
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	matchData := &map[string][]*model.Match{}
-	err = json.Unmarshal(body, matchData)
-	if err != nil {
-		http.Error(writer, "Problem marshalling response body: "+err.Error(), http.StatusInternalServerError)
-		return
+
+	if r.mockRouter.MatchesCountOnly {
+		var matchData map[string]int64
+		err = json.Unmarshal(body, &matchData)
+		if err != nil {
+			http.Error(writer, "Problem marshalling matches response body: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		for k, v := range matchData {
+			r.mockRouter.MatchesCount[k] = r.mockRouter.MatchesCount[k] + v
+		}
+		r.logger.LogWhenVerbose(fmt.Sprintf("added matchesCount from %d endpoints sucessfully", len(matchData)))
+
+	} else {
+		var matchData map[string][]*model.Match
+		err = json.Unmarshal(body, &matchData)
+		if err != nil {
+			http.Error(writer, "Problem marshalling matches response body: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		for k, v := range matchData {
+			r.mockRouter.Matches[k] = append(r.mockRouter.Matches[k], v...)
+			r.mockRouter.MatchesCount[k] = r.mockRouter.MatchesCount[k] + int64(len(v))
+		}
+		r.logger.LogWhenVerbose(fmt.Sprintf("added matches from %d endpoints sucessfully", len(matchData)))
 	}
-	currentMatches := r.mockRouter.Matches
-	for k, v := range *matchData {
-		currentMatches[k] = append(currentMatches[k], v...)
-	}
-	r.logger.LogWhenVerbose(fmt.Sprintf("added %d matches sucessfully", r.matchesCount(*matchData)))
 	writer.WriteHeader(http.StatusOK)
 }
 
@@ -321,14 +354,20 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 	defer func() {
 		r.transferringMatches = false
 	}()
-	matches, err := json.Marshal(r.mockRouter.Matches)
+	var matches []byte
+	var err error
+	if r.mockRouter.MatchesCountOnly {
+		matches, err = json.Marshal(r.mockRouter.MatchesCount)
+	} else {
+		matches, err = json.Marshal(r.mockRouter.Matches)
+	}
 	if err != nil {
 		http.Error(writer, "Problem marshalling matches: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	err = r.clusterRequest(http.MethodPost, "/addmatches", map[string]string{headers.ContentType: `application/json`}, string(matches), http.StatusOK, true,
 		func(clusterUrl, responseBody string) (bool, error) {
-			r.logger.LogWhenVerbose(fmt.Sprintf("%d matches successfully transferred to: %s", r.matchesCount(r.mockRouter.Matches), clusterUrl))
+			r.logger.LogWhenVerbose(fmt.Sprintf("matches of %d endpoints successfully transferred to: %s", len(r.mockRouter.Matches), clusterUrl))
 			r.deleteMatches()
 			return true, nil
 		})
@@ -337,14 +376,6 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 	} else {
 		writer.WriteHeader(http.StatusOK)
 	}
-}
-
-func (r *ConfigRouter) matchesCount(matches map[string][]*model.Match) int {
-	sum := 0
-	for _, matches := range matches {
-		sum = sum + len(matches)
-	}
-	return sum
 }
 
 func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Request) {
@@ -433,4 +464,3 @@ func (r *ConfigRouter) removeKVStore(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusNoContent)
 	}
 }
-
