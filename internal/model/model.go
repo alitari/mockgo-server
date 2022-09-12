@@ -25,6 +25,12 @@ type Match struct {
 	ActualResponse *ActualResponse `json:"actualResponse"`
 }
 
+type Mismatch struct {
+	MismatchDetails   string         `json:"MismatchDetails"`
+	Timestamp         time.Time      `json:"timestamp"`
+	ActualRequest     *ActualRequest `json:"actualRequest"`
+}
+
 type ActualRequest struct {
 	Method string              `json:"method" `
 	URL    string              `json:"url" `
