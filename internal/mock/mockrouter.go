@@ -41,34 +41,34 @@ type ResponseTemplateData struct {
 }
 
 type MockRouter struct {
-	mockDir               string
-	mockFilepattern       string
-	responseDir           string
-	MatchesCountOnly      bool
-	matchesRecordMismatch bool
-	port                  int
-	logger                *utils.Logger
-	EpSearchNode          *model.EpSearchNode
-	router                *mux.Router
-	server                *http.Server
-	Matches               map[string][]*model.Match
-	MatchesCount          map[string]int64
-	Mismatches            []*model.Mismatch
-	MismatchesCount       int64
+	mockDir             string
+	mockFilepattern     string
+	responseDir         string
+	MatchesCountOnly    bool
+	MismatchesCountOnly bool
+	port                int
+	logger              *utils.Logger
+	EpSearchNode        *model.EpSearchNode
+	router              *mux.Router
+	server              *http.Server
+	Matches             map[string][]*model.Match
+	MatchesCount        map[string]int64
+	Mismatches          []*model.Mismatch
+	MismatchesCount     int64
 }
 
-func NewMockRouter(mockDir, mockFilepattern, responseDir string, port int, kvstore *kvstore.KVStore, matchesCountOnly, matchesRecordMismatch bool, logger *utils.Logger) *MockRouter {
+func NewMockRouter(mockDir, mockFilepattern, responseDir string, port int, kvstore *kvstore.KVStore, matchesCountOnly, mismatchesCountOnly bool, logger *utils.Logger) *MockRouter {
 	mockRouter := &MockRouter{
-		mockDir:               mockDir,
-		mockFilepattern:       mockFilepattern,
-		responseDir:           responseDir,
-		MatchesCountOnly:      matchesCountOnly,
-		matchesRecordMismatch: matchesRecordMismatch,
-		port:                  port,
-		logger:                logger,
-		EpSearchNode:          &model.EpSearchNode{},
-		Matches:               make(map[string][]*model.Match),
-		MatchesCount:          make(map[string]int64),
+		mockDir:             mockDir,
+		mockFilepattern:     mockFilepattern,
+		responseDir:         responseDir,
+		MatchesCountOnly:    matchesCountOnly,
+		MismatchesCountOnly: mismatchesCountOnly,
+		port:                port,
+		logger:              logger,
+		EpSearchNode:        &model.EpSearchNode{},
+		Matches:             make(map[string][]*model.Match),
+		MatchesCount:        make(map[string]int64),
 	}
 	return mockRouter
 }
@@ -381,7 +381,7 @@ func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Reques
 
 func (r *MockRouter) addMismatch(sn *model.EpSearchNode, pathPos int, endpointMismatchDetails string, request *http.Request) {
 	r.MismatchesCount++
-	if r.matchesRecordMismatch {
+	if !r.MismatchesCountOnly {
 		var mismatchDetails string
 		if sn == nil { // node found -> path matched
 			mismatchDetails = fmt.Sprintf("path '%s' matched, but %s", request.URL.Path, endpointMismatchDetails)
