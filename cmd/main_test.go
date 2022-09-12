@@ -143,7 +143,7 @@ func TestMain_transferMatches(t *testing.T) {
 		})
 	}
 
-	createRequests := func(node, count int) {
+	createMatchRequests := func(node, count int) {
 		for i := 0; i < count; i++ {
 			requestToNode(t, node, false, http.MethodGet, "/hello", map[string][]string{headers.Accept: {"application/json"}}, "", http.StatusOK, func(responseBody string) {
 				assert.Equal(t, "{\n    \"hello\": \"from Mockgo!\"\n}", responseBody)
@@ -151,13 +151,25 @@ func TestMain_transferMatches(t *testing.T) {
 		}
 	}
 
+	createMismatchRequests := func(node, count int) {
+		for i := 0; i < count; i++ {
+			requestToNode(t, node, false, http.MethodGet, "/nohello", nil, "", http.StatusNotFound, func(responseBody string) {
+				assert.Equal(t,"404 page not found\n", responseBody)
+			})
+		}
+	}
+
+	//TODO: continue here
+
 	assertMatchesCount(0, 0) // 0 matches in node 0
 	assertMatchesCount(1, 0) // 0 matches in node 1
-	// assertMatchesCount(-1, 0) // 0 matches all
-	createRequests(0, 5)     // create 5 requests to node 0
-	createRequests(1, 2)     // create 2 requests to node 1
-	assertMatchesCount(0, 5) // 5 matches in node 0
-	assertMatchesCount(1, 2) // 2 matches in node 1
+
+	createMismatchRequests(0,3) // create 5 mismatching requests to node 0
+	
+	createMatchRequests(0, 5) // create 5 matching requests to node 0
+	createMatchRequests(1, 2) // create 2 matching requests to node 1
+	assertMatchesCount(0, 5)  // 5 matches in node 0
+	assertMatchesCount(1, 2)  // 2 matches in node 1
 
 	//transfer matches node 0 -> node 1
 	requestToNode(t, 0, true, http.MethodGet, "/transfermatches", nil, "", http.StatusOK, func(responseBody string) {

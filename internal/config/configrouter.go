@@ -469,14 +469,35 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 	}
 	err = r.clusterRequest(http.MethodPost, "/addmatches", map[string]string{headers.ContentType: `application/json`}, string(matches), http.StatusOK, true,
 		func(clusterUrl, responseBody string) (bool, error) {
-			r.logger.LogWhenVerbose(fmt.Sprintf("matches of %d endpoints successfully transferred to: %s", len(r.mockRouter.Matches), clusterUrl))
+			r.logger.LogWhenVerbose(fmt.Sprintf("matches of %d endpoints successfully transferred to: %s", len(r.mockRouter.MatchesCount), clusterUrl))
 			r.deleteMatches()
 			return true, nil
 		})
 	if err != nil {
 		http.Error(writer, "Problem transferring matches: "+err.Error(), http.StatusInternalServerError)
 	} else {
-		writer.WriteHeader(http.StatusOK)
+		var mismatches []byte
+		var err error
+		if r.mockRouter.MismatchesCountOnly {
+			mismatches, err = json.Marshal(r.mockRouter.MismatchesCount)
+		} else {
+			mismatches, err = json.Marshal(r.mockRouter.Mismatches)
+		}
+		if err != nil {
+			http.Error(writer, "Problem marshalling mismatches: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		err = r.clusterRequest(http.MethodPost, "/addmismatches", map[string]string{headers.ContentType: `application/json`}, string(mismatches), http.StatusOK, true,
+			func(clusterUrl, responseBody string) (bool, error) {
+				r.logger.LogWhenVerbose(fmt.Sprintf("%d mismatches successfully transferred to: %s", r.mockRouter.MismatchesCount, clusterUrl))
+				r.deleteMismatches()
+				return true, nil
+			})
+		if err != nil {
+			http.Error(writer, "Problem transferring mismatches: "+err.Error(), http.StatusInternalServerError)
+		} else {
+			writer.WriteHeader(http.StatusOK)
+		}
 	}
 }
 
