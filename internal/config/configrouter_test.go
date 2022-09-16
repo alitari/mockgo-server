@@ -593,17 +593,19 @@ func TestConfigRouter_DownloadKVStoreFromCluster(t *testing.T) {
 
 func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterTestCase, t *testing.T) {
 	for _, testCase := range testCases {
-		recorder := httptest.NewRecorder()
-		handler.ServeHTTP(recorder, testCase.request)
-		assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode, "response status code unexpected")
-		responseBody, err := io.ReadAll(recorder.Result().Body)
-		assert.NoError(t, err)
-
-		if len(testCase.expectedResponseFile) > 0 {
-			expectedResponse, err := os.ReadFile(testCase.expectedResponseFile)
+		t.Run(testCase.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, testCase.request)
+			assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode, "response status code unexpected")
+			responseBody, err := io.ReadAll(recorder.Result().Body)
 			assert.NoError(t, err)
-			assert.Equal(t, string(expectedResponse), string(responseBody))
-		}
+
+			if len(testCase.expectedResponseFile) > 0 {
+				expectedResponse, err := os.ReadFile(testCase.expectedResponseFile)
+				assert.NoError(t, err)
+				assert.Equal(t, string(expectedResponse), string(responseBody))
+			}
+		})
 	}
 }
 
