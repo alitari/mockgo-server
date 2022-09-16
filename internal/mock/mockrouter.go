@@ -29,6 +29,9 @@ const TEMPLATE_NAME_RESPONSEBODY = "responseBody"
 const TEMPLATE_NAME_RESPONSESTATUS = "responseStatus"
 const TEMPLATE_NAME_RESPONSEHEADERS = "responseHeader"
 
+const HEADER_KEY_ENDPOINT_ID = "endpoint-Id"
+
+
 type ResponseTemplateData struct {
 	RequestPathParams   map[string]string
 	KVStore             map[string]interface{}
@@ -405,11 +408,10 @@ func (r *MockRouter) addMismatch(sn *model.EpSearchNode, pathPos int, endpointMi
 }
 
 func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, match *model.Match, requestPathParams map[string]string) {
-	writer.Header().Add("Mocked", "true")
+	writer.Header().Add(HEADER_KEY_ENDPOINT_ID, endpoint.Id)
 	responseTemplateData, err := r.createResponseTemplateData(request, requestPathParams)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Header().Set("Mocked", "false")
 		fmt.Fprintf(writer, "Error rendering response: %v", err)
 		return
 	}
@@ -418,7 +420,6 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 	err = endpoint.Response.Template.ExecuteTemplate(&renderedHeaders, TEMPLATE_NAME_RESPONSEHEADERS, responseTemplateData)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Header().Set("Mocked", "false")
 		fmt.Fprintf(writer, "Error rendering response headers: %v", err)
 		return
 	}
@@ -427,7 +428,6 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 	err = yaml.Unmarshal(renderedHeaders.Bytes(), &headers)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Header().Set("Mocked", "false")
 		fmt.Fprintf(writer, "Error unmarshalling response headers: %v", err)
 		return
 	}
@@ -439,14 +439,12 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 	err = endpoint.Response.Template.ExecuteTemplate(&renderedStatus, TEMPLATE_NAME_RESPONSESTATUS, responseTemplateData)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Header().Set("Mocked", "false")
 		fmt.Fprintf(writer, "Error rendering response status: %v", err)
 		return
 	}
 	responseStatus, err := strconv.Atoi(renderedStatus.String())
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Header().Set("Mocked", "false")
 		fmt.Fprintf(writer, "Error converting response status: %v", err)
 		return
 	}
@@ -456,7 +454,6 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 	err = endpoint.Response.Template.ExecuteTemplate(&renderedBody, TEMPLATE_NAME_RESPONSEBODY, responseTemplateData)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Header().Set("Mocked", "false")
 		fmt.Fprintf(writer, "Error rendering response body: %v", err)
 		return
 	}
@@ -464,7 +461,6 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 	_, err = writer.Write(renderedBody.Bytes())
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Header().Set("Mocked", "false")
 		fmt.Fprintf(writer, "Error writing response body: %v", err)
 		return
 	}
