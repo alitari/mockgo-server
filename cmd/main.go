@@ -31,7 +31,7 @@ type Configuration struct {
 	MockDir           string   `default:"." split_words:"true"`
 	MockFilepattern   string   `default:"*-mock.*" split_words:"true"`
 	MatchesCountOnly  bool     `default:"true" split_words:"true"`
-	MismatchCountOnly bool     `default:"true" split_words:"true"`
+	MismatchesCountOnly bool     `default:"true" split_words:"true"`
 	ResponseDir       string   `default:"./responses" split_words:"true"`
 	ClusterUrls       []string `default:"" split_words:"true"`
 }
@@ -71,7 +71,7 @@ Matches:
 
 Cluster:
   Enabled: %v
-  URLs: '%v'`, c.Verbose, c.ConfigPort, c.ConfigUsername, passwordMessage, c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, c.MatchesCountOnly, c.MismatchCountOnly, len(c.ClusterUrls) > 0, c.ClusterUrls)
+  URLs: '%v'`, c.Verbose, c.ConfigPort, c.ConfigUsername, passwordMessage, c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, c.MatchesCountOnly, c.MismatchesCountOnly, len(c.ClusterUrls) > 0, c.ClusterUrls)
 }
 
 func main() {
@@ -104,7 +104,7 @@ func createConfiguration() *Configuration {
 }
 
 func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, logger *utils.Logger) *mock.MockRouter {
-	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.MockPort, kvstore, configuration.MatchesCountOnly, configuration.MismatchCountOnly, logger)
+	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.MockPort, kvstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly, logger)
 	return mockRouter
 }
 

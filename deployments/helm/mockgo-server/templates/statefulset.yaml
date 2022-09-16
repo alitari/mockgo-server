@@ -129,9 +129,9 @@ spec:
         - name: RESPONSE_DIR
           value: '/etc/mockgoserver-config'
         - name: MATCHES_COUNT_ONLY
-          value: {{ .Values.matches.countOnly | quote }}
-        - name: MATCHES_RECORD_MISMATCH
-          value: {{ .Values.matches.recordMismatch | quote }}
+          value: {{ .Values.countOnly.matches | quote }}
+        - name: MISMATCHES_COUNT_ONLY
+          value: {{ .Values.countOnly.mismatches | quote }}
         - name: CLUSTER_URLS
           value: "{{ include "mockgoserver.clusterUrls" . }}"
         volumeMounts:
