@@ -23,17 +23,18 @@ const banner = `
 `
 
 type Configuration struct {
-	Verbose           bool     `default:"true"`
-	ConfigPort        int      `default:"8080" split_words:"true"`
-	ConfigUsername    string   `default:"mockgo" split_words:"true"`
-	ConfigPassword    string   `default:"password" split_words:"true"`
-	MockPort          int      `default:"8081" split_words:"true"`
-	MockDir           string   `default:"." split_words:"true"`
-	MockFilepattern   string   `default:"*-mock.*" split_words:"true"`
-	MatchesCountOnly  bool     `default:"true" split_words:"true"`
-	MismatchesCountOnly bool     `default:"true" split_words:"true"`
-	ResponseDir       string   `default:"./responses" split_words:"true"`
-	ClusterUrls       []string `default:"" split_words:"true"`
+	Verbose             bool          `default:"true"`
+	ConfigPort          int           `default:"8080" split_words:"true"`
+	ConfigUsername      string        `default:"mockgo" split_words:"true"`
+	ConfigPassword      string        `default:"password" split_words:"true"`
+	MockPort            int           `default:"8081" split_words:"true"`
+	MockDir             string        `default:"." split_words:"true"`
+	MockFilepattern     string        `default:"*-mock.*" split_words:"true"`
+	MatchesCountOnly    bool          `default:"true" split_words:"true"`
+	MismatchesCountOnly bool          `default:"true" split_words:"true"`
+	ResponseDir         string        `default:"./responses" split_words:"true"`
+	ClusterUrls         []string      `default:"" split_words:"true"`
+	HttpClientTimeout   time.Duration `default:"1s" split_words:"true"`
 }
 
 func (c *Configuration) validateAndFix() *Configuration {
@@ -71,7 +72,8 @@ Matches:
 
 Cluster:
   Enabled: %v
-  URLs: '%v'`, c.Verbose, c.ConfigPort, c.ConfigUsername, passwordMessage, c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, c.MatchesCountOnly, c.MismatchesCountOnly, len(c.ClusterUrls) > 0, c.ClusterUrls)
+  URLs: '%v'
+  HttpClient timeout: '%v'`, c.Verbose, c.ConfigPort, c.ConfigUsername, passwordMessage, c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, c.MatchesCountOnly, c.MismatchesCountOnly, len(c.ClusterUrls) > 0, c.ClusterUrls, c.HttpClientTimeout)
 }
 
 func main() {
@@ -109,7 +111,7 @@ func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, lo
 }
 
 func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, kvStore *kvstore.KVStore, logger *utils.Logger) *config.ConfigRouter {
-	configRouter := config.NewConfigRouter(configuration.ConfigUsername, configuration.ConfigPassword, mockRouter, configuration.ConfigPort, configuration.ClusterUrls, kvStore, logger)
+	configRouter := config.NewConfigRouter(configuration.ConfigUsername, configuration.ConfigPassword, mockRouter, configuration.ConfigPort, configuration.ClusterUrls, kvStore, configuration.HttpClientTimeout, logger)
 	err := configRouter.DownloadKVStoreFromCluster()
 	if err != nil {
 		log.Fatalf("(FATAL) Can't sync with cluster: %v\n", err)

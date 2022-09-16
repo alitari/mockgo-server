@@ -285,30 +285,32 @@ func createRequest(method, url, bodyStr string, header map[string][]string, urlV
 
 func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestCase, t *testing.T) {
 	for _, testCase := range testCases {
-		recorder := httptest.NewRecorder()
-		if testCase.request == nil {
-			testCase.request = createRequest(http.MethodGet, "http://host/minimal", "", nil, nil)
-		}
-		endpoint := &model.MockEndpoint{Id: testCase.name, Response: testCase.response}
-		err := mockRouter.initResponseTemplates(endpoint, nil)
-		assert.NoError(t, err, "testcase: '"+testCase.name+"': error in initResonseTemplates")
-		mockRouter.renderResponse(recorder, testCase.request, endpoint, &model.Match{}, testCase.requestParams)
-
-		assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode, "testcase: '"+testCase.name+"': unexpected statuscode")
-
-		responseBody, err := io.ReadAll(recorder.Result().Body)
-		assert.NoError(t, err, "testcase: '"+testCase.name+"': error reading responseBody")
-
-		assert.Equal(t, testCase.expectedResponseBody, string(responseBody), "testcase: '"+testCase.name+"': unexpected responseBody")
-
-		if testCase.expectedResponseHeader != nil {
-			for expectedParamName, expectedParamValue := range testCase.expectedResponseHeader {
-				assert.Equal(t, recorder.Header().Get(expectedParamName), expectedParamValue, "testcase: '"+testCase.name+"': unexpected header param")
+		t.Run(testCase.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			if testCase.request == nil {
+				testCase.request = createRequest(http.MethodGet, "http://host/minimal", "", nil, nil)
 			}
-		}
-		if !t.Failed() {
-			t.Logf("testcase '%s':'%s' passed", t.Name(), testCase.name)
-		}
+			endpoint := &model.MockEndpoint{Id: testCase.name, Response: testCase.response}
+			err := mockRouter.initResponseTemplates(endpoint, nil)
+			assert.NoError(t, err, "testcase: '"+testCase.name+"': error in initResonseTemplates")
+			mockRouter.renderResponse(recorder, testCase.request, endpoint, &model.Match{}, testCase.requestParams)
+
+			assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode, "testcase: '"+testCase.name+"': unexpected statuscode")
+
+			responseBody, err := io.ReadAll(recorder.Result().Body)
+			assert.NoError(t, err, "testcase: '"+testCase.name+"': error reading responseBody")
+
+			assert.Equal(t, testCase.expectedResponseBody, string(responseBody), "testcase: '"+testCase.name+"': unexpected responseBody")
+
+			if testCase.expectedResponseHeader != nil {
+				for expectedParamName, expectedParamValue := range testCase.expectedResponseHeader {
+					assert.Equal(t, recorder.Header().Get(expectedParamName), expectedParamValue, "testcase: '"+testCase.name+"': unexpected header param")
+				}
+			}
+			if !t.Failed() {
+				t.Logf("testcase '%s':'%s' passed", t.Name(), testCase.name)
+			}
+		})
 	}
 }
 

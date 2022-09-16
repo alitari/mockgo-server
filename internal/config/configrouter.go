@@ -51,7 +51,7 @@ type RemoveKVStoreRequest struct {
 	Path string `json:"path"`
 }
 
-func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, kvstore *kvstore.KVStore, logger *utils.Logger) *ConfigRouter {
+func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, kvstore *kvstore.KVStore, httpClientTimeout time.Duration, logger *utils.Logger) *ConfigRouter {
 	configRouter := &ConfigRouter{
 		mockRouter:          mockRouter,
 		port:                port,
@@ -59,7 +59,7 @@ func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, por
 		id:                  uuid.New().String(),
 		logger:              logger,
 		kvstore:             kvstore,
-		httpClientTimeout:   1 * time.Second,
+		httpClientTimeout:   httpClientTimeout,
 		basicAuthUsername:   username,
 		basicAuthPassword:   password,
 		transferringMatches: false,
