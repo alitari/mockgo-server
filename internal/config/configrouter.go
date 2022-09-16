@@ -99,8 +99,11 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.uploadKVStore))
 	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.downloadKVStore))
 	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
+	router.NewRoute().Name("getMismatches").Path("/mismatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMismatchesFromAll))
 	router.NewRoute().Name("addMatches").Path("/addmatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMatches))
+	router.NewRoute().Name("addMismatches").Path("/addmismatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMismatches))
 	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
+	router.NewRoute().Name("deleteMismatches").Path("/mismatches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMismatchesFromAll))
 	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave("", "", http.MethodGet, "", "", nil, r.transferMatches))
 	r.router = router
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: router}
@@ -222,6 +225,11 @@ func (r *ConfigRouter) deleteMatches() {
 	r.mockRouter.MatchesCount = make(map[string]int64)
 }
 
+func (r *ConfigRouter) deleteMismatches() {
+	r.mockRouter.Mismatches = []*model.Mismatch{}
+	r.mockRouter.MismatchesCount = 0
+}
+
 func (r *ConfigRouter) downloadKVStore(writer http.ResponseWriter, request *http.Request) {
 	utils.WriteEntity(writer, r.kvstore.GetAll())
 }
@@ -293,6 +301,48 @@ func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *ht
 	}
 }
 
+func (r *ConfigRouter) getMismatchesFromAll(writer http.ResponseWriter, request *http.Request) {
+	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+		if r.mockRouter.MismatchesCountOnly {
+			utils.WriteEntity(writer, r.mockRouter.MismatchesCount)
+		} else {
+			utils.WriteEntity(writer, r.mockRouter.Mismatches)
+		}
+	} else {
+		allMismatches := []*model.Mismatch{}
+		allMismatchesCount := int64(0)
+		err := r.clusterRequest(http.MethodGet, "/mismatches", map[string]string{NoAdvertiseHeader: "true", headers.Accept: "application/json"}, "", http.StatusOK, false,
+			func(clusterUrl, responseBody string) (bool, error) {
+				if r.mockRouter.MismatchesCountOnly {
+					var bodyData int64
+					err := json.Unmarshal([]byte(responseBody), &bodyData)
+					if err != nil {
+						return true, err
+					}
+					allMismatchesCount = allMismatchesCount + bodyData
+					return false, nil
+				} else {
+					var bodyData []*model.Mismatch
+					err := json.Unmarshal([]byte(responseBody), &bodyData)
+					if err != nil {
+						return true, err
+					}
+					allMismatches = append(allMismatches, bodyData...)
+					return false, nil
+				}
+			})
+		if err != nil {
+			http.Error(writer, "Problem getting mismatches: "+err.Error(), http.StatusInternalServerError)
+		} else {
+			if r.mockRouter.MismatchesCountOnly {
+				utils.WriteEntity(writer, allMismatchesCount)
+			} else {
+				utils.WriteEntity(writer, allMismatches)
+			}
+		}
+	}
+}
+
 func (r *ConfigRouter) deleteMatchesFromAll(writer http.ResponseWriter, request *http.Request) {
 	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
 		r.deleteMatches()
@@ -303,6 +353,22 @@ func (r *ConfigRouter) deleteMatchesFromAll(writer http.ResponseWriter, request 
 			})
 		if err != nil {
 			http.Error(writer, "Problem deleting matches: "+err.Error(), http.StatusInternalServerError)
+		} else {
+			writer.WriteHeader(http.StatusOK)
+		}
+	}
+}
+
+func (r *ConfigRouter) deleteMismatchesFromAll(writer http.ResponseWriter, request *http.Request) {
+	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+		r.deleteMismatches()
+	} else {
+		err := r.clusterRequest(http.MethodDelete, "/mismatches", map[string]string{NoAdvertiseHeader: "true"}, "", http.StatusOK, false,
+			func(clusterUrl, responseBody string) (bool, error) {
+				return false, nil
+			})
+		if err != nil {
+			http.Error(writer, "Problem deleting mismatches: "+err.Error(), http.StatusInternalServerError)
 		} else {
 			writer.WriteHeader(http.StatusOK)
 		}
@@ -349,6 +415,42 @@ func (r *ConfigRouter) addMatches(writer http.ResponseWriter, request *http.Requ
 	writer.WriteHeader(http.StatusOK)
 }
 
+func (r *ConfigRouter) addMismatches(writer http.ResponseWriter, request *http.Request) {
+	r.logger.LogWhenVerbose("adding mismatches...")
+	if r.transferringMatches {
+		http.Error(writer, "Already transferring", http.StatusLocked)
+		return
+	}
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if r.mockRouter.MismatchesCountOnly {
+		var matchData int64
+		err = json.Unmarshal(body, &matchData)
+		if err != nil {
+			http.Error(writer, "Problem marshalling mismatches response body: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		r.mockRouter.MismatchesCount = r.mockRouter.MismatchesCount + matchData
+		r.logger.LogWhenVerbose(fmt.Sprintf("added %d mismatchesCount sucessfully", matchData))
+	} else {
+		var matchData []*model.Mismatch
+		err = json.Unmarshal(body, &matchData)
+		if err != nil {
+			http.Error(writer, "Problem marshalling mismatches response body: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		r.mockRouter.Mismatches = append(r.mockRouter.Mismatches, matchData...)
+		r.mockRouter.MismatchesCount = r.mockRouter.MismatchesCount + int64(len(matchData))
+
+		r.logger.LogWhenVerbose(fmt.Sprintf("added %d mismatches sucessfully", len(matchData)))
+	}
+	writer.WriteHeader(http.StatusOK)
+}
+
 func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http.Request) {
 	r.transferringMatches = true
 	defer func() {
@@ -367,14 +469,35 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 	}
 	err = r.clusterRequest(http.MethodPost, "/addmatches", map[string]string{headers.ContentType: `application/json`}, string(matches), http.StatusOK, true,
 		func(clusterUrl, responseBody string) (bool, error) {
-			r.logger.LogWhenVerbose(fmt.Sprintf("matches of %d endpoints successfully transferred to: %s", len(r.mockRouter.Matches), clusterUrl))
+			r.logger.LogWhenVerbose(fmt.Sprintf("matches of %d endpoints successfully transferred to: %s", len(r.mockRouter.MatchesCount), clusterUrl))
 			r.deleteMatches()
 			return true, nil
 		})
 	if err != nil {
 		http.Error(writer, "Problem transferring matches: "+err.Error(), http.StatusInternalServerError)
 	} else {
-		writer.WriteHeader(http.StatusOK)
+		var mismatches []byte
+		var err error
+		if r.mockRouter.MismatchesCountOnly {
+			mismatches, err = json.Marshal(r.mockRouter.MismatchesCount)
+		} else {
+			mismatches, err = json.Marshal(r.mockRouter.Mismatches)
+		}
+		if err != nil {
+			http.Error(writer, "Problem marshalling mismatches: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		err = r.clusterRequest(http.MethodPost, "/addmismatches", map[string]string{headers.ContentType: `application/json`}, string(mismatches), http.StatusOK, true,
+			func(clusterUrl, responseBody string) (bool, error) {
+				r.logger.LogWhenVerbose(fmt.Sprintf("%d mismatches successfully transferred to: %s", r.mockRouter.MismatchesCount, clusterUrl))
+				r.deleteMismatches()
+				return true, nil
+			})
+		if err != nil {
+			http.Error(writer, "Problem transferring mismatches: "+err.Error(), http.StatusInternalServerError)
+		} else {
+			writer.WriteHeader(http.StatusOK)
+		}
 	}
 }
 

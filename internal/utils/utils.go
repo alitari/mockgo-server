@@ -42,3 +42,10 @@ func RandString(n int) string {
     }
     return string(b)
 }
+
+func Min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}

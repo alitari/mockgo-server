@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestConfigRouter_UploadKVStore(t *testing.T) {
-	mockRouter := createMockRouter(t, "simplemocks", false, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", false, true)
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.CreateTheStore(), &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
@@ -56,7 +56,7 @@ func TestConfigRouter_UploadKVStore(t *testing.T) {
 }
 
 func TestConfigRouter_DownloadKVStore(t *testing.T) {
-	mockRouter := createMockRouter(t, "simplemocks", false, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", false, true)
 	kvstore.CreateTheStore()
 	err := kvstore.TheKVStore.PutAllJson("{ \"store1\" : { \"mykey1\" : \"myvalue1\"}, \"store2\" : { \"mykey2\" : \"myvalue2\"} }")
 	assert.NoError(t, err)
@@ -81,7 +81,7 @@ func TestConfigRouter_DownloadKVStore(t *testing.T) {
 
 func TestConfigRouter_SetKVStore(t *testing.T) {
 	kvstore.CreateTheStore()
-	mockRouter := createMockRouter(t, "simplemocks", false, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", false, true)
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
@@ -103,7 +103,7 @@ func TestConfigRouter_SetKVStore(t *testing.T) {
 }
 
 func TestConfigRouter_GetKVStore(t *testing.T) {
-	mockRouter := createMockRouter(t, "simplemocks", false, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", false, true)
 	kvstore.CreateTheStore()
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
@@ -129,7 +129,7 @@ func TestConfigRouter_GetKVStore(t *testing.T) {
 }
 
 func TestConfigRouter_AddKVStore(t *testing.T) {
-	mockRouter := createMockRouter(t, "simplemocks", false, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", false, true)
 	kvstore.CreateTheStore()
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
@@ -156,7 +156,7 @@ func TestConfigRouter_AddKVStore(t *testing.T) {
 }
 
 func TestConfigRouter_RemoveKVStore(t *testing.T) {
-	mockRouter := createMockRouter(t, "simplemocks", false, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", false, true)
 	kvstore.CreateTheStore()
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
@@ -183,7 +183,7 @@ func TestConfigRouter_RemoveKVStore(t *testing.T) {
 }
 
 func TestConfigRouter_GetMatches(t *testing.T) {
-	mockRouter := createMockRouter(t, "simplemocks", false, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", false, true)
 
 	actualRequest := &model.ActualRequest{Method: http.MethodGet, URL: "http://mytesturl", Header: map[string][]string{}, Host: "myhost"}
 	match := &model.Match{EndpointId: "endpointId", Timestamp: time.Date(
@@ -210,8 +210,36 @@ func TestConfigRouter_GetMatches(t *testing.T) {
 	assertConfigRouterResponse(configRouter.router.Get("getMatches").GetHandler(), testCases, t)
 }
 
+func TestConfigRouter_GetMismatches(t *testing.T) {
+	mockRouter := createMockRouter(t, "minmaxmocks", false, false)
+
+	actualRequest := &model.ActualRequest{Method: http.MethodGet, URL: "http://mytesturl", Header: map[string][]string{}, Host: "myhost"}
+	mismatch := &model.Mismatch{Timestamp: time.Date(
+		2009, 11, 17, 20, 34, 58, 651387237, time.UTC), ActualRequest: actualRequest, MismatchDetails: "mismatchDetails"}
+	mockRouter.Mismatches = append(mockRouter.Mismatches, mismatch)
+
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	testCases := []*configRouterTestCase{
+		{name: "GetMismatches",
+			request: createRequest(
+				http.MethodGet,
+				"http://somehost/mismatches",
+				"",
+				map[string][]string{headers.Accept: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "../../test/expectedResponses/mismatches.json",
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("getMismatches").GetHandler(), testCases, t)
+}
+
 func TestConfigRouter_GetMatchesCountOnly(t *testing.T) {
-	mockRouter := createMockRouter(t, "simplemocks", true, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", true, true)
 	mockRouter.MatchesCount["someEndpointId"] = 42
 	kvstore.CreateTheStore()
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
@@ -233,13 +261,40 @@ func TestConfigRouter_GetMatchesCountOnly(t *testing.T) {
 	assertConfigRouterResponse(configRouter.router.Get("getMatches").GetHandler(), testCases, t)
 }
 
+func TestConfigRouter_GetMismatchesCountOnly(t *testing.T) {
+	mockRouter := createMockRouter(t, "minmaxmocks", true, true)
+	mockRouter.MismatchesCount = 42
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	testCases := []*configRouterTestCase{
+		{name: "GetMisMatches",
+			request: createRequest(
+				http.MethodGet,
+				"http://somehost/mismatches",
+				"",
+				map[string][]string{headers.Accept: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "../../test/expectedResponses/mismatchesCountOnly.json",
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("getMismatches").GetHandler(), testCases, t)
+}
+
 func TestConfigRouter_DeleteMatches(t *testing.T) {
-	mockRouter := createMockRouter(t, "simplemocks", false, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", false, true)
 
 	actualRequest := &model.ActualRequest{Method: http.MethodGet, URL: "http://mytesturl", Header: map[string][]string{}, Host: "myhost"}
 	match := &model.Match{EndpointId: "endpointId", Timestamp: time.Date(
 		2009, 11, 17, 20, 34, 58, 651387237, time.UTC), ActualRequest: actualRequest}
 	mockRouter.Matches["someEndpointId"] = append(mockRouter.Matches["someEndpointId"], match)
+
+	mismatch := &model.Mismatch{MismatchDetails: "MismatchDetails", Timestamp: time.Date(
+		2019, 10, 29, 20, 34, 58, 651387237, time.UTC), ActualRequest: actualRequest}
+	mockRouter.Mismatches = append(mockRouter.Mismatches, mismatch)
 
 	kvstore.CreateTheStore()
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
@@ -260,10 +315,41 @@ func TestConfigRouter_DeleteMatches(t *testing.T) {
 	}
 	assertConfigRouterResponse(configRouter.router.Get("deleteMatches").GetHandler(), testCases, t)
 	assert.Empty(t, mockRouter.Matches)
+	assert.Empty(t, mockRouter.MatchesCount)
+}
+
+func TestConfigRouter_DeleteMisMatches(t *testing.T) {
+	mockRouter := createMockRouter(t, "minmaxmocks", false, false)
+
+	actualRequest := &model.ActualRequest{Method: http.MethodGet, URL: "http://mytesturl", Header: map[string][]string{}, Host: "myhost"}
+	mismatch := &model.Mismatch{MismatchDetails: "MismatchDetails", Timestamp: time.Date(
+		2019, 10, 29, 20, 34, 58, 651387237, time.UTC), ActualRequest: actualRequest}
+	mockRouter.Mismatches = append(mockRouter.Mismatches, mismatch)
+
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	testCases := []*configRouterTestCase{
+		{name: "DeleteMisMatches",
+			request: createRequest(
+				http.MethodDelete,
+				"http://somehost/mismatches",
+				"",
+				map[string][]string{},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "../../test/expectedResponses/nocontent.json",
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("deleteMismatches").GetHandler(), testCases, t)
+	assert.Empty(t, mockRouter.Mismatches)
+	assert.Zero(t, mockRouter.MismatchesCount)
 }
 
 func TestConfigRouter_AddMatches(t *testing.T) {
-	mockRouter := createMockRouter(t, "simplemocks", false, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", false, true)
 	kvstore.CreateTheStore()
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
@@ -331,13 +417,66 @@ func TestConfigRouter_AddMatches(t *testing.T) {
 	assert.EqualValues(t, expectedMatches, mockRouter.Matches)
 }
 
+func TestConfigRouter_AddMismatches(t *testing.T) {
+	mockRouter := createMockRouter(t, "minmaxmocks", false, false)
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+	mismatchesToAdd1 := []*model.Mismatch{
+		{MismatchDetails: "MismatchDetails1", ActualRequest: &model.ActualRequest{Method: http.MethodGet, URL: "http://myurl"}},
+	}
+
+	mismatchesToAddStr1, err := json.Marshal(mismatchesToAdd1)
+	if err != nil {
+		assert.NoError(t, err)
+	}
+
+	mismatchesToAdd2 := []*model.Mismatch{
+		{MismatchDetails: "MismatchDetails2", ActualRequest: &model.ActualRequest{Method: http.MethodGet, URL: "http://myurl2"}},
+	}
+
+	mismatchesToAddStr2, err := json.Marshal(mismatchesToAdd2)
+	if err != nil {
+		assert.NoError(t, err)
+	}
+
+	testCases := []*configRouterTestCase{
+		{name: "AddMismatches1",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/addmismatches",
+				string(mismatchesToAddStr1),
+				map[string][]string{headers.ContentType: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "",
+		},
+		{name: "AddMismatches2",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/addmismatches",
+				string(mismatchesToAddStr2),
+				map[string][]string{headers.ContentType: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "",
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("addMismatches").GetHandler(), testCases, t)
+	expectedMismatches := append(mismatchesToAdd1, mismatchesToAdd2...)
+	assert.EqualValues(t, expectedMismatches, mockRouter.Mismatches)
+	assert.Equal(t, int64(2), mockRouter.MismatchesCount)
+}
+
 func TestConfigRouter_AddMatchesCountOnly(t *testing.T) {
-	mockRouter := createMockRouter(t, "simplemocks", true, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", true, true)
 	kvstore.CreateTheStore()
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 
-	matchesCount := []int64{rand.Int63(), rand.Int63(), rand.Int63()}
+	matchesCount := []int64{rand.Int63n(1000), rand.Int63n(1000), rand.Int63n(1000)}
 	testCases := []*configRouterTestCase{
 		{name: "AddMatches1",
 			request: createRequest(
@@ -378,6 +517,53 @@ func TestConfigRouter_AddMatchesCountOnly(t *testing.T) {
 	assert.EqualValues(t, map[string]int64{"id1": matchesCount[0] + matchesCount[2], "id2": matchesCount[1]}, mockRouter.MatchesCount)
 }
 
+func TestConfigRouter_AddMismatchesCountOnly(t *testing.T) {
+	mockRouter := createMockRouter(t, "minmaxmocks", true, true)
+	kvstore.CreateTheStore()
+	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	configRouter.newRouter()
+
+	mismatchesCount := []int64{rand.Int63n(1000), rand.Int63n(1000), rand.Int63n(1000)}
+	testCases := []*configRouterTestCase{
+		{name: "AddMismatches1",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/addmismatches",
+				fmt.Sprintf("%d", mismatchesCount[0]),
+				map[string][]string{headers.ContentType: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "",
+		},
+		{name: "AddMismatches2",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/addmismatches",
+				fmt.Sprintf("%d", mismatchesCount[1]),
+				map[string][]string{headers.ContentType: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "",
+		},
+		{name: "AddMismatches3",
+			request: createRequest(
+				http.MethodPost,
+				"http://somehost/addmismatches",
+				fmt.Sprintf("%d", mismatchesCount[2]),
+				map[string][]string{headers.ContentType: {"application/json"}},
+				nil,
+				t),
+			expectedResponseStatusCode: http.StatusOK,
+			expectedResponseFile:       "",
+		},
+	}
+	assertConfigRouterResponse(configRouter.router.Get("addMismatches").GetHandler(), testCases, t)
+	assert.Empty(t, mockRouter.Mismatches)
+	assert.Equal(t, mismatchesCount[0]+mismatchesCount[1]+mismatchesCount[2], mockRouter.MismatchesCount)
+}
+
 func TestConfigRouter_DownloadKVStoreFromCluster(t *testing.T) {
 	kvstore.CreateTheStore()
 	var clusterNode1Request *http.Request
@@ -393,7 +579,7 @@ func TestConfigRouter_DownloadKVStoreFromCluster(t *testing.T) {
 	}))
 	defer clusterNode2.Close()
 
-	mockRouter := createMockRouter(t, "simplemocks", false, true)
+	mockRouter := createMockRouter(t, "minmaxmocks", false, true)
 	configRouter := NewConfigRouter("mockgo", password, mockRouter, 0, []string{clusterNode1.URL, clusterNode2.URL}, kvstore.TheKVStore, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	configRouter.newRouter()
 	configRouter.DownloadKVStoreFromCluster()

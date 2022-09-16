@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"path/filepath"
 	"regexp"
@@ -40,32 +41,34 @@ type ResponseTemplateData struct {
 }
 
 type MockRouter struct {
-	mockDir               string
-	mockFilepattern       string
-	responseDir           string
-	MatchesCountOnly      bool
-	matchesRecordMismatch bool
-	port                  int
-	logger                *utils.Logger
-	EpSearchNode          *model.EpSearchNode
-	router                *mux.Router
-	server                *http.Server
-	Matches               map[string][]*model.Match
-	MatchesCount          map[string]int64
+	mockDir             string
+	mockFilepattern     string
+	responseDir         string
+	MatchesCountOnly    bool
+	MismatchesCountOnly bool
+	port                int
+	logger              *utils.Logger
+	EpSearchNode        *model.EpSearchNode
+	router              *mux.Router
+	server              *http.Server
+	Matches             map[string][]*model.Match
+	MatchesCount        map[string]int64
+	Mismatches          []*model.Mismatch
+	MismatchesCount     int64
 }
 
-func NewMockRouter(mockDir, mockFilepattern, responseDir string, port int, kvstore *kvstore.KVStore, matchesCountOnly, matchesRecordMismatch bool, logger *utils.Logger) *MockRouter {
+func NewMockRouter(mockDir, mockFilepattern, responseDir string, port int, kvstore *kvstore.KVStore, matchesCountOnly, mismatchesCountOnly bool, logger *utils.Logger) *MockRouter {
 	mockRouter := &MockRouter{
-		mockDir:               mockDir,
-		mockFilepattern:       mockFilepattern,
-		responseDir:           responseDir,
-		MatchesCountOnly:      matchesCountOnly,
-		matchesRecordMismatch: matchesRecordMismatch,
-		port:                  port,
-		logger:                logger,
-		EpSearchNode:          &model.EpSearchNode{},
-		Matches:               make(map[string][]*model.Match),
-		MatchesCount:          make(map[string]int64),
+		mockDir:             mockDir,
+		mockFilepattern:     mockFilepattern,
+		responseDir:         responseDir,
+		MatchesCountOnly:    matchesCountOnly,
+		MismatchesCountOnly: mismatchesCountOnly,
+		port:                port,
+		logger:              logger,
+		EpSearchNode:        &model.EpSearchNode{},
+		Matches:             make(map[string][]*model.Match),
+		MatchesCount:        make(map[string]int64),
 	}
 	return mockRouter
 }
@@ -254,6 +257,7 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 			if allMatch {
 				break
 			} else {
+				r.addMismatch(sn, pos, "", request)
 				return nil, nil, requestPathParams
 			}
 		} else {
@@ -270,6 +274,7 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 			if sn.SearchNodes[pathSegment] == nil {
 				if sn.SearchNodes["*"] == nil {
 					if sn.SearchNodes["**"] == nil {
+						r.addMismatch(sn, pos, "", request)
 						return nil, nil, requestPathParams
 					} else {
 						allMatch = true
@@ -287,27 +292,38 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 			pathSegment = getPathSegment(pathSegments, pos)
 		}
 	}
-	if sn != nil && sn.Endpoints != nil && sn.Endpoints[request.Method] != nil {
-		ep, match := r.matchEndPointsAttributes(sn.Endpoints[request.Method], request)
-		return ep, match, requestPathParams
+	if sn != nil && sn.Endpoints != nil {
+		if sn.Endpoints[request.Method] != nil {
+			ep, match := r.matchEndPointsAttributes(sn.Endpoints[request.Method], request)
+			return ep, match, requestPathParams
+		} else {
+			r.addMismatch(nil, -1, fmt.Sprintf("no endpoint found with method '%s'", request.Method), request)
+			return nil, nil, requestPathParams
+		}
 	}
+	r.addMismatch(sn, math.MaxInt, "", request)
 	return nil, nil, requestPathParams
 }
 
 func (r *MockRouter) matchEndPointsAttributes(endPoints []*model.MockEndpoint, request *http.Request) (*model.MockEndpoint, *model.Match) {
+	mismatchMessage := ""
 	for _, ep := range endPoints {
 		if !r.matchQueryParams(ep.Request, request) {
+			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted query params: %v", ep.Id, ep.Request.Query)
 			continue
 		}
 		if !r.matchHeaderValues(ep.Request, request) {
+			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted header: %v", ep.Id, ep.Request.Headers)
 			continue
 		}
 		if !r.matchBody(ep.Request, request) {
+			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted body: '%s'", ep.Id, ep.Request.Body)
 			continue
 		}
 		match := r.addMatch(ep, request)
 		return ep, match
 	}
+	r.addMismatch(nil, -1, mismatchMessage, request)
 	return nil, nil
 }
 
@@ -361,6 +377,31 @@ func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Reques
 		r.Matches[endPoint.Id] = append(r.Matches[endPoint.Id], match)
 	}
 	return match
+}
+
+func (r *MockRouter) addMismatch(sn *model.EpSearchNode, pathPos int, endpointMismatchDetails string, request *http.Request) {
+	r.MismatchesCount++
+	if !r.MismatchesCountOnly {
+		var mismatchDetails string
+		if sn == nil { // node found -> path matched
+			mismatchDetails = fmt.Sprintf("path '%s' matched, but %s", request.URL.Path, endpointMismatchDetails)
+		} else {
+			var matchedSubPath string
+			if pathPos == math.MaxInt {
+				matchedSubPath = request.URL.Path
+			} else {
+				pathSegments := strings.Split(request.URL.Path, "/")[1:]
+				matchedSubPath = strings.Join(pathSegments[:pathPos-1], "/")
+			}
+			mismatchDetails = fmt.Sprintf("path '%s' not matched, subpath which matched: '%s'", request.URL.Path, matchedSubPath)
+		}
+		actualRequest := &model.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
+		mismatch := &model.Mismatch{
+			MismatchDetails: mismatchDetails,
+			Timestamp:       time.Now(),
+			ActualRequest:   actualRequest}
+		r.Mismatches = append(r.Mismatches, mismatch)
+	}
 }
 
 func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, match *model.Match, requestPathParams map[string]string) {

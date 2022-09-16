@@ -23,17 +23,17 @@ const banner = `
 `
 
 type Configuration struct {
-	Verbose               bool     `default:"true"`
-	ConfigPort            int      `default:"8080" split_words:"true"`
-	ConfigUsername        string   `default:"mockgo" split_words:"true"`
-	ConfigPassword        string   `default:"password" split_words:"true"`
-	MockPort              int      `default:"8081" split_words:"true"`
-	MockDir               string   `default:"." split_words:"true"`
-	MockFilepattern       string   `default:"*-mock.*" split_words:"true"`
-	MatchesCountOnly      bool     `default:"true" split_words:"true"`
-	MatchesRecordMismatch bool     `default:"false" split_words:"true"`
-	ResponseDir           string   `default:"./responses" split_words:"true"`
-	ClusterUrls           []string `default:"" split_words:"true"`
+	Verbose           bool     `default:"true"`
+	ConfigPort        int      `default:"8080" split_words:"true"`
+	ConfigUsername    string   `default:"mockgo" split_words:"true"`
+	ConfigPassword    string   `default:"password" split_words:"true"`
+	MockPort          int      `default:"8081" split_words:"true"`
+	MockDir           string   `default:"." split_words:"true"`
+	MockFilepattern   string   `default:"*-mock.*" split_words:"true"`
+	MatchesCountOnly  bool     `default:"true" split_words:"true"`
+	MismatchesCountOnly bool     `default:"true" split_words:"true"`
+	ResponseDir       string   `default:"./responses" split_words:"true"`
+	ClusterUrls       []string `default:"" split_words:"true"`
 }
 
 func (c *Configuration) validateAndFix() *Configuration {
@@ -71,7 +71,7 @@ Matches:
 
 Cluster:
   Enabled: %v
-  URLs: '%v'`, c.Verbose, c.ConfigPort, c.ConfigUsername, passwordMessage, c.MockPort, c.MockDir, c.MockFilepattern,  c.ResponseDir, c.MatchesCountOnly, c.MatchesRecordMismatch, len(c.ClusterUrls) > 0, c.ClusterUrls)
+  URLs: '%v'`, c.Verbose, c.ConfigPort, c.ConfigUsername, passwordMessage, c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, c.MatchesCountOnly, c.MismatchesCountOnly, len(c.ClusterUrls) > 0, c.ClusterUrls)
 }
 
 func main() {
@@ -104,7 +104,7 @@ func createConfiguration() *Configuration {
 }
 
 func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, logger *utils.Logger) *mock.MockRouter {
-	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.MockPort, kvstore, configuration.MatchesCountOnly,configuration.MatchesRecordMismatch, logger)
+	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.MockPort, kvstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly, logger)
 	return mockRouter
 }
 

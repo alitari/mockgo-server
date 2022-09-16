@@ -125,9 +125,63 @@ func TestMain_getMatches(t *testing.T) {
 
 }
 
+func TestMain_getMismatches(t *testing.T) {
+	// get mismatches
+	requestToNode(t, 0, true, http.MethodGet, "/mismatches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+		if os.Getenv("MISMATCHES_COUNT_ONLY") == "false" {
+			assert.Equal(t, "[]", responseBody)
+		} else {
+			assert.Equal(t, "0", responseBody)
+		}
+	})
+	// create mismatch request
+	requestToNode(t, 0, false, http.MethodGet, "/nohello", nil, "", http.StatusNotFound, func(responseBody string) {
+		assert.Equal(t, "404 page not found\n", responseBody)
+	})
+	var assertMismatchesResponsesFunc func(responseBody string)
+	if os.Getenv("MISMATCHES_COUNT_ONLY") == "false" {
+		assertMismatchesResponsesFunc = func(responseBody string) {
+			var mismatchData []*model.Mismatch
+			err := json.Unmarshal([]byte(responseBody), &mismatchData)
+			assert.NoError(t, err)
+			assert.NotNil(t, mismatchData)
+			assert.Len(t, mismatchData, 1)
+			assert.Greater(t, time.Now(), mismatchData[0].Timestamp)
+			assert.Equal(t, "path '/nohello' not matched, subpath which matched: ''", mismatchData[0].MismatchDetails)
+
+			actualRequest := mismatchData[0].ActualRequest
+			assert.Equal(t, http.MethodGet, actualRequest.Method)
+			assert.Equal(t, "localhost:8081", actualRequest.Host)
+			assert.Equal(t, "/nohello", actualRequest.URL)
+			assert.Equal(t, map[string][]string{ "Accept-Encoding": {"gzip"}, "User-Agent": {"Go-http-client/1.1"}}, actualRequest.Header)
+		}
+	} else {
+		assertMismatchesResponsesFunc = func(responseBody string) {
+			var mismatchesCountData int64
+			err := json.Unmarshal([]byte(responseBody), &mismatchesCountData)
+			assert.NoError(t, err)
+			assert.Equal(t, int64(1), mismatchesCountData)
+		}
+	}
+	requestToAllNodes(t, true, http.MethodGet, "/mismatches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, assertMismatchesResponsesFunc)
+
+	requestToNode(t, 0, true, http.MethodDelete, "/mismatches", map[string][]string{headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+		assert.Empty(t, responseBody)
+	})
+
+	requestToAllNodes(t, true, http.MethodGet, "/mismatches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+		if os.Getenv("MISMATCHES_COUNT_ONLY") == "false" {
+			assert.Equal(t, "[]", responseBody)
+		} else {
+			assert.Equal(t, "0", responseBody)
+		}
+	})
+
+}
+
 func TestMain_transferMatches(t *testing.T) {
+	header := map[string][]string{config.NoAdvertiseHeader: {"true"}, headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}
 	assertMatchesCount := func(node, expectedCount int) {
-		header := map[string][]string{config.NoAdvertiseHeader: {"true"}, headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}
 		requestToNode(t, node, true, http.MethodGet, "/matches", header, "", http.StatusOK, func(responseBody string) {
 			if os.Getenv("MATCHES_COUNT_ONLY") == "false" {
 				var matchData map[string][]*model.Match
@@ -143,7 +197,23 @@ func TestMain_transferMatches(t *testing.T) {
 		})
 	}
 
-	createRequests := func(node, count int) {
+	assertMismatchesCount := func(node, expectedCount int) {
+		requestToNode(t, node, true, http.MethodGet, "/mismatches", header, "", http.StatusOK, func(responseBody string) {
+			if os.Getenv("MISMATCHES_COUNT_ONLY") == "false" {
+				var matchData []*model.Mismatch
+				err := json.Unmarshal([]byte(responseBody), &matchData)
+				assert.NoError(t, err)
+				assert.Equal(t, expectedCount, len(matchData))
+			} else {
+				var matchCountData int64
+				err := json.Unmarshal([]byte(responseBody), &matchCountData)
+				assert.NoError(t, err)
+				assert.Equal(t, int64(expectedCount), matchCountData)
+			}
+		})
+	}
+
+	createMatchRequests := func(node, count int) {
 		for i := 0; i < count; i++ {
 			requestToNode(t, node, false, http.MethodGet, "/hello", map[string][]string{headers.Accept: {"application/json"}}, "", http.StatusOK, func(responseBody string) {
 				assert.Equal(t, "{\n    \"hello\": \"from Mockgo!\"\n}", responseBody)
@@ -151,21 +221,38 @@ func TestMain_transferMatches(t *testing.T) {
 		}
 	}
 
-	assertMatchesCount(0, 0) // 0 matches in node 0
-	assertMatchesCount(1, 0) // 0 matches in node 1
-	// assertMatchesCount(-1, 0) // 0 matches all
-	createRequests(0, 5)     // create 5 requests to node 0
-	createRequests(1, 2)     // create 2 requests to node 1
-	assertMatchesCount(0, 5) // 5 matches in node 0
-	assertMatchesCount(1, 2) // 2 matches in node 1
+	createMismatchRequests := func(node, count int) {
+		for i := 0; i < count; i++ {
+			requestToNode(t, node, false, http.MethodGet, "/nohello", nil, "", http.StatusNotFound, func(responseBody string) {
+				assert.Equal(t, "404 page not found\n", responseBody)
+			})
+		}
+	}
 
-	//transfer matches node 0 -> node 1
+	assertMatchesCount(0, 0)    // 0 matches in node 0
+	assertMatchesCount(1, 0)    // 0 matches in node 1
+	assertMismatchesCount(0, 0) // 0 mismatches in node 0
+	assertMismatchesCount(1, 0) // 0 mismatches in node 1
+
+	createMismatchRequests(0, 3) // create 3 mismatching requests to node 0
+	createMismatchRequests(1, 1) // create 1 mismatching requests to node 1
+	createMatchRequests(0, 5)    // create 5 matching requests to node 0
+	createMatchRequests(1, 2)    // create 2 matching requests to node 1
+
+	assertMismatchesCount(0, 3) // 3 mismatches in node 0
+	assertMismatchesCount(1, 1) // 1 mismatch in node 1
+	assertMatchesCount(0, 5)    // 5 matches in node 0
+	assertMatchesCount(1, 2)    // 2 matches in node 1
+
+	//transfer matches and mismatches node 0 -> node 1
 	requestToNode(t, 0, true, http.MethodGet, "/transfermatches", nil, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "", responseBody)
 	})
 
-	assertMatchesCount(0, 0) // 0 matches in node 0
-	assertMatchesCount(1, 7) // 7 matches in node 1
+	assertMatchesCount(0, 0)    // 0 matches in node 0
+	assertMismatchesCount(0, 0) // 0 mismatches in node 0
+	assertMatchesCount(1, 7)    // 7 matches in node 1
+	assertMismatchesCount(1, 4) // 4 mismatches in node 1
 }
 
 func TestMain_templateFunctionsKVStore(t *testing.T) {
@@ -319,6 +406,9 @@ func serveNode(nodeNr int) {
 	os.Setenv("MOCK_DIR", "../test/main")
 	os.Setenv("RESPONSE_DIR", "../test/main/responses")
 	os.Setenv("CLUSTER_URLS", getClusterUrls())
+	os.Setenv("MATCHES_COUNT_ONLY", "false")
+	os.Setenv("MISMATCHES_COUNT_ONLY", "false")
+
 
 	verbose, err := strconv.ParseBool(os.Getenv("VERBOSE"))
 	if err != nil {

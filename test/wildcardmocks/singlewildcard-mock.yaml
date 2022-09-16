@@ -1,5 +1,6 @@
 endpoints:
-  - request:
+  - id: single
+    request:
       path: "/wildcard/*/foo"
     response:
       statusCode: 204
