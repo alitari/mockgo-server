@@ -23,18 +23,20 @@ const banner = `
 `
 
 type Configuration struct {
-	Verbose             bool          `default:"true"`
-	ConfigPort          int           `default:"8080" split_words:"true"`
-	ConfigUsername      string        `default:"mockgo" split_words:"true"`
-	ConfigPassword      string        `default:"password" split_words:"true"`
-	MockPort            int           `default:"8081" split_words:"true"`
-	MockDir             string        `default:"." split_words:"true"`
-	MockFilepattern     string        `default:"*-mock.*" split_words:"true"`
-	MatchesCountOnly    bool          `default:"true" split_words:"true"`
-	MismatchesCountOnly bool          `default:"true" split_words:"true"`
-	ResponseDir         string        `default:"./responses" split_words:"true"`
-	ClusterUrls         []string      `default:"" split_words:"true"`
-	HttpClientTimeout   time.Duration `default:"1s" split_words:"true"`
+	Verbose               bool          `default:"true"`
+	ConfigPort            int           `default:"8080" split_words:"true"`
+	ConfigUsername        string        `default:"mockgo" split_words:"true"`
+	ConfigPassword        string        `default:"password" split_words:"true"`
+	MockPort              int           `default:"8081" split_words:"true"`
+	MockDir               string        `default:"." split_words:"true"`
+	MockFilepattern       string        `default:"*-mock.*" split_words:"true"`
+	MatchesCountOnly      bool          `default:"true" split_words:"true"`
+	MismatchesCountOnly   bool          `default:"true" split_words:"true"`
+	ResponseDir           string        `default:"./responses" split_words:"true"`
+	ClusterUrls           []string      `default:"" split_words:"true"`
+	ClusterPodLabelValue  string        `default:"" split_words:"true"`
+	HttpClientTimeout     time.Duration `default:"1s" split_words:"true"`
+	ProxyConfigRouterPath string        `default:"" split_words:"true"`
 }
 
 func (c *Configuration) validateAndFix() *Configuration {
@@ -51,6 +53,8 @@ func (c *Configuration) info() string {
 	} else {
 		passwordMessage = c.ConfigPassword[:3] + "***"
 	}
+	clusterSetup := config.NewClusterSetup(c.ClusterUrls)
+
 	return fmt.Sprintf(`
 Logging:
   Verbose: %v
@@ -66,14 +70,20 @@ Mock Server:
   Filepattern: '%s'
   Response Dir: '%s'
 
-Matches:
-  CountOnly: %v
-  RecordMismatch: %v
+CountOnly:
+  Matches: %v
+  Mismatches: %v
 
 Cluster:
-  Enabled: %v
-  URLs: '%v'
-  HttpClient timeout: '%v'`, c.Verbose, c.ConfigPort, c.ConfigUsername, passwordMessage, c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, c.MatchesCountOnly, c.MismatchesCountOnly, len(c.ClusterUrls) > 0, c.ClusterUrls, c.HttpClientTimeout)
+  Setup: %v
+  ClusterUrls: %v
+  HttpClient timeout: '%v'
+  ClusterPodLabelValue: '%s'
+  ProxyConfigRouterPath: '%s'`,
+		c.Verbose, c.ConfigPort, c.ConfigUsername, passwordMessage,
+		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir,
+		c.MatchesCountOnly, c.MismatchesCountOnly,
+		clusterSetup.String(), c.ClusterUrls, c.HttpClientTimeout, c.ClusterPodLabelValue, c.ProxyConfigRouterPath)
 }
 
 func main() {
@@ -106,12 +116,15 @@ func createConfiguration() *Configuration {
 }
 
 func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, logger *utils.Logger) *mock.MockRouter {
-	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, configuration.MockPort, kvstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly, logger)
+	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir,
+		configuration.MockPort, kvstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly,
+		configuration.ProxyConfigRouterPath, configuration.ConfigPort, configuration.HttpClientTimeout, logger)
 	return mockRouter
 }
 
 func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, kvStore *kvstore.KVStore, logger *utils.Logger) *config.ConfigRouter {
-	configRouter := config.NewConfigRouter(configuration.ConfigUsername, configuration.ConfigPassword, mockRouter, configuration.ConfigPort, configuration.ClusterUrls, kvStore, configuration.HttpClientTimeout, logger)
+	configRouter := config.NewConfigRouter(configuration.ConfigUsername, configuration.ConfigPassword, mockRouter,
+		configuration.ConfigPort, configuration.ClusterUrls, configuration.ClusterPodLabelValue, kvStore, configuration.HttpClientTimeout, logger)
 	err := configRouter.DownloadKVStoreFromCluster()
 	if err != nil {
 		log.Fatalf("(FATAL) Can't sync with cluster: %v\n", err)

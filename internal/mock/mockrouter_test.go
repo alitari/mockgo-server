@@ -17,6 +17,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const httpClientTimeout = 1 * time.Second
+const proxyConfigRouterPath = "/__"
+
 type matchingTestCase struct {
 	name                    string
 	request                 *http.Request
@@ -371,7 +374,7 @@ func assertMismatchRequestToEndpoint(t *testing.T, mockRouter *MockRouter, testC
 }
 
 func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, mismatchesCountOnly bool) *MockRouter {
-	mockRouter := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, 0, kvstore.TheKVStore, matchesCountOnly, mismatchesCountOnly, &utils.Logger{Verbose: true, DebugResponseRendering: true})
+	mockRouter := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, 0, kvstore.TheKVStore, matchesCountOnly, mismatchesCountOnly, proxyConfigRouterPath,-1, httpClientTimeout, &utils.Logger{Verbose: true, DebugResponseRendering: true})
 	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	err := mockRouter.LoadFiles(nil)
 	assert.NoError(t, err)

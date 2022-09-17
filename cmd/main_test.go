@@ -43,6 +43,10 @@ func TestMain_health(t *testing.T) {
 	requestToAllNodes(t, true, http.MethodGet, "/health", map[string][]string{}, "", http.StatusOK, nil)
 }
 
+func TestMain_configOverProxy_health(t *testing.T) {
+	requestToNode(t, 0, false, http.MethodGet, "/__/health", map[string][]string{}, "", http.StatusOK, nil)
+}
+
 func TestMain_serverid(t *testing.T) {
 	requestToAllNodes(t, true, http.MethodGet, "/id", map[string][]string{headers.Accept: {"application/text"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, nil)
 }
@@ -153,7 +157,7 @@ func TestMain_getMismatches(t *testing.T) {
 			assert.Equal(t, http.MethodGet, actualRequest.Method)
 			assert.Equal(t, "localhost:8081", actualRequest.Host)
 			assert.Equal(t, "/nohello", actualRequest.URL)
-			assert.Equal(t, map[string][]string{ "Accept-Encoding": {"gzip"}, "User-Agent": {"Go-http-client/1.1"}}, actualRequest.Header)
+			assert.Equal(t, map[string][]string{"Accept-Encoding": {"gzip"}, "User-Agent": {"Go-http-client/1.1"}}, actualRequest.Header)
 		}
 	} else {
 		assertMismatchesResponsesFunc = func(responseBody string) {
@@ -409,12 +413,11 @@ func serveNode(nodeNr int) {
 	os.Setenv("MATCHES_COUNT_ONLY", "false")
 	os.Setenv("MISMATCHES_COUNT_ONLY", "false")
 
-
 	verbose, err := strconv.ParseBool(os.Getenv("VERBOSE"))
 	if err != nil {
 		verbose = true
 	}
-	logger := &utils.Logger{Verbose: verbose}
+	logger := &utils.Logger{Verbose: verbose, DebugRequestMatching: true, DebugResponseRendering: true}
 	mockRouter, configRouter := createRouters(kvstore.CreateTheStore(), logger)
 	mockRouterChan <- mockRouter
 	configRouterChan <- configRouter

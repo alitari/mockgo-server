@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
@@ -69,4 +70,9 @@ func WriteEntity(writer http.ResponseWriter, entity interface{}) {
 func BasicAuth(username, password string) string {
 	auth := username + ":" + password
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
+func CreateHttpClient(timeout time.Duration) http.Client {
+	httpClient := http.Client{Timeout: timeout}
+	return httpClient
 }

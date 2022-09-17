@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -23,19 +25,53 @@ import (
 
 const NoAdvertiseHeader = "No-advertise"
 
+type ClusterSetup int64
+
+const (
+	Disabled ClusterSetup = iota
+	Static
+	Dynamic
+)
+
+func NewClusterSetup(clusterUrls []string) ClusterSetup {
+	if len(clusterUrls) == 0 {
+		return Disabled
+	} else {
+		if len(clusterUrls) == 1 && clusterUrls[0] == "dynamic" {
+			return Dynamic
+		} else {
+			return Static
+		}
+	}
+}
+
+func (c ClusterSetup) String() string {
+	switch c {
+	case Disabled:
+		return "disabled"
+	case Static:
+		return "static"
+	case Dynamic:
+		return "dynamic"
+	}
+	return "unknown"
+}
+
 type ConfigRouter struct {
-	mockRouter          *mock.MockRouter
-	router              *mux.Router
-	server              *http.Server
-	port                int
-	id                  string
-	clusterUrls         []string
-	logger              *utils.Logger
-	kvstore             *kvstore.KVStore
-	httpClientTimeout   time.Duration
-	basicAuthUsername   string
-	basicAuthPassword   string
-	transferringMatches bool
+	mockRouter           *mock.MockRouter
+	router               *mux.Router
+	server               *http.Server
+	port                 int
+	id                   string
+	clusterSetup         ClusterSetup
+	clusterUrls          []string
+	clusterPodLabelValue string
+	logger               *utils.Logger
+	kvstore              *kvstore.KVStore
+	basicAuthUsername    string
+	basicAuthPassword    string
+	transferringMatches  bool
+	httpClient           http.Client
 }
 
 type EndpointsResponse struct {
@@ -51,19 +87,23 @@ type RemoveKVStoreRequest struct {
 	Path string `json:"path"`
 }
 
-func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, kvstore *kvstore.KVStore, httpClientTimeout time.Duration, logger *utils.Logger) *ConfigRouter {
+func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, clusterPodLabelValue string, kvstore *kvstore.KVStore, httpClientTimeout time.Duration, logger *utils.Logger) *ConfigRouter {
 	configRouter := &ConfigRouter{
-		mockRouter:          mockRouter,
-		port:                port,
-		clusterUrls:         clusterUrls,
-		id:                  uuid.New().String(),
-		logger:              logger,
-		kvstore:             kvstore,
-		httpClientTimeout:   httpClientTimeout,
-		basicAuthUsername:   username,
-		basicAuthPassword:   password,
-		transferringMatches: false,
+		mockRouter:           mockRouter,
+		port:                 port,
+		clusterSetup:         NewClusterSetup(clusterUrls),
+		clusterUrls:          clusterUrls,
+		clusterPodLabelValue: clusterPodLabelValue,
+		id:                   uuid.New().String(),
+		logger:               logger,
+		kvstore:              kvstore,
+		httpClient:           utils.CreateHttpClient(httpClientTimeout),
+		basicAuthUsername:    username,
+		basicAuthPassword:    password,
+		transferringMatches:  false,
 	}
+
+	//time.Sleep(300 * time.Millisecond)
 	configRouter.newRouter()
 	return configRouter
 }
@@ -113,17 +153,28 @@ func (r *ConfigRouter) health(writer http.ResponseWriter, request *http.Request)
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (r *ConfigRouter) createHttpClient() http.Client {
-	httpClient := http.Client{Timeout: time.Duration(1) * time.Second}
-	return httpClient
-}
-
 func (r *ConfigRouter) getClusterUrls() []string {
-	return r.clusterUrls
+	if r.clusterSetup == Dynamic {
+		kupeProxyPort, err := strconv.Atoi(os.Getenv("KUBEPROXY_PORT"))
+		if err != nil {
+			log.Fatalf("Can't find KUBEPROXY_PORT : %v", err)
+		}
+		podIps, err := utils.K8sGetPodsIps(r.httpClient, kupeProxyPort, r.clusterPodLabelValue)
+		if err != nil {
+			log.Fatalf("Can't get k8s pods : %v", err)
+		}
+		var clusterUrls []string
+		for _, ip := range podIps {
+			clusterUrl := fmt.Sprintf("http://%s:%d%s", ip, r.mockRouter.Port(), r.mockRouter.ProxyConfigRouterPath)
+			clusterUrls = append(clusterUrls, clusterUrl)
+		}
+		return clusterUrls
+	} else {
+		return r.clusterUrls
+	}
 }
 
 func (r *ConfigRouter) clusterRequest(method, path string, header map[string]string, body string, expectedStatusCode int, continueOnError bool, responseHandler func(clusterUrl, responseBody string) (bool, error)) error {
-	httpClient := r.createHttpClient()
 	clusterUrls := r.getClusterUrls()
 	for _, clusterUrl := range clusterUrls {
 		clusterRequest, err := http.NewRequest(method, clusterUrl+path, bytes.NewBufferString(body))
@@ -140,7 +191,7 @@ func (r *ConfigRouter) clusterRequest(method, path string, header map[string]str
 		}
 		clusterRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
 		r.logger.LogWhenVerbose(fmt.Sprintf("Requesting %s %s to url %s ...", clusterRequest.Method, clusterRequest.URL.String(), clusterUrl))
-		clusterResponse, err := httpClient.Do(clusterRequest)
+		clusterResponse, err := r.httpClient.Do(clusterRequest)
 		if err != nil {
 			r.logger.LogWhenVerbose(fmt.Sprintf("cluster node '%s' can't process request, answered with error: %v", clusterUrl, err))
 			if continueOnError {
@@ -256,7 +307,7 @@ func (r *ConfigRouter) getKVStore(writer http.ResponseWriter, request *http.Requ
 }
 
 func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *http.Request) {
-	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+	if r.clusterSetup == Disabled || request.Header.Get(NoAdvertiseHeader) == "true" {
 		if r.mockRouter.MatchesCountOnly {
 			utils.WriteEntity(writer, r.mockRouter.MatchesCount)
 		} else {
@@ -302,7 +353,7 @@ func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *ht
 }
 
 func (r *ConfigRouter) getMismatchesFromAll(writer http.ResponseWriter, request *http.Request) {
-	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+	if r.clusterSetup == Disabled || request.Header.Get(NoAdvertiseHeader) == "true" {
 		if r.mockRouter.MismatchesCountOnly {
 			utils.WriteEntity(writer, r.mockRouter.MismatchesCount)
 		} else {
@@ -344,7 +395,7 @@ func (r *ConfigRouter) getMismatchesFromAll(writer http.ResponseWriter, request 
 }
 
 func (r *ConfigRouter) deleteMatchesFromAll(writer http.ResponseWriter, request *http.Request) {
-	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+	if r.clusterSetup == Disabled || request.Header.Get(NoAdvertiseHeader) == "true" {
 		r.deleteMatches()
 	} else {
 		err := r.clusterRequest(http.MethodDelete, "/matches", map[string]string{NoAdvertiseHeader: "true"}, "", http.StatusOK, false,
@@ -360,7 +411,7 @@ func (r *ConfigRouter) deleteMatchesFromAll(writer http.ResponseWriter, request 
 }
 
 func (r *ConfigRouter) deleteMismatchesFromAll(writer http.ResponseWriter, request *http.Request) {
-	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+	if r.clusterSetup == Disabled || request.Header.Get(NoAdvertiseHeader) == "true" {
 		r.deleteMismatches()
 	} else {
 		err := r.clusterRequest(http.MethodDelete, "/mismatches", map[string]string{NoAdvertiseHeader: "true"}, "", http.StatusOK, false,
@@ -509,7 +560,7 @@ func (r *ConfigRouter) setKVStore(writer http.ResponseWriter, request *http.Requ
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+	if r.clusterSetup == Disabled || request.Header.Get(NoAdvertiseHeader) == "true" {
 		err = r.kvstore.PutAsJson(key, string(body))
 		if err != nil {
 			http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
@@ -540,7 +591,7 @@ func (r *ConfigRouter) addKVStore(writer http.ResponseWriter, request *http.Requ
 		http.Error(writer, fmt.Sprintf("Can't parse request body '%s' : %v", body, err), http.StatusBadRequest)
 		return
 	}
-	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+	if r.clusterSetup == Disabled || request.Header.Get(NoAdvertiseHeader) == "true" {
 		err = r.kvstore.PatchAdd(key, addKvStoreRequest.Path, addKvStoreRequest.Value)
 		if err != nil {
 			http.Error(writer, fmt.Sprintf("Problem adding kvstore path: '%s' value: '%s', : %v ", addKvStoreRequest.Path, addKvStoreRequest.Value, err), http.StatusBadRequest)
@@ -571,7 +622,7 @@ func (r *ConfigRouter) removeKVStore(writer http.ResponseWriter, request *http.R
 		http.Error(writer, "Can't parse request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	if len(r.getClusterUrls()) == 0 || request.Header.Get(NoAdvertiseHeader) == "true" {
+	if r.clusterSetup == Disabled || request.Header.Get(NoAdvertiseHeader) == "true" {
 		err = r.kvstore.PatchRemove(key, removeKvStoreRequest.Path)
 		if err != nil {
 			http.Error(writer, fmt.Sprintf("Problem removing kvstore '%s', path: '%s' : %v ", key, removeKvStoreRequest.Path, err), http.StatusBadRequest)

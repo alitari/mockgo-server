@@ -19,4 +19,17 @@ deploy:
         setValueTemplates:
           ingress.configHost: "config.{{.MINIKUBE_IP}}.nip.io"
           ingress.mockHost: "mock.{{.MINIKUBE_IP}}.nip.io"
-  
+  kustomize:
+    paths:
+      - deployments/kustomize/minikube
+
+profiles:
+  - name: all
+  - name: statefulset
+    patches:
+      - op: remove
+        path: "/deploy/kustomize"
+  - name: knative
+    patches:
+      - op: remove
+        path: "/deploy/helm"
