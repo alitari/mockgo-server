@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mockgo
+nameSuffix: -kn
+
+patchesStrategicMerge:
+- kservice.yaml
+- configmap.yaml
+
+resources:
+- ../base
+- role-binding.yaml
