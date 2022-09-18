@@ -66,7 +66,7 @@ type ConfigRouter struct {
 	clusterSetup         ClusterSetup
 	clusterUrls          []string
 	clusterPodLabelValue string
-	logger               *utils.Logger
+	logger               *utils.LoggerUtil
 	kvstore              *kvstore.KVStore
 	basicAuthUsername    string
 	basicAuthPassword    string
@@ -87,7 +87,7 @@ type RemoveKVStoreRequest struct {
 	Path string `json:"path"`
 }
 
-func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, clusterPodLabelValue string, kvstore *kvstore.KVStore, httpClientTimeout time.Duration, logger *utils.Logger) *ConfigRouter {
+func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, clusterPodLabelValue string, kvstore *kvstore.KVStore, httpClientTimeout time.Duration, logger *utils.LoggerUtil) *ConfigRouter {
 	configRouter := &ConfigRouter{
 		mockRouter:           mockRouter,
 		port:                 port,
@@ -124,7 +124,7 @@ func (r *ConfigRouter) Port() int {
 	return r.port
 }
 
-func (r *ConfigRouter) Logger() *utils.Logger {
+func (r *ConfigRouter) Logger() *utils.LoggerUtil {
 	return r.logger
 }
 

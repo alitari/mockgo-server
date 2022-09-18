@@ -23,7 +23,8 @@ const banner = `
 `
 
 type Configuration struct {
-	Verbose               bool          `default:"true"`
+	LoglevelConfig        int           `default:"1" split_words:"true"`
+	LoglevelMock          int           `default:"1" split_words:"true"`
 	ConfigPort            int           `default:"8080" split_words:"true"`
 	ConfigUsername        string        `default:"mockgo" split_words:"true"`
 	ConfigPassword        string        `default:"password" split_words:"true"`
@@ -56,19 +57,19 @@ func (c *Configuration) info() string {
 	clusterSetup := config.NewClusterSetup(c.ClusterUrls)
 
 	return fmt.Sprintf(`
-Logging:
-  Verbose: %v
 
 Config API: 
   Port: %v
   BasicAuth User: '%s'
   BasicAuth Password: %s
+  LogLevel: '%s'
 
 Mock Server:
   Port: %v
   Dir: '%s'
   Filepattern: '%s'
   Response Dir: '%s'
+  LogLevel: '%s'
 
 CountOnly:
   Matches: %v
@@ -80,25 +81,25 @@ Cluster:
   HttpClient timeout: '%v'
   ClusterPodLabelValue: '%s'
   ProxyConfigRouterPath: '%s'`,
-		c.Verbose, c.ConfigPort, c.ConfigUsername, passwordMessage,
-		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir,
+		c.ConfigPort, c.ConfigUsername, passwordMessage, utils.ParseLogLevel(c.LoglevelConfig).String(),
+		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, utils.ParseLogLevel(c.LoglevelMock).String(),
 		c.MatchesCountOnly, c.MismatchesCountOnly,
 		clusterSetup.String(), c.ClusterUrls, c.HttpClientTimeout, c.ClusterPodLabelValue, c.ProxyConfigRouterPath)
 }
 
 func main() {
-	mockRouter, configRouter := createRouters(kvstore.CreateTheStore(), &utils.Logger{})
+	mockRouter, configRouter := createRouters(kvstore.CreateTheStore())
 	go startServe(configRouter)
 	startServe(mockRouter)
 }
 
-func createRouters(kvstore *kvstore.KVStore, logger *utils.Logger) (*mock.MockRouter, *config.ConfigRouter) {
+func createRouters(kvstore *kvstore.KVStore) (*mock.MockRouter, *config.ConfigRouter) {
 	configuration := createConfiguration().validateAndFix()
-	logger.Verbose = configuration.Verbose
-	logger.LogAlways(banner + configuration.info())
+	configLogger := utils.NewLoggerUtil(utils.ParseLogLevel(configuration.LoglevelConfig))
+	configLogger.LogAlways(banner + configuration.info())
 
-	mockRouter := createMockRouter(configuration, kvstore, logger)
-	configRouter := createConfigRouter(configuration, mockRouter, kvstore, logger)
+	mockRouter := createMockRouter(configuration, kvstore, utils.NewLoggerUtil(utils.ParseLogLevel(configuration.LoglevelMock)))
+	configRouter := createConfigRouter(configuration, mockRouter, kvstore, configLogger)
 	err := mockRouter.LoadFiles(configRouter.TemplateFuncMap())
 	if err != nil {
 		log.Fatalf("(FATAL) Can't load files: %v", err)
@@ -115,14 +116,14 @@ func createConfiguration() *Configuration {
 	return &configuration
 }
 
-func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, logger *utils.Logger) *mock.MockRouter {
+func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, logger *utils.LoggerUtil) *mock.MockRouter {
 	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir,
 		configuration.MockPort, kvstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly,
 		configuration.ProxyConfigRouterPath, configuration.ConfigPort, configuration.HttpClientTimeout, logger)
 	return mockRouter
 }
 
-func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, kvStore *kvstore.KVStore, logger *utils.Logger) *config.ConfigRouter {
+func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, kvStore *kvstore.KVStore, logger *utils.LoggerUtil) *config.ConfigRouter {
 	configRouter := config.NewConfigRouter(configuration.ConfigUsername, configuration.ConfigPassword, mockRouter,
 		configuration.ConfigPort, configuration.ClusterUrls, configuration.ClusterPodLabelValue, kvStore, configuration.HttpClientTimeout, logger)
 	err := configRouter.DownloadKVStoreFromCluster()

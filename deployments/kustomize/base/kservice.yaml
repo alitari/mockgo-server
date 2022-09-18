@@ -21,8 +21,10 @@ spec:
           ports:
             - containerPort: 8080
           env:
-            - name: VERBOSE
-              value: "true"
+            - name: LOGLEVEL_CONFIG
+              value: "1"
+            - name: LOGLEVEL_MOCK
+              value: "1"
             - name: CONFIG_PORT
               value: "8081"
             - name: CONFIG_USERNAME

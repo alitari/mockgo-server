@@ -51,7 +51,7 @@ type MockRouter struct {
 	MatchesCountOnly      bool
 	MismatchesCountOnly   bool
 	port                  int
-	logger                *utils.Logger
+	logger                *utils.LoggerUtil
 	EpSearchNode          *model.EpSearchNode
 	router                *mux.Router
 	server                *http.Server
@@ -64,7 +64,7 @@ type MockRouter struct {
 	httpClient            http.Client
 }
 
-func NewMockRouter(mockDir, mockFilepattern, responseDir string, port int, kvstore *kvstore.KVStore, matchesCountOnly, mismatchesCountOnly bool, proxyConfigRouterPath string, configRouterPort int, httpClientTimeout time.Duration, logger *utils.Logger) *MockRouter {
+func NewMockRouter(mockDir, mockFilepattern, responseDir string, port int, kvstore *kvstore.KVStore, matchesCountOnly, mismatchesCountOnly bool, proxyConfigRouterPath string, configRouterPort int, httpClientTimeout time.Duration, logger *utils.LoggerUtil) *MockRouter {
 	mockRouter := &MockRouter{
 		mockDir:               mockDir,
 		mockFilepattern:       mockFilepattern,
@@ -99,7 +99,7 @@ func (r *MockRouter) Port() int {
 	return r.port
 }
 
-func (r *MockRouter) Logger() *utils.Logger {
+func (r *MockRouter) Logger() *utils.LoggerUtil {
 	return r.logger
 }
 
@@ -209,6 +209,7 @@ func (r *MockRouter) newRouter() {
 		return len(r.ProxyConfigRouterPath) > 0 && strings.HasPrefix(request.URL.Path, r.ProxyConfigRouterPath)
 	}
 	route := r.router.MatcherFunc(func(request *http.Request, routematch *mux.RouteMatch) bool {
+
 		if isConfigRequest(request) {
 			return true
 		}
@@ -216,23 +217,31 @@ func (r *MockRouter) newRouter() {
 		return endPoint != nil
 	})
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		r.logger.LogIncomingRequest(request)
+		if r.logger.Level >= utils.Debug {
+			writer = utils.NewLoggingResponseWriter(writer, r.logger)
+		}
 		if isConfigRequest(request) {
 			r.directToConfigRouter(writer, request)
 		} else {
 			r.renderResponse(writer, request, endPoint, match, requestPathParam)
 		}
+		if r.logger.Level >= utils.Debug {
+			writer.(*utils.LoggingResponseWriter).Log()
+		}
+
 	})
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: r.router}
 }
 
 func (r *MockRouter) directToConfigRouter(writer http.ResponseWriter, request *http.Request) {
-	r.logger.LogWhenDebugRR(fmt.Sprintf("directToConfigRouter: incoming request: %s|%s", request.Method, request.URL.String()))
+	r.logger.LogWhenDebug(fmt.Sprintf("directToConfigRouter: incoming request: %s|%s", request.Method, request.URL.String()))
 	request.RequestURI = ""
 	request.URL.Scheme = "http"
 	request.URL.Host = r.ConfigRouterHost
 	pathSegments := strings.Split(request.URL.Path, "/")
 	request.URL.Path = "/" + path.Join(pathSegments[2:]...)
-	r.logger.LogWhenDebugRR(fmt.Sprintf("directToConfigRouter: calling request: %s|%s", request.Method, request.URL.String()))
+	r.logger.LogWhenDebug(fmt.Sprintf("directToConfigRouter: calling request: %s|%s", request.Method, request.URL.String()))
 	response, err := r.httpClient.Do(request)
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("error calling configRouter with request: %v, eror: %v", request, err), http.StatusInternalServerError)

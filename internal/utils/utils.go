@@ -1,51 +1,135 @@
 package utils
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/http"
+	"path"
+	"runtime"
 )
 
-type Logger struct {
-	Verbose                bool
-	DebugRequestMatching   bool
-	DebugResponseRendering bool
+type LogLevel int64
+
+const (
+	OnlyError LogLevel = iota
+	Verbose
+	Debug
+)
+
+func ParseLogLevel(ll int) LogLevel {
+	switch ll {
+	case 0:
+		return OnlyError
+	case 1:
+		return Verbose
+	case 2:
+		return Debug
+	}
+	return 1
 }
 
-func (l *Logger) LogAlways(formattedMessage string) {
-	log.Print(formattedMessage)
+func (l LogLevel) String() string {
+	switch l {
+	case OnlyError:
+		return "OnlyErrors"
+	case Verbose:
+		return "Verbose"
+	case Debug:
+		return "Debug"
+	}
+	return "unknown"
 }
 
-func (l *Logger) LogWhenVerbose(formattedMessage string) {
-	if l.Verbose {
-		log.Print(formattedMessage)
+type LoggerUtil struct {
+	Level  LogLevel
+	logger *log.Logger
+}
+
+func NewLoggerUtil(logLevel LogLevel) *LoggerUtil {
+	return &LoggerUtil{Level: logLevel, logger: log.Default()}
+}
+
+func (l *LoggerUtil) LogAlways(formattedMessage string) {
+	l.logger.Print(formattedMessage)
+}
+
+func (l *LoggerUtil) LogWhenVerbose(formattedMessage string) {
+	if l.Level >= Verbose {
+		l.logger.Print(formattedMessage)
 	}
 }
 
-func (l *Logger) LogWhenDebugRR(formattedMessage string) {
-	if l.DebugResponseRendering {
-		log.Print("(DEBUG) " + formattedMessage)
+func (l *LoggerUtil) LogWhenDebug(formattedMessage string) {
+	if l.Level >= Debug {
+		l.logger.Printf("%s (DEBUG) %s ", l.callerInfo(2), formattedMessage)
 	}
 }
 
-func (l *Logger) LogWhenDebugRM(formattedMessage string) {
-	if l.DebugRequestMatching {
-		log.Print("(DEBUG) " + formattedMessage)
+func (l *LoggerUtil) LogIncomingRequest(request *http.Request) {
+	if l.Level >= Debug {
+		body, err := ioutil.ReadAll(request.Body)
+		if err != nil {
+			l.logger.Printf("error LogIncomingRequest: %v", err)
+			return
+		}
+		requestStr := fmt.Sprintf("method: %s\nurl: '%s'\nbody: '%s'", request.Method, request.URL.String(), string(body))
+		l.logger.Printf("%s (DEBUG) incoming request:\n%s", l.callerInfo(2), requestStr)
+		request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+	}
+}
+
+func (l *LoggerUtil) callerInfo(skip int) (info string) {
+	_, file, lineNo, _ := runtime.Caller(skip)
+	fileName := path.Base(file)
+	return fmt.Sprintf("%s:%d ", fileName, lineNo)
+}
+
+type LoggingResponseWriter struct {
+	http.ResponseWriter
+	buf        *bytes.Buffer
+	loggerUtil *LoggerUtil
+}
+
+func NewLoggingResponseWriter(writer http.ResponseWriter, logger *LoggerUtil) *LoggingResponseWriter {
+	lrw := &LoggingResponseWriter{
+		ResponseWriter: writer,
+		buf:            &bytes.Buffer{},
+		loggerUtil:     logger,
+	}
+	return lrw
+}
+
+func (lrw *LoggingResponseWriter) Write(p []byte) (int, error) {
+	return lrw.buf.Write(p)
+}
+
+func (lrw *LoggingResponseWriter) Log() {
+	if lrw.loggerUtil.Level >= Debug {
+		lrw.loggerUtil.logger.Printf("%s (DEBUG) Sending response:\n%s", lrw.loggerUtil.callerInfo(2), lrw.buf.String())
+	}
+	_, err := io.Copy(lrw.ResponseWriter, lrw.buf)
+	if err != nil {
+		lrw.loggerUtil.logger.Printf("LoggingResponseWriter: Failed to send out response: %v", err)
 	}
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func RandString(n int) string {
-    b := make([]byte, n)
-    for i := range b {
-        b[i] = letterBytes[rand.Int63() % int64(len(letterBytes))]
-    }
-    return string(b)
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
+	}
+	return string(b)
 }
 
 func Min(a, b int) int {
-    if a < b {
-        return a
-    }
-    return b
+	if a < b {
+		return a
+	}
+	return b
 }

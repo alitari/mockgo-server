@@ -18,6 +18,12 @@ healthcheck:
   readiness:
     initialDelaySeconds: 2
 
+logging:
+  config:
+    level: 2
+  mock:
+    level: 2
+
 mocks:
 - name: hello
   config: |

@@ -109,8 +109,10 @@ spec:
         - containerPort: {{ .Values.mockEndpoint.containerPort }}
           name: mock
         env:
-        - name: VERBOSE
-          value: {{ .Values.logging.verbose | quote }}
+        - name: LOGLEVEL_CONFIG
+          value: {{ .Values.logging.config.level | quote }}
+        - name: LOGLEVEL_MOCK
+          value: {{ .Values.logging.mock.level | quote }}
         - name: CONFIG_PORT
           value: {{ .Values.configEndpoint.containerPort | quote }}
         - name: CONFIG_USERNAME

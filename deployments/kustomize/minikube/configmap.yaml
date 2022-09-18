@@ -9,7 +9,7 @@ data:
       request:
         path: '/my/**/alex'
       response:
-        body: "my-response.json"
+        bodyFilename: "my-response.json"
   my-response.json: |
     {
       "my": "Hello"

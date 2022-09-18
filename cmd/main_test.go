@@ -403,7 +403,8 @@ func startNode(nodeNr int) {
 func serveNode(nodeNr int) {
 	configPort := startPort + (nodeNr * 2)
 	mockPort := configPort + 1
-	os.Setenv("VERBOSE", "true")
+	os.Setenv("LOGLEVEL_CONFIG", "2")
+	os.Setenv("LOGLEVEL_MOCK", "2")
 	os.Setenv("MOCK_PORT", strconv.Itoa(mockPort))
 	os.Setenv("CONFIG_PORT", strconv.Itoa(configPort))
 	os.Setenv("CONFIG_PASSWORD", configPassword)
@@ -413,12 +414,7 @@ func serveNode(nodeNr int) {
 	os.Setenv("MATCHES_COUNT_ONLY", "false")
 	os.Setenv("MISMATCHES_COUNT_ONLY", "false")
 
-	verbose, err := strconv.ParseBool(os.Getenv("VERBOSE"))
-	if err != nil {
-		verbose = true
-	}
-	logger := &utils.Logger{Verbose: verbose, DebugRequestMatching: true, DebugResponseRendering: true}
-	mockRouter, configRouter := createRouters(kvstore.CreateTheStore(), logger)
+	mockRouter, configRouter := createRouters(kvstore.CreateTheStore())
 	mockRouterChan <- mockRouter
 	configRouterChan <- configRouter
 	go startServe(configRouter)

@@ -19,9 +19,11 @@ countOnly:
   matches: true
   mismatches: true
 
-
 logging:
-  verbose: true
+  config:
+    level: 1 # 0 only errors, 1 verbose , 2 debug
+  mock:
+    level: 1
 
 image: mockgo-server:1.0.0-alpine
 pullPolicy: IfNotPresent

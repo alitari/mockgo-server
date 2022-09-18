@@ -13,5 +13,3 @@ spec:
           configMap:
             name: mockgo-server-kn
       serviceAccountName: mockgo-server-kn
-
-

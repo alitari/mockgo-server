@@ -15,7 +15,7 @@ type Serving interface {
 	Router() *mux.Router
 	Server() *http.Server
 	Port() int
-	Logger() *utils.Logger
+	Logger() *utils.LoggerUtil
 }
 
 type Match struct {
@@ -26,9 +26,9 @@ type Match struct {
 }
 
 type Mismatch struct {
-	MismatchDetails   string         `json:"MismatchDetails"`
-	Timestamp         time.Time      `json:"timestamp"`
-	ActualRequest     *ActualRequest `json:"actualRequest"`
+	MismatchDetails string         `json:"MismatchDetails"`
+	Timestamp       time.Time      `json:"timestamp"`
+	ActualRequest   *ActualRequest `json:"actualRequest"`
 }
 
 type ActualRequest struct {
