@@ -144,7 +144,7 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("addMismatches").Path("/addmismatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMismatches))
 	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
 	router.NewRoute().Name("deleteMismatches").Path("/mismatches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMismatchesFromAll))
-	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave("", "", http.MethodGet, "", "", nil, r.transferMatches))
+	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave("", "", http.MethodGet, "", "", nil, r.transferMatchesHandler))
 	r.router = router
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: router}
 }
@@ -502,7 +502,20 @@ func (r *ConfigRouter) addMismatches(writer http.ResponseWriter, request *http.R
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http.Request) {
+func (r *ConfigRouter) transferMatchesHandler(writer http.ResponseWriter, request *http.Request) {
+	if !r.transferringMatches {
+		err := r.TransferMatches()
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+		} else {
+			writer.WriteHeader(http.StatusOK)
+		}
+	} else {
+		writer.WriteHeader(http.StatusLocked)
+	}
+}
+
+func (r *ConfigRouter) TransferMatches() error {
 	r.transferringMatches = true
 	defer func() {
 		r.transferringMatches = false
@@ -515,8 +528,7 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 		matches, err = json.Marshal(r.mockRouter.Matches)
 	}
 	if err != nil {
-		http.Error(writer, "Problem marshalling matches: "+err.Error(), http.StatusInternalServerError)
-		return
+		return fmt.Errorf("problem marshalling matches: %v", err)
 	}
 	err = r.clusterRequest(http.MethodPost, "/addmatches", map[string]string{headers.ContentType: `application/json`}, string(matches), http.StatusOK, true,
 		func(clusterUrl, responseBody string) (bool, error) {
@@ -525,7 +537,7 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 			return true, nil
 		})
 	if err != nil {
-		http.Error(writer, "Problem transferring matches: "+err.Error(), http.StatusInternalServerError)
+		return fmt.Errorf("problem transferring matches: %v", err)
 	} else {
 		var mismatches []byte
 		var err error
@@ -535,8 +547,7 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 			mismatches, err = json.Marshal(r.mockRouter.Mismatches)
 		}
 		if err != nil {
-			http.Error(writer, "Problem marshalling mismatches: "+err.Error(), http.StatusInternalServerError)
-			return
+			return fmt.Errorf("problem marshalling mismatches: %v", err)
 		}
 		err = r.clusterRequest(http.MethodPost, "/addmismatches", map[string]string{headers.ContentType: `application/json`}, string(mismatches), http.StatusOK, true,
 			func(clusterUrl, responseBody string) (bool, error) {
@@ -545,9 +556,9 @@ func (r *ConfigRouter) transferMatches(writer http.ResponseWriter, request *http
 				return true, nil
 			})
 		if err != nil {
-			http.Error(writer, "Problem transferring mismatches: "+err.Error(), http.StatusInternalServerError)
+			return fmt.Errorf("problem transferring mismatches: %v", err)
 		} else {
-			writer.WriteHeader(http.StatusOK)
+			return nil
 		}
 	}
 }

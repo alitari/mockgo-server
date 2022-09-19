@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/alitari/mockgo-server/internal/config"
@@ -87,6 +90,20 @@ Cluster:
 		clusterSetup.String(), c.ClusterUrls, c.HttpClientTimeout, c.ClusterPodLabelValue, c.ProxyConfigRouterPath)
 }
 
+func sigtermListener(configRouter *config.ConfigRouter, loggerUtil *utils.LoggerUtil) {
+	loggerUtil.LogWhenVerbose("Listening shutdown signals...")
+	c := make(chan os.Signal, 1) // we need to reserve to buffer size 1, so the notifier are not blocked
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c
+	loggerUtil.LogWhenVerbose("Starting shutdown procedure...")
+	err := configRouter.TransferMatches()
+	if err != nil {
+		loggerUtil.LogAlways("Error in shutdown procedure:" + err.Error())
+	} else {
+		loggerUtil.LogWhenVerbose("✅ shutdown procedure endend succesfully")
+	}
+}
+
 func main() {
 	mockRouter, configRouter := createRouters(kvstore.CreateTheStore())
 	go startServe(configRouter)
@@ -104,6 +121,7 @@ func createRouters(kvstore *kvstore.KVStore) (*mock.MockRouter, *config.ConfigRo
 	if err != nil {
 		log.Fatalf("(FATAL) Can't load files: %v", err)
 	}
+	go sigtermListener(configRouter, configLogger)
 	return mockRouter, configRouter
 
 }
