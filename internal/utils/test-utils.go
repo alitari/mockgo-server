@@ -2,6 +2,7 @@ package utils
 
 import (
 	"log"
+	"math/rand"
 	"testing"
 )
 
@@ -17,4 +18,12 @@ func RunAndCheckCoverage(testPackage string, m *testing.M, treshold float64) int
 		}
 	}
 	return code
+}
+
+func RandString(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
+	}
+	return string(b)
 }

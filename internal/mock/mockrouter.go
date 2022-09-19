@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -136,7 +136,7 @@ func (r *MockRouter) LoadFiles(funcMap template.FuncMap) error {
 
 func (r *MockRouter) readMockFile(mockFile string) (*model.Mock, error) {
 	r.logger.LogWhenVerbose(fmt.Sprintf("Reading mock file '%s' ...", mockFile))
-	mockFileContent, err := ioutil.ReadFile(mockFile)
+	mockFileContent, err := os.ReadFile(mockFile)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (r *MockRouter) initResponseTemplates(endpoint *model.MockEndpoint, funcMap
 		body = endpoint.Response.Body
 	} else {
 		if len(endpoint.Response.BodyFilename) > 0 {
-			bodyBytes, err := ioutil.ReadFile(filepath.Join(r.responseDir, endpoint.Response.BodyFilename))
+			bodyBytes, err := os.ReadFile(filepath.Join(r.responseDir, endpoint.Response.BodyFilename))
 			if err != nil {
 				return err
 			}
@@ -411,7 +411,7 @@ func (r *MockRouter) matchBody(matchRequest *model.MatchRequest, request *http.R
 		if request.Body == nil {
 			return false
 		}
-		reqBodyBytes, err := ioutil.ReadAll(request.Body)
+		reqBodyBytes, err := io.ReadAll(request.Body)
 		if err != nil {
 			r.logger.LogAlways(fmt.Sprintf("No match, error reading request body: %v", err))
 			return false

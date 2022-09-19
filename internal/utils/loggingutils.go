@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"path"
 	"runtime"
@@ -71,14 +69,14 @@ func (l *LoggerUtil) LogWhenDebug(formattedMessage string) {
 
 func (l *LoggerUtil) LogIncomingRequest(request *http.Request) {
 	if l.Level >= Debug {
-		body, err := ioutil.ReadAll(request.Body)
+		body, err := io.ReadAll(request.Body)
 		if err != nil {
 			l.logger.Printf("error LogIncomingRequest: %v", err)
 			return
 		}
 		requestStr := fmt.Sprintf("method: %s\nurl: '%s'\nbody: '%s'", request.Method, request.URL.String(), string(body))
 		l.logger.Printf("%s (DEBUG) incoming request:\n%s", l.callerInfo(2), requestStr)
-		request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		request.Body = io.NopCloser(bytes.NewBuffer(body))
 	}
 }
 
@@ -119,13 +117,7 @@ func (lrw *LoggingResponseWriter) Log() {
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-func RandString(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
-	}
-	return string(b)
-}
+
 
 func Min(a, b int) int {
 	if a < b {

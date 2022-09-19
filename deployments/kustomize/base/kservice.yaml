@@ -11,15 +11,8 @@ spec:
         cluster: mockgo
     spec:
       containers:
-        - name: kubectl-proxy
-          image: bitnami/kubectl
-          args:
-            - proxy
-            - --port=8090
         - name: mockgo
           image: dev.local/mockgo-server
-          ports:
-            - containerPort: 8080
           env:
             - name: LOGLEVEL_CONFIG
               value: "2"

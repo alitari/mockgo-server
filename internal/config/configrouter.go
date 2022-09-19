@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -102,6 +100,11 @@ func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, por
 		basicAuthPassword:    password,
 		transferringMatches:  false,
 	}
+	if configRouter.clusterSetup == Dynamic {
+		if err := utils.NewK8sInClusterConfig(); err != nil {
+			log.Fatalf("Could not inialize K8s client")
+		}
+	}
 
 	//time.Sleep(300 * time.Millisecond)
 	configRouter.newRouter()
@@ -155,11 +158,7 @@ func (r *ConfigRouter) health(writer http.ResponseWriter, request *http.Request)
 
 func (r *ConfigRouter) getClusterUrls() []string {
 	if r.clusterSetup == Dynamic {
-		kupeProxyPort, err := strconv.Atoi(os.Getenv("KUBEPROXY_PORT"))
-		if err != nil {
-			log.Fatalf("Can't find KUBEPROXY_PORT : %v", err)
-		}
-		podIps, err := utils.K8sGetPodsIps(r.httpClient, kupeProxyPort, r.clusterPodLabelValue)
+		podIps, err := utils.K8sGetPodsIps(r.clusterPodLabelValue)
 		if err != nil {
 			log.Fatalf("Can't get k8s pods : %v", err)
 		}
@@ -200,7 +199,7 @@ func (r *ConfigRouter) clusterRequest(method, path string, header map[string]str
 				return err
 			}
 		}
-		bodyBytes, err := ioutil.ReadAll(clusterResponse.Body)
+		bodyBytes, err := io.ReadAll(clusterResponse.Body)
 		if clusterResponse.StatusCode != expectedStatusCode {
 			mess := fmt.Sprintf("cluster node '%s' can't process request, answered with status: %v body: '%s'", clusterUrl, clusterResponse.StatusCode, bodyBytes)
 			r.logger.LogWhenVerbose(mess)

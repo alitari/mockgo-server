@@ -112,9 +112,9 @@ func main() {
 
 func createRouters(kvstore *kvstore.KVStore) (*mock.MockRouter, *config.ConfigRouter) {
 	configuration := createConfiguration().validateAndFix()
+
 	configLogger := utils.NewLoggerUtil(utils.ParseLogLevel(configuration.LoglevelConfig))
 	configLogger.LogAlways(banner + configuration.info())
-
 	mockRouter := createMockRouter(configuration, kvstore, utils.NewLoggerUtil(utils.ParseLogLevel(configuration.LoglevelMock)))
 	configRouter := createConfigRouter(configuration, mockRouter, kvstore, configLogger)
 	err := mockRouter.LoadFiles(configRouter.TemplateFuncMap())
