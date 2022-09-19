@@ -22,9 +22,9 @@ spec:
             - containerPort: 8080
           env:
             - name: LOGLEVEL_CONFIG
-              value: "1"
+              value: "2"
             - name: LOGLEVEL_MOCK
-              value: "1"
+              value: "2"
             - name: CONFIG_PORT
               value: "8081"
             - name: CONFIG_USERNAME

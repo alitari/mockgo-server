@@ -7,6 +7,7 @@ spec:
     metadata:
       annotations:
         autoscaling.knative.dev/min-scale: "2"
+        autoscaling.knative.dev/target: "5" # requests per replica at one time
     spec:
       volumes:
         - name: config-volume
