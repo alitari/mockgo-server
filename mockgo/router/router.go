@@ -1,4 +1,4 @@
-package mock
+package router
 
 import (
 	"bytes"
@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig"
-	"github.com/alitari/mockgo-server/internal/kvstore"
-	"github.com/alitari/mockgo-server/internal/model"
-	"github.com/alitari/mockgo-server/internal/utils"
+	"github.com/alitari/mockgo/kvstore"
+	"github.com/alitari/mockgo/logging"
+	"github.com/alitari/mockgo/model"
 	"gopkg.in/yaml.v2"
 
 	"github.com/gorilla/mux"
@@ -45,40 +45,40 @@ type ResponseTemplateData struct {
 }
 
 type MockRouter struct {
-	mockDir               string
-	mockFilepattern       string
-	responseDir           string
-	MatchesCountOnly      bool
-	MismatchesCountOnly   bool
-	port                  int
-	logger                *utils.LoggerUtil
-	EpSearchNode          *model.EpSearchNode
-	router                *mux.Router
-	server                *http.Server
-	Matches               map[string][]*model.Match
-	MatchesCount          map[string]int64
-	Mismatches            []*model.Mismatch
-	MismatchesCount       int64
-	ProxyConfigRouterPath string
-	ConfigRouterHost      string
-	httpClient            http.Client
+	mockDir             string
+	mockFilepattern     string
+	responseDir         string
+	MatchesCountOnly    bool
+	MismatchesCountOnly bool
+	port                int
+	logger              *logging.LoggerUtil
+	EpSearchNode        *model.EpSearchNode
+	router              *mux.Router
+	server              *http.Server
+	Matches             map[string][]*model.Match
+	MatchesCount        map[string]int64
+	Mismatches          []*model.Mismatch
+	MismatchesCount     int64
+	ProxyPrefixPath     string
+	ProxyForHost        string
+	httpClient          http.Client
 }
 
-func NewMockRouter(mockDir, mockFilepattern, responseDir string, port int, kvstore *kvstore.KVStore, matchesCountOnly, mismatchesCountOnly bool, proxyConfigRouterPath string, configRouterPort int, httpClientTimeout time.Duration, logger *utils.LoggerUtil) *MockRouter {
+func NewMockRouter(mockDir, mockFilepattern, responseDir string, port int, kvstore *kvstore.KVStoreJSON, matchesCountOnly, mismatchesCountOnly bool, proxyPrefixPath string, proxyForHost string, httpClientTimeout time.Duration, logger *logging.LoggerUtil) *MockRouter {
 	mockRouter := &MockRouter{
-		mockDir:               mockDir,
-		mockFilepattern:       mockFilepattern,
-		responseDir:           responseDir,
-		MatchesCountOnly:      matchesCountOnly,
-		MismatchesCountOnly:   mismatchesCountOnly,
-		port:                  port,
-		logger:                logger,
-		EpSearchNode:          &model.EpSearchNode{},
-		Matches:               make(map[string][]*model.Match),
-		MatchesCount:          make(map[string]int64),
-		ProxyConfigRouterPath: proxyConfigRouterPath,
-		ConfigRouterHost:      fmt.Sprintf("localhost:%d", configRouterPort),
-		httpClient:            utils.CreateHttpClient(httpClientTimeout),
+		mockDir:             mockDir,
+		mockFilepattern:     mockFilepattern,
+		responseDir:         responseDir,
+		MatchesCountOnly:    matchesCountOnly,
+		MismatchesCountOnly: mismatchesCountOnly,
+		port:                port,
+		logger:              logger,
+		EpSearchNode:        &model.EpSearchNode{},
+		Matches:             make(map[string][]*model.Match),
+		MatchesCount:        make(map[string]int64),
+		ProxyPrefixPath:     proxyPrefixPath,
+		ProxyForHost:        proxyForHost,
+		httpClient:          createHttpClient(httpClientTimeout),
 	}
 	return mockRouter
 }
@@ -99,14 +99,14 @@ func (r *MockRouter) Port() int {
 	return r.port
 }
 
-func (r *MockRouter) Logger() *utils.LoggerUtil {
+func (r *MockRouter) Logger() *logging.LoggerUtil {
 	return r.logger
 }
 
 func (r *MockRouter) LoadFiles(funcMap template.FuncMap) error {
 	r.EpSearchNode = &model.EpSearchNode{}
 	endPointCounter := 0
-	mockFiles, err := utils.WalkMatch(r.mockDir, r.mockFilepattern)
+	mockFiles, err := walkMatch(r.mockDir, r.mockFilepattern)
 	if err != nil {
 		return err
 	}
@@ -205,12 +205,12 @@ func (r *MockRouter) newRouter() {
 	var endPoint *model.MockEndpoint
 	var match *model.Match
 	var requestPathParam map[string]string
-	isConfigRequest := func(request *http.Request) bool {
-		return len(r.ProxyConfigRouterPath) > 0 && strings.HasPrefix(request.URL.Path, r.ProxyConfigRouterPath)
+	isProxyRequest := func(request *http.Request) bool {
+		return len(r.ProxyPrefixPath) > 0 && strings.HasPrefix(request.URL.Path, r.ProxyPrefixPath)
 	}
 	route := r.router.MatcherFunc(func(request *http.Request, routematch *mux.RouteMatch) bool {
 
-		if isConfigRequest(request) {
+		if isProxyRequest(request) {
 			return true
 		}
 		endPoint, match, requestPathParam = r.matchRequestToEndpoint(request)
@@ -218,27 +218,27 @@ func (r *MockRouter) newRouter() {
 	})
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		r.logger.LogIncomingRequest(request)
-		if r.logger.Level >= utils.Debug {
-			writer = utils.NewLoggingResponseWriter(writer, r.logger,2)
+		if r.logger.Level >= logging.Debug {
+			writer = logging.NewLoggingResponseWriter(writer, r.logger, 2)
 		}
-		if isConfigRequest(request) {
-			r.directToConfigRouter(writer, request)
+		if isProxyRequest(request) {
+			r.directToProxyForHost(writer, request)
 		} else {
 			r.renderResponse(writer, request, endPoint, match, requestPathParam)
 		}
-		if r.logger.Level >= utils.Debug {
-			writer.(*utils.LoggingResponseWriter).Log()
+		if r.logger.Level >= logging.Debug {
+			writer.(*logging.LoggingResponseWriter).Log()
 		}
 
 	})
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: r.router}
 }
 
-func (r *MockRouter) directToConfigRouter(writer http.ResponseWriter, request *http.Request) {
+func (r *MockRouter) directToProxyForHost(writer http.ResponseWriter, request *http.Request) {
 	r.logger.LogWhenDebug(fmt.Sprintf("directToConfigRouter: incoming request: %s|%s", request.Method, request.URL.String()))
 	request.RequestURI = ""
 	request.URL.Scheme = "http"
-	request.URL.Host = r.ConfigRouterHost
+	request.URL.Host = r.ProxyForHost
 	pathSegments := strings.Split(request.URL.Path, "/")
 	request.URL.Path = "/" + path.Join(pathSegments[2:]...)
 	r.logger.LogWhenDebug(fmt.Sprintf("directToConfigRouter: calling request: %s|%s", request.Method, request.URL.String()))
@@ -542,4 +542,40 @@ func (r *MockRouter) createResponseTemplateData(request *http.Request, requestPa
 		}
 	}
 	return data, nil
+}
+
+func walkMatch(root, pattern string) ([]string, error) {
+	var matches []string
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		info.Mode()
+		if matched, err := filepath.Match(pattern, filepath.Base(path)); err != nil {
+			return err
+		} else if matched {
+			if filepath.IsAbs(root) {
+				if filepath.Dir(path) == root {
+					matches = append(matches, path)
+				} else {
+					return nil
+				}
+			} else {
+				matches = append(matches, path)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return matches, nil
+}
+
+func createHttpClient(timeout time.Duration) http.Client {
+	httpClient := http.Client{Timeout: timeout}
+	return httpClient
 }

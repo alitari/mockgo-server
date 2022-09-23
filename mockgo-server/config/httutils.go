@@ -1,4 +1,4 @@
-package utils
+package config
 
 import (
 	"crypto/subtle"
@@ -7,17 +7,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
+	"github.com/alitari/mockgo/logging"
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
 )
 
-func RequestMustHave(loggerUtil *LoggerUtil, expectedUsername, expectedPassword, method, contentType, acceptType string, urlPathParams []string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+func requestMustHave(loggerUtil *logging.LoggerUtil, expectedUsername, expectedPassword, method, contentType, acceptType string, urlPathParams []string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		loggerUtil.LogIncomingRequest(r)
-		if loggerUtil.Level >= Debug {
-			w = NewLoggingResponseWriter(w, loggerUtil,2)
+		if loggerUtil.Level >= logging.Debug {
+			w = logging.NewLoggingResponseWriter(w, loggerUtil, 2)
 		}
 		noAuth := len(expectedUsername) == 0 && len(expectedPassword) == 0
 		username, password, ok := r.BasicAuth()
@@ -34,8 +34,8 @@ func RequestMustHave(loggerUtil *LoggerUtil, expectedUsername, expectedPassword,
 								for _, urlPathParam := range urlPathParams {
 									if vars[urlPathParam] == "" {
 										http.Error(w, fmt.Sprintf("url path param '%s' is not set", urlPathParam), http.StatusNotFound)
-										if loggerUtil.Level >= Debug {
-											w.(*LoggingResponseWriter).Log()
+										if loggerUtil.Level >= logging.Debug {
+											w.(*logging.LoggingResponseWriter).Log()
 										}
 										return
 									}
@@ -57,14 +57,14 @@ func RequestMustHave(loggerUtil *LoggerUtil, expectedUsername, expectedPassword,
 		} else {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}
-		if loggerUtil.Level >= Debug {
-			w.(*LoggingResponseWriter).Log()
+		if loggerUtil.Level >= logging.Debug {
+			w.(*logging.LoggingResponseWriter).Log()
 		}
 	}
 	return f
 }
 
-func WriteEntity(writer http.ResponseWriter, entity interface{}) {
+func writeEntity(writer http.ResponseWriter, entity interface{}) {
 	entityBytes, err := json.Marshal(entity)
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("Cannot marshall response: %v", err), http.StatusInternalServerError)
@@ -81,18 +81,3 @@ func BasicAuth(username, password string) string {
 	auth := username + ":" + password
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
 }
-
-func CreateHttpClient(timeout time.Duration) http.Client {
-	httpClient := http.Client{Timeout: timeout}
-	return httpClient
-}
-
-// func containKeys(amap map[string]string, keys []string) bool {
-// 	for _, key := range keys {
-// 		if len(amap[key]) == 0 {
-// 			return false
-// 		}
-// 	}
-// 	return true
-
-// }

@@ -1,88 +1,92 @@
 package kvstore
 
 import (
+	"math/rand"
 	"testing"
 
-	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/stretchr/testify/assert"
 )
 
+func createInMemoryStore() *KVStoreJSON {
+	kvstoreImpl := NewKVStoreInMemory()
+	return NewKVStoreJSON(&kvstoreImpl, true)
+}
+
 func TestKVStore_GetPutAll(t *testing.T) {
-	CreateTheStore()
-	all := TheKVStore.GetAll()
+	kvstore := createInMemoryStore()
+	all := kvstore.GetAll()
 	assert.Empty(t, all)
 	storeVal := map[string]interface{}{"store1": "storekey11", "storekey12": "storeval2"}
-	TheKVStore.PutAll(storeVal)
-	assert.Equal(t, storeVal, TheKVStore.GetAll())
+	kvstore.PutAll(storeVal)
+	assert.Equal(t, storeVal, kvstore.GetAll())
 }
 
 func TestKVStore_GetPutAllAsJson(t *testing.T) {
 	storeJson := `{"store1":{"storekey1":"storeval1"},"store2":{"storekey2":"storeval2"}}`
-	CreateTheStore()
-	allJson, err := TheKVStore.GetAllJson()
+	kvstore := createInMemoryStore()
+	allJson, err := kvstore.GetAllJson()
 	assert.NoError(t, err)
 	assert.Equal(t, "{}", allJson)
-	err = TheKVStore.PutAllJson(storeJson)
+	err = kvstore.PutAllJson(storeJson)
 	assert.NoError(t, err)
-	actualStoreJson, err := TheKVStore.GetAllJson()
+	actualStoreJson, err := kvstore.GetAllJson()
 	assert.NoError(t, err)
 	assert.Equal(t, storeJson, actualStoreJson)
 }
 
 func TestKVStore_PutAllGetAsAllJson(t *testing.T) {
-	CreateTheStore()
-	all := TheKVStore.GetAll()
+	kvstore := createInMemoryStore()
+	all := kvstore.GetAll()
 	assert.Empty(t, all)
 	storeVal := map[string]interface{}{"store1": "storekey11"}
-	TheKVStore.PutAll(storeVal)
-	actualStoreJson, err := TheKVStore.GetAllJson()
+	kvstore.PutAll(storeVal)
+	actualStoreJson, err := kvstore.GetAllJson()
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"storekey11"}`, actualStoreJson)
 }
 
 func TestKVStore_PutAllAsJsonGetAll(t *testing.T) {
 	storeVal := map[string]interface{}{"store1": "storeval1", "storekey12": "storeval2"}
-	CreateTheStore()
-	allJson, err := TheKVStore.GetAllJson()
+	kvstore := createInMemoryStore()
+	allJson, err := kvstore.GetAllJson()
 	assert.NoError(t, err)
 	assert.Equal(t, "{}", allJson)
-	err = TheKVStore.PutAllJson(`{"store1": "storeval1", "storekey12": "storeval2"}`)
+	err = kvstore.PutAllJson(`{"store1": "storeval1", "storekey12": "storeval2"}`)
 	assert.NoError(t, err)
-	assert.Equal(t, storeVal, TheKVStore.GetAll())
+	assert.Equal(t, storeVal, kvstore.GetAll())
 }
 
 func TestKVStore_GetPut(t *testing.T) {
-	CreateTheStore()
-	key := utils.RandString(10)
-	store := TheKVStore.Get(key)
+	kvstore := createInMemoryStore()
+	key := randString(10)
+	store := kvstore.Get(key)
 	assert.Empty(t, store)
 	storeVal := map[string]interface{}{"store1": "storeval11", "store2": "storeval11"}
-	TheKVStore.Put(key, &storeVal)
-	assert.Equal(t, &storeVal, TheKVStore.Get(key))
+	kvstore.Put(key, &storeVal)
+	assert.Equal(t, &storeVal, kvstore.Get(key))
 }
 
 func TestKVStore_PutGetJson(t *testing.T) {
-	CreateTheStore()
-	key := utils.RandString(10)
-	store := TheKVStore.Get(key)
+	kvstore := createInMemoryStore()
+	key := randString(10)
+	store := kvstore.Get(key)
 	assert.Empty(t, store)
 	storeVal := map[string]interface{}{"store1": "storeval11", "store2": "storeval11"}
-	TheKVStore.Put(key, &storeVal)
-	storeJson, err := TheKVStore.GetAsJson(key)
+	kvstore.Put(key, &storeVal)
+	storeJson, err := kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"storeval11","store2":"storeval11"}`, storeJson)
 }
 
 func TestKVStore_PutJsonGet(t *testing.T) {
-	CreateTheStore()
-	key := utils.RandString(10)
-	store := TheKVStore.Get(key)
+	kvstore := createInMemoryStore()
+	key := randString(10)
+	store := kvstore.Get(key)
 	assert.Empty(t, store)
 	storeVal := map[string]interface{}{"store1": "storeval11", "store2": "storeval11"}
-	err := TheKVStore.PutAsJson(key, `{"store1":"storeval11","store2":"storeval11"}`)
+	err := kvstore.PutAsJson(key, `{"store1":"storeval11","store2":"storeval11"}`)
 	assert.NoError(t, err)
-	assert.Equal(t, storeVal, TheKVStore.Get(key))
-
+	assert.Equal(t, storeVal, kvstore.Get(key))
 }
 
 const bookstore = `
@@ -126,124 +130,134 @@ const bookstore = `
 `
 
 func TestKVStore_Lookup(t *testing.T) {
-	CreateTheStoreWithLog()
+	kvstore := createInMemoryStore()
 	key := "bookstore"
-	store := TheKVStore.Get(key)
+	store := kvstore.Get(key)
 	assert.Empty(t, store)
-	err := TheKVStore.PutAsJson(key, bookstore)
+	err := kvstore.PutAsJson(key, bookstore)
 	assert.NoError(t, err)
 
-	res, err := TheKVStore.LookUp(key, `$.expensive`)
+	res, err := kvstore.LookUp(key, `$.expensive`)
 	assert.NoError(t, err)
 	assert.Equal(t, float64(10), res)
 
-	res, err = TheKVStore.LookUp(key, `$.store.book[0].price`)
+	res, err = kvstore.LookUp(key, `$.store.book[0].price`)
 	assert.NoError(t, err)
 	assert.Equal(t, float64(8.95), res)
 
-	res, err = TheKVStore.LookUp(key, `$.store.book[-1].isbn`)
+	res, err = kvstore.LookUp(key, `$.store.book[-1].isbn`)
 	assert.NoError(t, err)
 	assert.Equal(t, "0-395-19395-8", res)
 
-	res, err = TheKVStore.LookUp(key, `$.store.book[0,1].price`)
+	res, err = kvstore.LookUp(key, `$.store.book[0,1].price`)
 	assert.NoError(t, err)
 	assert.Equal(t, []interface{}{float64(8.95), float64(12.99)}, res)
 
-	res, err = TheKVStore.LookUp(key, `$.store.book[0:2].price`)
+	res, err = kvstore.LookUp(key, `$.store.book[0:2].price`)
 	assert.NoError(t, err)
 	assert.Equal(t, []interface{}{float64(8.95), float64(12.99), float64(8.99)}, res)
 
-	res, err = TheKVStore.LookUp(key, `$.store.book[?(@.isbn)].price`)
+	res, err = kvstore.LookUp(key, `$.store.book[?(@.isbn)].price`)
 	assert.NoError(t, err)
 	assert.Equal(t, []interface{}{float64(8.99), float64(22.99)}, res)
 
-	res, err = TheKVStore.LookUp(key, `$.store.book[?(@.price > 10)].title`)
+	res, err = kvstore.LookUp(key, `$.store.book[?(@.price > 10)].title`)
 	assert.NoError(t, err)
 	assert.Equal(t, []interface{}{"Sword of Honour", "The Lord of the Rings"}, res)
 
 	jsonPath := `$.store.book[?(@.author =~ /(?i).*REES/)].author`
-	res, err = TheKVStore.LookUp(key, jsonPath)
+	res, err = kvstore.LookUp(key, jsonPath)
 	assert.NoError(t, err)
 	assert.Equal(t, []interface{}{"Nigel Rees"}, res)
-	resJson, err := TheKVStore.LookUpJson(key, jsonPath)
+	resJson, err := kvstore.LookUpJson(key, jsonPath)
 	assert.NoError(t, err)
 	assert.Equal(t, `["Nigel Rees"]`, resJson)
 
 }
 
 func TestKVStore_PatchAdd(t *testing.T) {
-	CreateTheStoreWithLog()
-	key := utils.RandString(10)
-	store := TheKVStore.Get(key)
+	kvstore := createInMemoryStore()
+	key := randString(10)
+	store := kvstore.Get(key)
 	assert.Empty(t, store)
 	storeVal := map[string]interface{}{"store1": "val1", "store2": "val2"}
-	TheKVStore.Put(key, &storeVal)
+	kvstore.Put(key, &storeVal)
 
-	err := TheKVStore.PatchAdd(key, "/store1", "val1patched")
+	err := kvstore.PatchAdd(key, "/store1", "val1patched")
 	assert.NoError(t, err)
-	storeJson, err := TheKVStore.GetAsJson(key)
+	storeJson, err := kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1patched","store2":"val2"}`, storeJson)
 
-	err = TheKVStore.PatchAdd(key, "/store3", "val3patched")
+	err = kvstore.PatchAdd(key, "/store3", "val3patched")
 	assert.NoError(t, err)
-	storeJson, err = TheKVStore.GetAsJson(key)
+	storeJson, err = kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched"}`, storeJson)
 
-	err = TheKVStore.PatchAdd(key, "/store4", `["val41"]`)
+	err = kvstore.PatchAdd(key, "/store4", `["val41"]`)
 	assert.NoError(t, err)
-	storeJson, err = TheKVStore.GetAsJson(key)
+	storeJson, err = kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41"]}`, storeJson)
 
-	err = TheKVStore.PatchAdd(key, "/store4/1", "val42")
+	err = kvstore.PatchAdd(key, "/store4/1", "val42")
 	assert.NoError(t, err)
-	storeJson, err = TheKVStore.GetAsJson(key)
+	storeJson, err = kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42"]}`, storeJson)
 
-	err = TheKVStore.PatchAdd(key, "/store4/2", `{ "key43" : "val43" }`)
+	err = kvstore.PatchAdd(key, "/store4/2", `{ "key43" : "val43" }`)
 	assert.NoError(t, err)
-	storeJson, err = TheKVStore.GetAsJson(key)
+	storeJson, err = kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42",{"key43":"val43"}]}`, storeJson)
 
-	err = TheKVStore.PatchAdd(key, "/store4/-", "key44")
+	err = kvstore.PatchAdd(key, "/store4/-", "key44")
 	assert.NoError(t, err)
-	storeJson, err = TheKVStore.GetAsJson(key)
+	storeJson, err = kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42",{"key43":"val43"},"key44"]}`, storeJson)
 }
 
 func TestKVStore_PatchRemove(t *testing.T) {
-	CreateTheStoreWithLog()
-	key := utils.RandString(10)
+	kvstore := createInMemoryStore()
+	key := randString(10)
 	storeVal := map[string]interface{}{"store1": "val1", "store2": "val2"}
-	TheKVStore.Put(key, &storeVal)
-	storeJson, err := TheKVStore.GetAsJson(key)
+	kvstore.Put(key, &storeVal)
+	storeJson, err := kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1","store2":"val2"}`, storeJson)
 
-	err = TheKVStore.PatchRemove(key, "/store1")
+	err = kvstore.PatchRemove(key, "/store1")
 	assert.NoError(t, err)
-	storeJson, err = TheKVStore.GetAsJson(key)
+	storeJson, err = kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store2":"val2"}`, storeJson)
 }
 
 func TestKVStore_PatchReplace(t *testing.T) {
-	CreateTheStoreWithLog()
-	key := utils.RandString(10)
+	kvstore := createInMemoryStore()
+	key := randString(10)
 	storeVal := map[string]interface{}{"store1": "val1", "store2": "val2"}
-	TheKVStore.Put(key, &storeVal)
-	storeJson, err := TheKVStore.GetAsJson(key)
+	kvstore.Put(key, &storeVal)
+	storeJson, err := kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1","store2":"val2"}`, storeJson)
 
-	err = TheKVStore.PatchReplace(key, "/store1", `"replacedvalue"`)
+	err = kvstore.PatchReplace(key, "/store1", `"replacedvalue"`)
 	assert.NoError(t, err)
-	storeJson, err = TheKVStore.GetAsJson(key)
+	storeJson, err = kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"replacedvalue","store2":"val2"}`, storeJson)
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func randString(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
+	}
+	return string(b)
 }

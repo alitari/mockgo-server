@@ -1,7 +1,8 @@
-package mock
+package router
 
 import (
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alitari/mockgo-server/internal/kvstore"
-	"github.com/alitari/mockgo-server/internal/model"
-	"github.com/alitari/mockgo-server/internal/utils"
+	"github.com/alitari/mockgo/kvstore"
+	"github.com/alitari/mockgo/logging"
+	"github.com/alitari/mockgo/model"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,7 +45,7 @@ type renderingTestCase struct {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(utils.RunAndCheckCoverage("mockrouter", m, 0.65))
+	os.Exit(runAndCheckCoverage("mockrouter", m, 0.65))
 }
 
 func TestMatchRequestToEndpoint_MatchMinmaxMocks(t *testing.T) {
@@ -374,9 +375,28 @@ func assertMismatchRequestToEndpoint(t *testing.T, mockRouter *MockRouter, testC
 }
 
 func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, mismatchesCountOnly bool) *MockRouter {
-	mockRouter := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, 0, kvstore.TheKVStore, matchesCountOnly, mismatchesCountOnly, proxyConfigRouterPath, -1, httpClientTimeout, utils.NewLoggerUtil(utils.Debug))
+	mockRouter := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, 0, createInMemoryStore(), matchesCountOnly, mismatchesCountOnly, proxyConfigRouterPath, "", httpClientTimeout, logging.NewLoggerUtil(logging.Debug))
 	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	err := mockRouter.LoadFiles(nil)
 	assert.NoError(t, err)
 	return mockRouter
+}
+
+func createInMemoryStore() *kvstore.KVStoreJSON {
+	kvstoreImpl := kvstore.NewKVStoreInMemory()
+	return kvstore.NewKVStoreJSON(&kvstoreImpl, true)
+}
+
+func runAndCheckCoverage(testPackage string, m *testing.M, treshold float64) int {
+
+	code := m.Run()
+	
+	if code == 0 && testing.CoverMode() != "" {
+		coverage := testing.Coverage()
+		if coverage < treshold {
+			log.Printf("%s tests passed, but coverage must be above %2.2f%%, but it is %2.2f%%\n", testPackage, treshold*100, coverage*100)
+			code = -1
+		}
+	}
+	return code
 }

@@ -5,7 +5,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/alitari/mockgo-server/internal/model"
+	"github.com/alitari/mockgo/model"
 )
 
 func CommonTemplateFuncMap() template.FuncMap {

@@ -10,12 +10,19 @@ import (
 	jsonpath "github.com/oliveagle/jsonpath"
 )
 
-type KVStore struct {
-	log   bool
-	store map[string]interface{}
+type KVStore interface {
+	GetVal(key string) interface{}
+	PutVal(key string, storeVal interface{})
+	GetAll() map[string]interface{}
+	PutAll(content map[string]interface{})
 }
 
-var TheKVStore *KVStore
+
+
+type KVStoreJSON struct {
+	log   bool
+	store KVStore
+}
 
 type PatchOp int64
 
@@ -37,22 +44,35 @@ func (pop PatchOp) String() string {
 	return "unknown"
 }
 
-func CreateTheStore() *KVStore {
-	TheKVStore = NewStore()
-	return TheKVStore
+type KVStoreInMemory struct {
+	store map[string]interface{}
 }
 
-func CreateTheStoreWithLog() *KVStore {
-	CreateTheStore()
-	TheKVStore.log = true
-	return TheKVStore
+func (s *KVStoreInMemory) GetVal(key string) interface{} {
+	return s.store[key]
 }
 
-func NewStore() *KVStore {
-	return &KVStore{store: map[string]interface{}{}}
+func (s *KVStoreInMemory) PutVal(key string, storeVal interface{}) {
+	s.store[key] = storeVal
 }
 
-func (s *KVStore) PutAsJson(key, jsonStr string) error {
+func (s *KVStoreInMemory) GetAll() map[string]interface{} {
+	return s.store
+}
+
+func (s *KVStoreInMemory) PutAll(content map[string]interface{}) {
+	s.store = content
+}
+
+func NewKVStoreInMemory() KVStoreInMemory {
+	return KVStoreInMemory{store: map[string]interface{}{}}
+}
+
+func NewKVStoreJSON(kvStore KVStore, log bool) *KVStoreJSON {
+	return &KVStoreJSON{store: kvStore, log: log}
+}
+
+func (s *KVStoreJSON) PutAsJson(key, jsonStr string) error {
 	var storeVal interface{}
 	err := json.Unmarshal([]byte(jsonStr), &storeVal)
 	if err != nil {
@@ -62,15 +82,15 @@ func (s *KVStore) PutAsJson(key, jsonStr string) error {
 	return nil
 }
 
-func (s *KVStore) Get(key string) interface{} {
-	return s.store[key]
+func (s *KVStoreJSON) Get(key string) interface{} {
+	return s.store.GetVal(key)
 }
 
-func (s *KVStore) Put(key string, storeVal interface{}) {
-	s.store[key] = storeVal
+func (s *KVStoreJSON) Put(key string, storeVal interface{}) {
+	s.store.PutVal(key, storeVal)
 }
 
-func (s *KVStore) GetAsJson(key string) (string, error) {
+func (s *KVStoreJSON) GetAsJson(key string) (string, error) {
 	storeVal := s.Get(key)
 	storeJson, err := json.Marshal(storeVal)
 	if err != nil {
@@ -79,15 +99,15 @@ func (s *KVStore) GetAsJson(key string) (string, error) {
 	return string(storeJson), nil
 }
 
-func (s *KVStore) GetAll() map[string]interface{} {
-	return s.store
+func (s *KVStoreJSON) GetAll() map[string]interface{} {
+	return s.store.GetAll()
 }
 
-func (s *KVStore) PutAll(content map[string]interface{}) {
-	s.store = content
+func (s *KVStoreJSON) PutAll(content map[string]interface{}) {
+	s.store.PutAll(content)
 }
 
-func (s *KVStore) PutAllJson(allStoreJson string) error {
+func (s *KVStoreJSON) PutAllJson(allStoreJson string) error {
 	allStoreVal := &map[string]interface{}{}
 	err := json.Unmarshal([]byte(allStoreJson), allStoreVal)
 	if err != nil {
@@ -97,7 +117,7 @@ func (s *KVStore) PutAllJson(allStoreJson string) error {
 	return nil
 }
 
-func (s *KVStore) GetAllJson() (string, error) {
+func (s *KVStoreJSON) GetAllJson() (string, error) {
 	storeVal := s.GetAll()
 	storeJson, err := json.Marshal(storeVal)
 	if err != nil {
@@ -106,22 +126,22 @@ func (s *KVStore) GetAllJson() (string, error) {
 	return string(storeJson), nil
 }
 
-func (s *KVStore) PatchAdd(key, path, value string) error {
-	if !strings.HasPrefix(value, "{") && !strings.HasPrefix(value, "[")  {
+func (s *KVStoreJSON) PatchAdd(key, path, value string) error {
+	if !strings.HasPrefix(value, "{") && !strings.HasPrefix(value, "[") {
 		value = "\"" + value + "\""
 	}
 	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s","value": %s}]`, Add.String(), path, value))
 }
 
-func (s *KVStore) PatchRemove(key, path string) error {
+func (s *KVStoreJSON) PatchRemove(key, path string) error {
 	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s"}]`, Remove.String(), path))
 }
 
-func (s *KVStore) PatchReplace(key, path, value string) error {
+func (s *KVStoreJSON) PatchReplace(key, path, value string) error {
 	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s","value": %s}]`, Replace.String(), path, value))
 }
 
-func (s *KVStore) patch(key, patchJson string) error {
+func (s *KVStoreJSON) patch(key, patchJson string) error {
 	s.logStr("patchJson=" + patchJson)
 	patch, err := jsonpatch.DecodePatch([]byte(patchJson))
 	if err != nil {
@@ -144,7 +164,7 @@ func (s *KVStore) patch(key, patchJson string) error {
 	return nil
 }
 
-func (s *KVStore) LookUp(key, jsonPath string) (interface{}, error) {
+func (s *KVStoreJSON) LookUp(key, jsonPath string) (interface{}, error) {
 	s.logStr("jsonpath=" + jsonPath)
 	res, err := jsonpath.JsonPathLookup(s.Get(key), jsonPath)
 	if err != nil {
@@ -153,7 +173,7 @@ func (s *KVStore) LookUp(key, jsonPath string) (interface{}, error) {
 	return res, nil
 }
 
-func (s *KVStore) LookUpJson(key, jsonPath string) (string, error) {
+func (s *KVStoreJSON) LookUpJson(key, jsonPath string) (string, error) {
 	res, err := s.LookUp(key, jsonPath)
 	if err != nil {
 		return "", err
@@ -166,7 +186,7 @@ func (s *KVStore) LookUpJson(key, jsonPath string) (string, error) {
 	return string(resJson), nil
 }
 
-func (s *KVStore) logStr(message string) {
+func (s *KVStoreJSON) logStr(message string) {
 	if s.log {
 		log.Print(message)
 	}

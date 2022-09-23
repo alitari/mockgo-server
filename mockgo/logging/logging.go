@@ -1,4 +1,4 @@
-package utils
+package logging
 
 import (
 	"bytes"
@@ -128,11 +128,4 @@ func (lrw *LoggingResponseWriter) Log() {
 	}
 }
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-func Min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

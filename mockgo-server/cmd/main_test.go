@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,11 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alitari/mockgo-server/internal/config"
-	"github.com/alitari/mockgo-server/internal/kvstore"
-	"github.com/alitari/mockgo-server/internal/mock"
-	"github.com/alitari/mockgo-server/internal/model"
-	"github.com/alitari/mockgo-server/internal/utils"
+	"github.com/alitari/mockgo-server/config"
+	"github.com/alitari/mockgo/model"
+	"github.com/alitari/mockgo/router"
 	"github.com/go-http-utils/headers"
 	"github.com/stretchr/testify/assert"
 )
@@ -23,17 +22,17 @@ import (
 var httpClient = http.Client{Timeout: time.Duration(1) * time.Second}
 var clusterSize = 2
 var startPort = 8080
-var configPassword = utils.RandString(10)
+var configPassword = randString(10)
 
-var mockRouters []*mock.MockRouter
+var mockRouters []*router.MockRouter
 var configRouters []*config.ConfigRouter
 
 var configRouterChan = make(chan *config.ConfigRouter)
-var mockRouterChan = make(chan *mock.MockRouter)
+var mockRouterChan = make(chan *router.MockRouter)
 
 func TestMain(m *testing.M) {
 	startCluster()
-	code := utils.RunAndCheckCoverage("main", m, 0.65)
+	code := config.RunAndCheckCoverage("main", m, 0.65)
 	stopCluster()
 	os.Exit(code)
 }
@@ -42,45 +41,45 @@ func TestMain_health(t *testing.T) {
 	requestToAllNodes(t, true, http.MethodGet, "/health", map[string][]string{}, "", http.StatusOK, nil)
 }
 
-func TestMain_configOverProxy_health(t *testing.T) {
-	requestToNode(t, 0, false, http.MethodGet, "/__/health", map[string][]string{}, "", http.StatusOK, nil)
-}
+// func TestMain_configOverProxy_health(t *testing.T) {
+// 	requestToNode(t, 0, false, http.MethodGet, "/__/health", map[string][]string{}, "", http.StatusOK, nil)
+// }
 
 func TestMain_serverid(t *testing.T) {
-	requestToAllNodes(t, true, http.MethodGet, "/id", map[string][]string{headers.Accept: {"application/text"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, nil)
+	requestToAllNodes(t, true, http.MethodGet, "/id", map[string][]string{headers.Accept: {"application/text"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, nil)
 }
 
 func TestMain_setgetKvStore(t *testing.T) {
-	requestToNode(t, 0, true, http.MethodPut, "/kvstore/store1", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, `{ "mykey1": "myvalue1" }`, http.StatusNoContent, nil)
-	requestToAllNodes(t, true, http.MethodGet, "/kvstore/store1", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodPut, "/kvstore/store1", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, `{ "mykey1": "myvalue1" }`, http.StatusNoContent, nil)
+	requestToAllNodes(t, true, http.MethodGet, "/kvstore/store1", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{\"mykey1\":\"myvalue1\"}", responseBody)
 	})
 }
 
 func TestMain_uploadKvStore(t *testing.T) {
 	// delete kv store for all
-	requestToAllNodes(t, true, http.MethodPut, "/kvstore", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "{}", http.StatusNoContent, nil)
+	requestToAllNodes(t, true, http.MethodPut, "/kvstore", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "{}", http.StatusNoContent, nil)
 
 	kvstore := `{"store1":{"mykey":"myvalue"}}`
-	requestToNode(t, 0, true, http.MethodPut, "/kvstore", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, kvstore, http.StatusNoContent, nil)
-	requestToNode(t, 0, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodPut, "/kvstore", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, kvstore, http.StatusNoContent, nil)
+	requestToNode(t, 0, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, kvstore, responseBody)
 	})
 	// upload kvstore not advertised
-	requestToNode(t, 1, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 1, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{}", responseBody)
 	})
 	stopNode(1)
 	startNode(1)
 	time.Sleep(100 * time.Millisecond)
 	// kvstore synced from node 0 at boot time
-	requestToNode(t, 1, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 1, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, kvstore, responseBody)
 	})
 }
 func TestMain_getMatches(t *testing.T) {
 	// get matches
-	requestToNode(t, 0, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{}", responseBody)
 	})
 	// mock request
@@ -116,13 +115,13 @@ func TestMain_getMatches(t *testing.T) {
 			assert.Equal(t, int64(1), matchesCount)
 		}
 	}
-	requestToAllNodes(t, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, assertMatchesResponsesFunc)
+	requestToAllNodes(t, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, assertMatchesResponsesFunc)
 
-	requestToNode(t, 0, true, http.MethodDelete, "/matches", map[string][]string{headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodDelete, "/matches", map[string][]string{headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Empty(t, responseBody)
 	})
 
-	requestToAllNodes(t, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToAllNodes(t, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, "{}", responseBody)
 	})
 
@@ -130,7 +129,7 @@ func TestMain_getMatches(t *testing.T) {
 
 func TestMain_getMismatches(t *testing.T) {
 	// get mismatches
-	requestToNode(t, 0, true, http.MethodGet, "/mismatches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodGet, "/mismatches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		if os.Getenv("MISMATCHES_COUNT_ONLY") == "false" {
 			assert.Equal(t, "[]", responseBody)
 		} else {
@@ -166,13 +165,13 @@ func TestMain_getMismatches(t *testing.T) {
 			assert.Equal(t, int64(1), mismatchesCountData)
 		}
 	}
-	requestToAllNodes(t, true, http.MethodGet, "/mismatches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, assertMismatchesResponsesFunc)
+	requestToAllNodes(t, true, http.MethodGet, "/mismatches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, assertMismatchesResponsesFunc)
 
-	requestToNode(t, 0, true, http.MethodDelete, "/mismatches", map[string][]string{headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToNode(t, 0, true, http.MethodDelete, "/mismatches", map[string][]string{headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Empty(t, responseBody)
 	})
 
-	requestToAllNodes(t, true, http.MethodGet, "/mismatches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToAllNodes(t, true, http.MethodGet, "/mismatches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		if os.Getenv("MISMATCHES_COUNT_ONLY") == "false" {
 			assert.Equal(t, "[]", responseBody)
 		} else {
@@ -183,7 +182,7 @@ func TestMain_getMismatches(t *testing.T) {
 }
 
 func TestMain_transferMatches(t *testing.T) {
-	header := map[string][]string{config.NoAdvertiseHeader: {"true"}, headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}
+	header := map[string][]string{config.NoAdvertiseHeader: {"true"}, headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}
 	assertMatchesCount := func(node, expectedCount int) {
 		requestToNode(t, node, true, http.MethodGet, "/matches", header, "", http.StatusOK, func(responseBody string) {
 			if os.Getenv("MATCHES_COUNT_ONLY") == "false" {
@@ -270,7 +269,7 @@ func TestMain_templateFunctionsKVStore(t *testing.T) {
 	})
 
 	// get kvstore with the config api
-	requestToAllNodes(t, true, http.MethodGet, "/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToAllNodes(t, true, http.MethodGet, "/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, `{"mainTest1":"mainTest1Value"}`, responseBody)
 	})
 	// get kvstore with a template func
@@ -296,7 +295,7 @@ func TestMain_templateFunctionsKVStore(t *testing.T) {
 	})
 
 	// get kvstore with the config api
-	requestToAllNodes(t, true, http.MethodGet, "/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToAllNodes(t, true, http.MethodGet, "/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, `{"mainTest1":"mainTest1Value","mainTest2":"mainTest2Value"}`, responseBody)
 	})
 
@@ -312,7 +311,7 @@ func TestMain_templateFunctionsKVStore(t *testing.T) {
 	})
 
 	// get kvstore with the config api
-	requestToAllNodes(t, true, http.MethodGet, "/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {utils.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+	requestToAllNodes(t, true, http.MethodGet, "/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
 		assert.Equal(t, `{"mainTest1":"","mainTest2":"mainTest2Value"}`, responseBody)
 	})
 
@@ -407,17 +406,26 @@ func serveNode(nodeNr int) {
 	os.Setenv("MOCK_PORT", strconv.Itoa(mockPort))
 	os.Setenv("CONFIG_PORT", strconv.Itoa(configPort))
 	os.Setenv("CONFIG_PASSWORD", configPassword)
-	os.Setenv("MOCK_DIR", "../test/main")
-	os.Setenv("RESPONSE_DIR", "../test/main/responses")
+	os.Setenv("MOCK_DIR", "../../test/main")
+	os.Setenv("RESPONSE_DIR", "../../test/main/responses")
 	os.Setenv("CLUSTER_URLS", getClusterUrls())
 	os.Setenv("MATCHES_COUNT_ONLY", "false")
 	os.Setenv("MISMATCHES_COUNT_ONLY", "false")
 
-	mockRouter, configRouter := createRouters(kvstore.CreateTheStore())
+	mockRouter, configRouter := createRouters(createInMemoryStore())
 	mockRouterChan <- mockRouter
 	configRouterChan <- configRouter
 	go startServe(configRouter)
 	startServe(mockRouter)
 }
 
-// func stopNode() {
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func randString(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
+	}
+	return string(b)
+}
+

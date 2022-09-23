@@ -9,11 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/alitari/mockgo-server/internal/config"
-	"github.com/alitari/mockgo-server/internal/kvstore"
-	"github.com/alitari/mockgo-server/internal/mock"
-	"github.com/alitari/mockgo-server/internal/model"
-	"github.com/alitari/mockgo-server/internal/utils"
+	"github.com/alitari/mockgo-server/config"
+	"github.com/alitari/mockgo/kvstore"
+	"github.com/alitari/mockgo/logging"
+	"github.com/alitari/mockgo/model"
+	"github.com/alitari/mockgo/router"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -26,21 +26,20 @@ const banner = `
 `
 
 type Configuration struct {
-	LoglevelConfig        int           `default:"1" split_words:"true"`
-	LoglevelMock          int           `default:"1" split_words:"true"`
-	ConfigPort            int           `default:"8080" split_words:"true"`
-	ConfigUsername        string        `default:"mockgo" split_words:"true"`
-	ConfigPassword        string        `default:"password" split_words:"true"`
-	MockPort              int           `default:"8081" split_words:"true"`
-	MockDir               string        `default:"." split_words:"true"`
-	MockFilepattern       string        `default:"*-mock.*" split_words:"true"`
-	MatchesCountOnly      bool          `default:"true" split_words:"true"`
-	MismatchesCountOnly   bool          `default:"true" split_words:"true"`
-	ResponseDir           string        `default:"./responses" split_words:"true"`
-	ClusterUrls           []string      `default:"" split_words:"true"`
-	ClusterPodLabelValue  string        `default:"" split_words:"true"`
-	HttpClientTimeout     time.Duration `default:"1s" split_words:"true"`
-	ProxyConfigRouterPath string        `default:"" split_words:"true"`
+	LoglevelConfig       int           `default:"1" split_words:"true"`
+	LoglevelMock         int           `default:"1" split_words:"true"`
+	ConfigPort           int        `default:"8080" split_words:"true"`
+	ConfigUsername       string        `default:"mockgo" split_words:"true"`
+	ConfigPassword       string        `default:"password" split_words:"true"`
+	MockPort             int           `default:"8081" split_words:"true"`
+	MockDir              string        `default:"." split_words:"true"`
+	MockFilepattern      string        `default:"*-mock.*" split_words:"true"`
+	MatchesCountOnly     bool          `default:"true" split_words:"true"`
+	MismatchesCountOnly  bool          `default:"true" split_words:"true"`
+	ResponseDir          string        `default:"./responses" split_words:"true"`
+	ClusterUrls          []string      `default:"" split_words:"true"`
+	ClusterPodLabelValue string        `default:"" split_words:"true"`
+	HttpClientTimeout    time.Duration `default:"1s" split_words:"true"`
 }
 
 func (c *Configuration) validateAndFix() *Configuration {
@@ -83,14 +82,14 @@ Cluster:
   ClusterUrls: %v
   HttpClient timeout: '%v'
   ClusterPodLabelValue: '%s'
-  ProxyConfigRouterPath: '%s'`,
-		c.ConfigPort, c.ConfigUsername, passwordMessage, utils.ParseLogLevel(c.LoglevelConfig).String(),
-		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, utils.ParseLogLevel(c.LoglevelMock).String(),
+`,
+		c.ConfigPort, c.ConfigUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelConfig).String(),
+		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, logging.ParseLogLevel(c.LoglevelMock).String(),
 		c.MatchesCountOnly, c.MismatchesCountOnly,
-		clusterSetup.String(), c.ClusterUrls, c.HttpClientTimeout, c.ClusterPodLabelValue, c.ProxyConfigRouterPath)
+		clusterSetup.String(), c.ClusterUrls, c.HttpClientTimeout, c.ClusterPodLabelValue)
 }
 
-func sigtermListener(mockRouter *mock.MockRouter, configRouter *config.ConfigRouter, loggerUtil *utils.LoggerUtil) {
+func sigtermListener(mockRouter *router.MockRouter, configRouter *config.ConfigRouter, loggerUtil *logging.LoggerUtil) {
 	loggerUtil.LogWhenVerbose("Listening shutdown signals...")
 	c := make(chan os.Signal, 1) // we need to reserve to buffer size 1, so the notifier are not blocked
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -107,17 +106,17 @@ func sigtermListener(mockRouter *mock.MockRouter, configRouter *config.ConfigRou
 }
 
 func main() {
-	mockRouter, configRouter := createRouters(kvstore.CreateTheStore())
+	mockRouter, configRouter := createRouters(createInMemoryStore())
 	go startServe(configRouter)
 	startServe(mockRouter)
 }
 
-func createRouters(kvstore *kvstore.KVStore) (*mock.MockRouter, *config.ConfigRouter) {
+func createRouters(kvstore *kvstore.KVStoreJSON) (*router.MockRouter, *config.ConfigRouter) {
 	configuration := createConfiguration().validateAndFix()
 
-	configLogger := utils.NewLoggerUtil(utils.ParseLogLevel(configuration.LoglevelConfig))
+	configLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelConfig))
 	configLogger.LogPlain(banner + configuration.info())
-	mockRouter := createMockRouter(configuration, kvstore, utils.NewLoggerUtil(utils.ParseLogLevel(configuration.LoglevelMock)))
+	mockRouter := createMockRouter(configuration, kvstore, logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMock)))
 	configRouter := createConfigRouter(configuration, mockRouter, kvstore, configLogger)
 	err := mockRouter.LoadFiles(configRouter.TemplateFuncMap())
 	if err != nil {
@@ -136,14 +135,14 @@ func createConfiguration() *Configuration {
 	return &configuration
 }
 
-func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStore, logger *utils.LoggerUtil) *mock.MockRouter {
-	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir,
+func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStoreJSON, logger *logging.LoggerUtil) *router.MockRouter {
+	mockRouter := router.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir,
 		configuration.MockPort, kvstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly,
-		configuration.ProxyConfigRouterPath, configuration.ConfigPort, configuration.HttpClientTimeout, logger)
+		"", "", configuration.HttpClientTimeout, logger)
 	return mockRouter
 }
 
-func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, kvStore *kvstore.KVStore, logger *utils.LoggerUtil) *config.ConfigRouter {
+func createConfigRouter(configuration *Configuration, mockRouter *router.MockRouter, kvStore *kvstore.KVStoreJSON, logger *logging.LoggerUtil) *config.ConfigRouter {
 	configRouter := config.NewConfigRouter(configuration.ConfigUsername, configuration.ConfigPassword, mockRouter,
 		configuration.ConfigPort, configuration.ClusterUrls, configuration.ClusterPodLabelValue, kvStore, configuration.HttpClientTimeout, logger)
 	err := configRouter.DownloadKVStoreFromCluster()
@@ -154,7 +153,7 @@ func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRoute
 }
 
 func startServe(serving model.Serving) error {
-	serving.Logger().LogPlain(fmt.Sprintf("Serving %s on port %v", serving.Name(), serving.Port()))
+	log.Printf("Serving %s on port %v", serving.Name(), serving.Port())
 	s := serving.Server()
 	err := s.ListenAndServe()
 	if err != nil {
@@ -164,10 +163,15 @@ func startServe(serving model.Serving) error {
 }
 
 func stopServe(serving model.Serving) {
-	serving.Logger().LogPlain(fmt.Sprintf("Stop Serving %s on port %d", serving.Name(), serving.Port()))
+	log.Printf("Stop Serving %s on port %d", serving.Name(), serving.Port())
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := serving.Server().Shutdown(ctx); err != nil {
 		log.Fatalf("Can't stop server %v", err)
 	}
+}
+
+func createInMemoryStore() *kvstore.KVStoreJSON {
+	kvstoreImpl := kvstore.NewKVStoreInMemory()
+	return kvstore.NewKVStoreJSON(&kvstoreImpl, true)
 }

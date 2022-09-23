@@ -6,16 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/alitari/mockgo-server/internal/kvstore"
-	"github.com/alitari/mockgo-server/internal/mock"
-	"github.com/alitari/mockgo-server/internal/model"
-	"github.com/alitari/mockgo-server/internal/utils"
+	"github.com/alitari/mockgo/kvstore"
+	"github.com/alitari/mockgo/logging"
+	"github.com/alitari/mockgo/model"
+	"github.com/alitari/mockgo/router"
 	"github.com/google/uuid"
 
 	"github.com/go-http-utils/headers"
@@ -58,7 +57,7 @@ func (c ClusterSetup) String() string {
 }
 
 type ConfigRouter struct {
-	mockRouter           *mock.MockRouter
+	mockRouter           *router.MockRouter
 	router               *mux.Router
 	server               *http.Server
 	port                 int
@@ -66,8 +65,8 @@ type ConfigRouter struct {
 	clusterSetup         ClusterSetup
 	clusterUrls          []string
 	clusterPodLabelValue string
-	logger               *utils.LoggerUtil
-	kvstore              *kvstore.KVStore
+	logger               *logging.LoggerUtil
+	kvstore              *kvstore.KVStoreJSON
 	basicAuthUsername    string
 	basicAuthPassword    string
 	transferringMatches  bool
@@ -87,7 +86,7 @@ type RemoveKVStoreRequest struct {
 	Path string `json:"path"`
 }
 
-func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, clusterPodLabelValue string, kvstore *kvstore.KVStore, httpClientTimeout time.Duration, logger *utils.LoggerUtil) *ConfigRouter {
+func NewConfigRouter(username, password string, mockRouter *router.MockRouter, port int, clusterUrls []string, clusterPodLabelValue string, kvstore *kvstore.KVStoreJSON, httpClientTimeout time.Duration, logger *logging.LoggerUtil) *ConfigRouter {
 	configRouter := &ConfigRouter{
 		mockRouter:           mockRouter,
 		port:                 port,
@@ -97,18 +96,12 @@ func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, por
 		id:                   uuid.New().String(),
 		logger:               logger,
 		kvstore:              kvstore,
-		httpClient:           utils.CreateHttpClient(httpClientTimeout),
+		httpClient:           http.Client{Timeout: httpClientTimeout},
 		basicAuthUsername:    username,
 		basicAuthPassword:    password,
 		transferringMatches:  false,
 	}
-	if configRouter.clusterSetup == Dynamic {
-		if err := utils.NewK8sInClusterConfig(); err != nil {
-			log.Fatalf("Could not inialize K8s client")
-		}
-	}
 
-	//time.Sleep(300 * time.Millisecond)
 	configRouter.newRouter()
 	return configRouter
 }
@@ -129,29 +122,25 @@ func (r *ConfigRouter) Port() int {
 	return r.port
 }
 
-func (r *ConfigRouter) Logger() *utils.LoggerUtil {
-	return r.logger
-}
-
 func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
-	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
-	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/text", nil, r.serverId))
-	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
-	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
-	router.NewRoute().Name("addKVStore").Path("/kvstore/{key}/add").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.addKVStore))
-	router.NewRoute().Name("removeKVStore").Path("/kvstore/{key}/remove").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.removeKVStore))
-	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.uploadKVStore))
-	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.downloadKVStore))
-	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
-	router.NewRoute().Name("getMismatches").Path("/mismatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMismatchesFromAll))
-	router.NewRoute().Name("addMatches").Path("/addmatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMatches))
-	router.NewRoute().Name("addMismatches").Path("/addmismatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMismatches))
-	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
-	router.NewRoute().Name("deleteMismatches").Path("/mismatches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMismatchesFromAll))
-	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.transferMatchesHandler))
+	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(requestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
+	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/text", nil, r.serverId))
+	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
+	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
+	router.NewRoute().Name("addKVStore").Path("/kvstore/{key}/add").Methods(http.MethodPost).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.addKVStore))
+	router.NewRoute().Name("removeKVStore").Path("/kvstore/{key}/remove").Methods(http.MethodPost).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.removeKVStore))
+	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.uploadKVStore))
+	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.downloadKVStore))
+	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
+	router.NewRoute().Name("getMismatches").Path("/mismatches").Methods(http.MethodGet).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMismatchesFromAll))
+	router.NewRoute().Name("addMatches").Path("/addmatches").Methods(http.MethodPost).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMatches))
+	router.NewRoute().Name("addMismatches").Path("/addmismatches").Methods(http.MethodPost).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMismatches))
+	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
+	router.NewRoute().Name("deleteMismatches").Path("/mismatches").Methods(http.MethodDelete).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMismatchesFromAll))
+	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(requestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.transferMatchesHandler))
 	var handler http.Handler
-	if r.logger.Level == utils.Debug {
+	if r.logger.Level == logging.Debug {
 		handler = handlers.LoggingHandler(os.Stdout, router)
 	} else {
 		handler = router
@@ -165,20 +154,7 @@ func (r *ConfigRouter) health(writer http.ResponseWriter, request *http.Request)
 }
 
 func (r *ConfigRouter) getClusterUrls() []string {
-	if r.clusterSetup == Dynamic {
-		podIps, err := utils.K8sGetPodsIps(r.clusterPodLabelValue)
-		if err != nil {
-			log.Fatalf("Can't get k8s pods : %v", err)
-		}
-		var clusterUrls []string
-		for _, ip := range podIps {
-			clusterUrl := fmt.Sprintf("http://%s:%d%s", ip, r.mockRouter.Port(), r.mockRouter.ProxyConfigRouterPath)
-			clusterUrls = append(clusterUrls, clusterUrl)
-		}
-		return clusterUrls
-	} else {
-		return r.clusterUrls
-	}
+	return r.clusterUrls
 }
 
 func (r *ConfigRouter) clusterRequest(method, path string, header map[string]string, body string, expectedStatusCode int, continueOnError bool, responseHandler func(clusterUrl, responseBody string) (bool, error)) error {
@@ -196,7 +172,7 @@ func (r *ConfigRouter) clusterRequest(method, path string, header map[string]str
 		for k, v := range header {
 			clusterRequest.Header.Add(k, v)
 		}
-		clusterRequest.Header.Add(headers.Authorization, utils.BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
+		clusterRequest.Header.Add(headers.Authorization, BasicAuth(r.basicAuthUsername, r.basicAuthPassword))
 		r.logger.LogWhenVerbose(fmt.Sprintf("Requesting %s %s to url %s ...", clusterRequest.Method, clusterRequest.URL.String(), clusterUrl))
 		clusterResponse, err := r.httpClient.Do(clusterRequest)
 		if err != nil {
@@ -289,7 +265,7 @@ func (r *ConfigRouter) deleteMismatches() {
 }
 
 func (r *ConfigRouter) downloadKVStore(writer http.ResponseWriter, request *http.Request) {
-	utils.WriteEntity(writer, r.kvstore.GetAll())
+	writeEntity(writer, r.kvstore.GetAll())
 }
 
 func (r *ConfigRouter) uploadKVStore(writer http.ResponseWriter, request *http.Request) {
@@ -310,15 +286,15 @@ func (r *ConfigRouter) getKVStore(writer http.ResponseWriter, request *http.Requ
 	vars := mux.Vars(request)
 	key := vars["key"]
 	val := r.kvstore.Get(key)
-	utils.WriteEntity(writer, val)
+	writeEntity(writer, val)
 }
 
 func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *http.Request) {
 	if r.clusterSetup == Disabled || request.Header.Get(NoAdvertiseHeader) == "true" {
 		if r.mockRouter.MatchesCountOnly {
-			utils.WriteEntity(writer, r.mockRouter.MatchesCount)
+			writeEntity(writer, r.mockRouter.MatchesCount)
 		} else {
-			utils.WriteEntity(writer, r.mockRouter.Matches)
+			writeEntity(writer, r.mockRouter.Matches)
 		}
 	} else {
 		allMatches := make(map[string][]*model.Match)
@@ -351,9 +327,9 @@ func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *ht
 			http.Error(writer, "Problem getting matches: "+err.Error(), http.StatusInternalServerError)
 		} else {
 			if r.mockRouter.MatchesCountOnly {
-				utils.WriteEntity(writer, allMatchesCount)
+				writeEntity(writer, allMatchesCount)
 			} else {
-				utils.WriteEntity(writer, allMatches)
+				writeEntity(writer, allMatches)
 			}
 		}
 	}
@@ -362,9 +338,9 @@ func (r *ConfigRouter) getMatchesFromAll(writer http.ResponseWriter, request *ht
 func (r *ConfigRouter) getMismatchesFromAll(writer http.ResponseWriter, request *http.Request) {
 	if r.clusterSetup == Disabled || request.Header.Get(NoAdvertiseHeader) == "true" {
 		if r.mockRouter.MismatchesCountOnly {
-			utils.WriteEntity(writer, r.mockRouter.MismatchesCount)
+			writeEntity(writer, r.mockRouter.MismatchesCount)
 		} else {
-			utils.WriteEntity(writer, r.mockRouter.Mismatches)
+			writeEntity(writer, r.mockRouter.Mismatches)
 		}
 	} else {
 		allMismatches := []*model.Mismatch{}
@@ -393,9 +369,9 @@ func (r *ConfigRouter) getMismatchesFromAll(writer http.ResponseWriter, request 
 			http.Error(writer, "Problem getting mismatches: "+err.Error(), http.StatusInternalServerError)
 		} else {
 			if r.mockRouter.MismatchesCountOnly {
-				utils.WriteEntity(writer, allMismatchesCount)
+				writeEntity(writer, allMismatchesCount)
 			} else {
-				utils.WriteEntity(writer, allMismatches)
+				writeEntity(writer, allMismatches)
 			}
 		}
 	}

@@ -6,7 +6,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/alitari/mockgo-server/internal/utils"
 	"github.com/gorilla/mux"
 )
 
@@ -15,8 +14,9 @@ type Serving interface {
 	Router() *mux.Router
 	Server() *http.Server
 	Port() int
-	Logger() *utils.LoggerUtil
 }
+
+
 
 type Match struct {
 	EndpointId     string          `json:"endpointId"`
