@@ -51,13 +51,17 @@ func NewLoggerUtil(logLevel LogLevel) *LoggerUtil {
 	return &LoggerUtil{Level: logLevel, logger: log.Default()}
 }
 
-func (l *LoggerUtil) LogAlways(formattedMessage string) {
-	l.logger.Print(formattedMessage)
+func (l *LoggerUtil) LogPlain(formattedMessage string) {
+	l.logger.Printf("%s ", formattedMessage)
+}
+
+func (l *LoggerUtil) LogError(formattedMessage string, err error) {
+	l.logger.Printf("(ERROR) %s : %v", formattedMessage, err)
 }
 
 func (l *LoggerUtil) LogWhenVerbose(formattedMessage string) {
 	if l.Level >= Verbose {
-		l.logger.Print(formattedMessage)
+		l.logger.Printf("(VERBOSE) %s ", formattedMessage)
 	}
 }
 
@@ -88,15 +92,19 @@ func (l *LoggerUtil) callerInfo(skip int) (info string) {
 
 type LoggingResponseWriter struct {
 	http.ResponseWriter
-	buf        *bytes.Buffer
-	loggerUtil *LoggerUtil
+	responseCode int
+	buf          *bytes.Buffer
+	loggerUtil   *LoggerUtil
+	skip         int
 }
 
-func NewLoggingResponseWriter(writer http.ResponseWriter, logger *LoggerUtil) *LoggingResponseWriter {
+func NewLoggingResponseWriter(writer http.ResponseWriter, logger *LoggerUtil, skip int) *LoggingResponseWriter {
 	lrw := &LoggingResponseWriter{
 		ResponseWriter: writer,
 		buf:            &bytes.Buffer{},
 		loggerUtil:     logger,
+		responseCode:   http.StatusOK,
+		skip: skip,
 	}
 	return lrw
 }
@@ -105,9 +113,14 @@ func (lrw *LoggingResponseWriter) Write(p []byte) (int, error) {
 	return lrw.buf.Write(p)
 }
 
+func (lrw *LoggingResponseWriter) WriteHeader(code int) {
+	lrw.responseCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
 func (lrw *LoggingResponseWriter) Log() {
 	if lrw.loggerUtil.Level >= Debug {
-		lrw.loggerUtil.logger.Printf("%s (DEBUG) Sending response:\n%s", lrw.loggerUtil.callerInfo(2), lrw.buf.String())
+		lrw.loggerUtil.logger.Printf("%s (DEBUG) Sending response with status %d :\nbody:'%s'", lrw.loggerUtil.callerInfo(lrw.skip), lrw.responseCode, lrw.buf.String())
 	}
 	_, err := io.Copy(lrw.ResponseWriter, lrw.buf)
 	if err != nil {
@@ -116,8 +129,6 @@ func (lrw *LoggingResponseWriter) Log() {
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-
 
 func Min(a, b int) int {
 	if a < b {

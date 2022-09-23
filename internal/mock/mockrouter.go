@@ -219,7 +219,7 @@ func (r *MockRouter) newRouter() {
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		r.logger.LogIncomingRequest(request)
 		if r.logger.Level >= utils.Debug {
-			writer = utils.NewLoggingResponseWriter(writer, r.logger)
+			writer = utils.NewLoggingResponseWriter(writer, r.logger,2)
 		}
 		if isConfigRequest(request) {
 			r.directToConfigRouter(writer, request)
@@ -413,7 +413,7 @@ func (r *MockRouter) matchBody(matchRequest *model.MatchRequest, request *http.R
 		}
 		reqBodyBytes, err := io.ReadAll(request.Body)
 		if err != nil {
-			r.logger.LogAlways(fmt.Sprintf("No match, error reading request body: %v", err))
+			r.logger.LogError("no match, error reading request body", err)
 			return false
 		}
 		return matchRequest.BodyRegexp.Match(reqBodyBytes)

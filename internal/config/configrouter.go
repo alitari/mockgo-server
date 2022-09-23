@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/go-http-utils/headers"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -133,23 +135,29 @@ func (r *ConfigRouter) Logger() *utils.LoggerUtil {
 
 func (r *ConfigRouter) newRouter() {
 	router := mux.NewRouter()
-	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave("", "", http.MethodGet, "", "", nil, r.health))
-	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/text", nil, r.serverId))
-	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
-	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
-	router.NewRoute().Name("addKVStore").Path("/kvstore/{key}/add").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.addKVStore))
-	router.NewRoute().Name("removeKVStore").Path("/kvstore/{key}/remove").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.removeKVStore))
-	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.uploadKVStore))
-	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.downloadKVStore))
-	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
-	router.NewRoute().Name("getMismatches").Path("/mismatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMismatchesFromAll))
-	router.NewRoute().Name("addMatches").Path("/addmatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMatches))
-	router.NewRoute().Name("addMismatches").Path("/addmismatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMismatches))
-	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
-	router.NewRoute().Name("deleteMismatches").Path("/mismatches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMismatchesFromAll))
-	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave("", "", http.MethodGet, "", "", nil, r.transferMatchesHandler))
+	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
+	router.NewRoute().Name("serverId").Path("/id").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/text", nil, r.serverId))
+	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", []string{"key"}, r.setKVStore))
+	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.getKVStore))
+	router.NewRoute().Name("addKVStore").Path("/kvstore/{key}/add").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.addKVStore))
+	router.NewRoute().Name("removeKVStore").Path("/kvstore/{key}/remove").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.removeKVStore))
+	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.uploadKVStore))
+	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.downloadKVStore))
+	router.NewRoute().Name("getMatches").Path("/matches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMatchesFromAll))
+	router.NewRoute().Name("getMismatches").Path("/mismatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.getMismatchesFromAll))
+	router.NewRoute().Name("addMatches").Path("/addmatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMatches))
+	router.NewRoute().Name("addMismatches").Path("/addmismatches").Methods(http.MethodPost).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", nil, r.addMismatches))
+	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
+	router.NewRoute().Name("deleteMismatches").Path("/mismatches").Methods(http.MethodDelete).HandlerFunc(utils.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMismatchesFromAll))
+	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(utils.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.transferMatchesHandler))
+	var handler http.Handler
+	if r.logger.Level == utils.Debug {
+		handler = handlers.LoggingHandler(os.Stdout, router)
+	} else {
+		handler = router
+	}
 	r.router = router
-	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: router}
+	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: handler}
 }
 
 func (r *ConfigRouter) health(writer http.ResponseWriter, request *http.Request) {
@@ -210,7 +218,7 @@ func (r *ConfigRouter) clusterRequest(method, path string, header map[string]str
 			}
 		}
 		if err != nil {
-			r.logger.LogAlways(fmt.Sprintf("(ERROR) reading response from cluster node '%s' failed: %v ", clusterUrl, err))
+			r.logger.LogError(fmt.Sprintf("reading response from cluster node '%s' failed", clusterUrl), err)
 			return err
 		}
 		stop, err := responseHandler(clusterUrl, string(bodyBytes))
@@ -227,7 +235,7 @@ func (r *ConfigRouter) DownloadKVStoreFromCluster() error {
 		func(clusterUrl, responseBody string) (bool, error) {
 			err := r.kvstore.PutAllJson(responseBody)
 			if err != nil {
-				r.logger.LogAlways(fmt.Sprintf("(ERROR) creating new kvstore downloaded from clusterurl '%s' failed: %v ", clusterUrl, err))
+				r.logger.LogError(fmt.Sprintf("creating new kvstore downloaded from clusterurl '%s' failed", clusterUrl), err)
 				return true, err
 			}
 			r.logger.LogWhenVerbose(fmt.Sprintf("syncing completed, kvstore successfully downloaded from clusterurl '%s' ", clusterUrl))

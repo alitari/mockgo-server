@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -357,7 +356,7 @@ func requestToNode(t *testing.T, nodeNr int, config bool, method, path string, h
 	defer response.Body.Close()
 	t.Logf("response status: '%s'", response.Status)
 	assert.Equal(t, expectedStatus, response.StatusCode)
-	respBytes, err := ioutil.ReadAll(response.Body)
+	respBytes, err := io.ReadAll(response.Body)
 	respBody := string(respBytes)
 	assert.NoError(t, err)
 	t.Logf("response body:\n '%s'", respBody)

@@ -90,7 +90,7 @@ Cluster:
 		clusterSetup.String(), c.ClusterUrls, c.HttpClientTimeout, c.ClusterPodLabelValue, c.ProxyConfigRouterPath)
 }
 
-func sigtermListener(configRouter *config.ConfigRouter, loggerUtil *utils.LoggerUtil) {
+func sigtermListener(mockRouter *mock.MockRouter, configRouter *config.ConfigRouter, loggerUtil *utils.LoggerUtil) {
 	loggerUtil.LogWhenVerbose("Listening shutdown signals...")
 	c := make(chan os.Signal, 1) // we need to reserve to buffer size 1, so the notifier are not blocked
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -98,8 +98,10 @@ func sigtermListener(configRouter *config.ConfigRouter, loggerUtil *utils.Logger
 	loggerUtil.LogWhenVerbose("Starting shutdown procedure...")
 	err := configRouter.TransferMatches()
 	if err != nil {
-		loggerUtil.LogAlways("Error in shutdown procedure:" + err.Error())
+		loggerUtil.LogError("Error in shutdown procedure", err)
 	} else {
+		stopServe(configRouter)
+		stopServe(mockRouter)
 		loggerUtil.LogWhenVerbose("✅ shutdown procedure endend succesfully")
 	}
 }
@@ -114,14 +116,14 @@ func createRouters(kvstore *kvstore.KVStore) (*mock.MockRouter, *config.ConfigRo
 	configuration := createConfiguration().validateAndFix()
 
 	configLogger := utils.NewLoggerUtil(utils.ParseLogLevel(configuration.LoglevelConfig))
-	configLogger.LogAlways(banner + configuration.info())
+	configLogger.LogPlain(banner + configuration.info())
 	mockRouter := createMockRouter(configuration, kvstore, utils.NewLoggerUtil(utils.ParseLogLevel(configuration.LoglevelMock)))
 	configRouter := createConfigRouter(configuration, mockRouter, kvstore, configLogger)
 	err := mockRouter.LoadFiles(configRouter.TemplateFuncMap())
 	if err != nil {
 		log.Fatalf("(FATAL) Can't load files: %v", err)
 	}
-	go sigtermListener(configRouter, configLogger)
+	go sigtermListener(mockRouter, configRouter, configLogger)
 	return mockRouter, configRouter
 
 }
@@ -152,7 +154,7 @@ func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRoute
 }
 
 func startServe(serving model.Serving) error {
-	serving.Logger().LogAlways(fmt.Sprintf("Serving %s on port %v", serving.Name(), serving.Port()))
+	serving.Logger().LogPlain(fmt.Sprintf("Serving %s on port %v", serving.Name(), serving.Port()))
 	s := serving.Server()
 	err := s.ListenAndServe()
 	if err != nil {
@@ -162,7 +164,7 @@ func startServe(serving model.Serving) error {
 }
 
 func stopServe(serving model.Serving) {
-	serving.Logger().LogAlways(fmt.Sprintf("Stop Serving %s on port %d", serving.Name(), serving.Port()))
+	serving.Logger().LogPlain(fmt.Sprintf("Stop Serving %s on port %d", serving.Name(), serving.Port()))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := serving.Server().Shutdown(ctx); err != nil {

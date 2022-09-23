@@ -17,7 +17,7 @@ spec:
             - name: LOGLEVEL_CONFIG
               value: "2"
             - name: LOGLEVEL_MOCK
-              value: "2"
+              value: "1"
             - name: CONFIG_PORT
               value: "8081"
             - name: CONFIG_USERNAME

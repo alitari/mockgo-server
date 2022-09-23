@@ -13,8 +13,12 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func RequestMustHave(expectedUsername, expectedPassword, method, contentType, acceptType string, urlPathParams []string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+func RequestMustHave(loggerUtil *LoggerUtil, expectedUsername, expectedPassword, method, contentType, acceptType string, urlPathParams []string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
 	f := func(w http.ResponseWriter, r *http.Request) {
+		loggerUtil.LogIncomingRequest(r)
+		if loggerUtil.Level >= Debug {
+			w = NewLoggingResponseWriter(w, loggerUtil,2)
+		}
 		noAuth := len(expectedUsername) == 0 && len(expectedPassword) == 0
 		username, password, ok := r.BasicAuth()
 		if ok || noAuth {
@@ -30,6 +34,9 @@ func RequestMustHave(expectedUsername, expectedPassword, method, contentType, ac
 								for _, urlPathParam := range urlPathParams {
 									if vars[urlPathParam] == "" {
 										http.Error(w, fmt.Sprintf("url path param '%s' is not set", urlPathParam), http.StatusNotFound)
+										if loggerUtil.Level >= Debug {
+											w.(*LoggingResponseWriter).Log()
+										}
 										return
 									}
 								}
@@ -49,6 +56,9 @@ func RequestMustHave(expectedUsername, expectedPassword, method, contentType, ac
 			}
 		} else {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		}
+		if loggerUtil.Level >= Debug {
+			w.(*LoggingResponseWriter).Log()
 		}
 	}
 	return f
@@ -76,3 +86,13 @@ func CreateHttpClient(timeout time.Duration) http.Client {
 	httpClient := http.Client{Timeout: timeout}
 	return httpClient
 }
+
+// func containKeys(amap map[string]string, keys []string) bool {
+// 	for _, key := range keys {
+// 		if len(amap[key]) == 0 {
+// 			return false
+// 		}
+// 	}
+// 	return true
+
+// }
