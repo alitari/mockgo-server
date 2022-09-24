@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alitari/mockgo/kvstore"
 	"github.com/alitari/mockgo/logging"
 	"github.com/alitari/mockgo/matches"
 	"github.com/gorilla/mux"
