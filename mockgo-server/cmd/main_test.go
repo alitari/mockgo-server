@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/alitari/mockgo-server/config"
+	"github.com/alitari/mockgo/mock"
 	"github.com/alitari/mockgo/model"
-	"github.com/alitari/mockgo/router"
 	"github.com/go-http-utils/headers"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,11 +24,11 @@ var clusterSize = 2
 var startPort = 8080
 var configPassword = randString(10)
 
-var mockRouters []*router.MockRouter
+var mockRouters []*mock.MockRouter
 var configRouters []*config.ConfigRouter
 
 var configRouterChan = make(chan *config.ConfigRouter)
-var mockRouterChan = make(chan *router.MockRouter)
+var mockRouterChan = make(chan *mock.MockRouter)
 
 func TestMain(m *testing.M) {
 	startCluster()
@@ -428,4 +428,3 @@ func randString(n int) string {
 	}
 	return string(b)
 }
-

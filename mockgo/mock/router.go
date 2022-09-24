@@ -1,4 +1,4 @@
-package router
+package mock
 
 import (
 	"bytes"
@@ -19,9 +19,8 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig"
-	"github.com/alitari/mockgo/kvstore"
 	"github.com/alitari/mockgo/logging"
-	"github.com/alitari/mockgo/model"
+	"github.com/alitari/mockgo/matches"
 	"gopkg.in/yaml.v2"
 
 	"github.com/gorilla/mux"
@@ -45,66 +44,35 @@ type ResponseTemplateData struct {
 }
 
 type MockRouter struct {
-	mockDir             string
-	mockFilepattern     string
-	responseDir         string
-	MatchesCountOnly    bool
-	MismatchesCountOnly bool
-	port                int
-	logger              *logging.LoggerUtil
-	EpSearchNode        *model.EpSearchNode
-	router              *mux.Router
-	server              *http.Server
-	Matches             map[string][]*model.Match
-	MatchesCount        map[string]int64
-	Mismatches          []*model.Mismatch
-	MismatchesCount     int64
-	ProxyPrefixPath     string
-	ProxyForHost        string
-	httpClient          http.Client
+	mockDir         string
+	mockFilepattern string
+	responseDir     string
+	logger          *logging.LoggerUtil
+	EpSearchNode    *EpSearchNode
+	matchstore      matches.Matchstore
+	router          *mux.Router
+	ProxyPrefixPath string
+	ProxyForHost    string
+	httpClient      http.Client
 }
 
-func NewMockRouter(mockDir, mockFilepattern, responseDir string, port int, kvstore *kvstore.KVStoreJSON, matchesCountOnly, mismatchesCountOnly bool, proxyPrefixPath string, proxyForHost string, httpClientTimeout time.Duration, logger *logging.LoggerUtil) *MockRouter {
+func NewMockRouter(mockDir, mockFilepattern, responseDir string, matchstore matches.Matchstore, proxyPrefixPath string, proxyForHost string, httpClientTimeout time.Duration, logger *logging.LoggerUtil) *MockRouter {
 	mockRouter := &MockRouter{
-		mockDir:             mockDir,
-		mockFilepattern:     mockFilepattern,
-		responseDir:         responseDir,
-		MatchesCountOnly:    matchesCountOnly,
-		MismatchesCountOnly: mismatchesCountOnly,
-		port:                port,
-		logger:              logger,
-		EpSearchNode:        &model.EpSearchNode{},
-		Matches:             make(map[string][]*model.Match),
-		MatchesCount:        make(map[string]int64),
-		ProxyPrefixPath:     proxyPrefixPath,
-		ProxyForHost:        proxyForHost,
-		httpClient:          createHttpClient(httpClientTimeout),
+		mockDir:         mockDir,
+		mockFilepattern: mockFilepattern,
+		responseDir:     responseDir,
+		logger:          logger,
+		EpSearchNode:    &EpSearchNode{},
+		matchstore:      matchstore,
+		ProxyPrefixPath: proxyPrefixPath,
+		ProxyForHost:    proxyForHost,
+		httpClient:      createHttpClient(httpClientTimeout),
 	}
 	return mockRouter
 }
 
-func (r *MockRouter) Name() string {
-	return "Mockrouter"
-}
-
-func (r *MockRouter) Router() *mux.Router {
-	return r.router
-}
-
-func (r *MockRouter) Server() *http.Server {
-	return r.server
-}
-
-func (r *MockRouter) Port() int {
-	return r.port
-}
-
-func (r *MockRouter) Logger() *logging.LoggerUtil {
-	return r.logger
-}
-
 func (r *MockRouter) LoadFiles(funcMap template.FuncMap) error {
-	r.EpSearchNode = &model.EpSearchNode{}
+	r.EpSearchNode = &EpSearchNode{}
 	endPointCounter := 0
 	mockFiles, err := walkMatch(r.mockDir, r.mockFilepattern)
 	if err != nil {
@@ -134,14 +102,14 @@ func (r *MockRouter) LoadFiles(funcMap template.FuncMap) error {
 	return nil
 }
 
-func (r *MockRouter) readMockFile(mockFile string) (*model.Mock, error) {
+func (r *MockRouter) readMockFile(mockFile string) (*Mock, error) {
 	r.logger.LogWhenVerbose(fmt.Sprintf("Reading mock file '%s' ...", mockFile))
 	mockFileContent, err := os.ReadFile(mockFile)
 	if err != nil {
 		return nil, err
 	}
 
-	var mock model.Mock
+	var mock Mock
 	if strings.HasSuffix(mockFile, ".yaml") || strings.HasSuffix(mockFile, ".yml") {
 		err = yaml.Unmarshal(mockFileContent, &mock)
 	}
@@ -163,7 +131,7 @@ func (r *MockRouter) readMockFile(mockFile string) (*model.Mock, error) {
 	return &mock, nil
 }
 
-func (r *MockRouter) initResponseTemplates(endpoint *model.MockEndpoint, funcMap template.FuncMap) error {
+func (r *MockRouter) initResponseTemplates(endpoint *MockEndpoint, funcMap template.FuncMap) error {
 	endpoint.Response.Template = template.New(endpoint.Id).Funcs(sprig.TxtFuncMap()).Funcs(funcMap)
 	body := ""
 	if len(endpoint.Response.Body) > 0 {
@@ -202,8 +170,8 @@ func (r *MockRouter) initResponseTemplates(endpoint *model.MockEndpoint, funcMap
 
 func (r *MockRouter) newRouter() {
 	r.router = mux.NewRouter()
-	var endPoint *model.MockEndpoint
-	var match *model.Match
+	var endPoint *MockEndpoint
+	var match *matches.Match
 	var requestPathParam map[string]string
 	isProxyRequest := func(request *http.Request) bool {
 		return len(r.ProxyPrefixPath) > 0 && strings.HasPrefix(request.URL.Path, r.ProxyPrefixPath)
@@ -231,7 +199,6 @@ func (r *MockRouter) newRouter() {
 		}
 
 	})
-	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: r.router}
 }
 
 func (r *MockRouter) directToProxyForHost(writer http.ResponseWriter, request *http.Request) {
@@ -258,7 +225,7 @@ func (r *MockRouter) directToProxyForHost(writer http.ResponseWriter, request *h
 	io.Copy(writer, response.Body)
 }
 
-func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
+func (r *MockRouter) registerEndpoint(endpoint *MockEndpoint) {
 	if endpoint.Request.Path == "" {
 		endpoint.Request.Path = "/"
 	}
@@ -270,29 +237,29 @@ func (r *MockRouter) registerEndpoint(endpoint *model.MockEndpoint) {
 	pathSegments := strings.Split(endpoint.Request.Path, "/")
 	for _, pathSegment := range pathSegments[1:] {
 		if sn.SearchNodes == nil {
-			sn.SearchNodes = make(map[string]*model.EpSearchNode)
+			sn.SearchNodes = make(map[string]*EpSearchNode)
 		}
 		pathParamName := ""
 		if strings.HasPrefix(pathSegment, "{") && strings.HasSuffix(pathSegment, "}") {
 			pathParamName = pathSegment[1 : len(pathSegment)-1]
 			pathSegment = "*"
 		}
-		sn.SearchNodes[pathSegment] = &model.EpSearchNode{}
+		sn.SearchNodes[pathSegment] = &EpSearchNode{}
 		sn = sn.SearchNodes[pathSegment]
 		sn.PathParamName = pathParamName
 	}
 	if sn.Endpoints == nil {
-		sn.Endpoints = make(map[string][]*model.MockEndpoint)
+		sn.Endpoints = make(map[string][]*MockEndpoint)
 	}
 
 	if sn.Endpoints[endpoint.Request.Method] == nil {
-		sn.Endpoints[endpoint.Request.Method] = []*model.MockEndpoint{}
+		sn.Endpoints[endpoint.Request.Method] = []*MockEndpoint{}
 	}
 	sn.Endpoints[endpoint.Request.Method] = append(sn.Endpoints[endpoint.Request.Method], endpoint)
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.Id, endpoint.Request.Path, endpoint.Request.Method))
 }
 
-func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockEndpoint, *model.Match, map[string]string) {
+func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*MockEndpoint, *matches.Match, map[string]string) {
 	requestPathParams := map[string]string{}
 	sn := r.EpSearchNode
 	getPathSegment := func(segments []string, pos int) string {
@@ -358,7 +325,7 @@ func (r *MockRouter) matchRequestToEndpoint(request *http.Request) (*model.MockE
 	return nil, nil, requestPathParams
 }
 
-func (r *MockRouter) matchEndPointsAttributes(endPoints []*model.MockEndpoint, request *http.Request) (*model.MockEndpoint, *model.Match) {
+func (r *MockRouter) matchEndPointsAttributes(endPoints []*MockEndpoint, request *http.Request) (*MockEndpoint, *matches.Match) {
 	mismatchMessage := ""
 	for _, ep := range endPoints {
 		if !r.matchQueryParams(ep.Request, request) {
@@ -380,7 +347,7 @@ func (r *MockRouter) matchEndPointsAttributes(endPoints []*model.MockEndpoint, r
 	return nil, nil
 }
 
-func (r *MockRouter) matchQueryParams(matchRequest *model.MatchRequest, request *http.Request) bool {
+func (r *MockRouter) matchQueryParams(matchRequest *MatchRequest, request *http.Request) bool {
 	if len(matchRequest.Query) > 0 {
 		for key, val := range matchRequest.Query {
 			if request.URL.Query().Get(key) != val {
@@ -393,7 +360,7 @@ func (r *MockRouter) matchQueryParams(matchRequest *model.MatchRequest, request 
 	}
 }
 
-func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request *http.Request) bool {
+func (r *MockRouter) matchHeaderValues(matchRequest *MatchRequest, request *http.Request) bool {
 	if len(matchRequest.Headers) > 0 {
 		for key, val := range matchRequest.Headers {
 			if request.Header.Get(key) != val {
@@ -406,7 +373,7 @@ func (r *MockRouter) matchHeaderValues(matchRequest *model.MatchRequest, request
 	}
 }
 
-func (r *MockRouter) matchBody(matchRequest *model.MatchRequest, request *http.Request) bool {
+func (r *MockRouter) matchBody(matchRequest *MatchRequest, request *http.Request) bool {
 	if matchRequest.BodyRegexp != nil {
 		if request.Body == nil {
 			return false
@@ -422,19 +389,21 @@ func (r *MockRouter) matchBody(matchRequest *model.MatchRequest, request *http.R
 	}
 }
 
-func (r *MockRouter) addMatch(endPoint *model.MockEndpoint, request *http.Request) *model.Match {
-	r.MatchesCount[endPoint.Id] = r.MatchesCount[endPoint.Id] + 1
-	actualRequest := &model.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
-	match := &model.Match{EndpointId: endPoint.Id, Timestamp: time.Now(), ActualRequest: actualRequest}
-	if !r.MatchesCountOnly {
-		r.Matches[endPoint.Id] = append(r.Matches[endPoint.Id], match)
+func (r *MockRouter) addMatch(endPoint *MockEndpoint, request *http.Request) *matches.Match {
+	actualRequest := &matches.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
+	match := &matches.Match{EndpointId: endPoint.Id, Timestamp: time.Now(), ActualRequest: actualRequest}
+	if r.matchstore.HasMatchesCountOnly() {
+		r.matchstore.AddMatchesCount(map[string]int64{endPoint.Id: 1})
+	} else {
+		r.matchstore.AddMatches(map[string][]*matches.Match{endPoint.Id: {match}})
 	}
 	return match
 }
 
-func (r *MockRouter) addMismatch(sn *model.EpSearchNode, pathPos int, endpointMismatchDetails string, request *http.Request) {
-	r.MismatchesCount++
-	if !r.MismatchesCountOnly {
+func (r *MockRouter) addMismatch(sn *EpSearchNode, pathPos int, endpointMismatchDetails string, request *http.Request) {
+	if r.matchstore.HasMismatchesCountOnly() {
+		r.matchstore.AddMismatchesCount(1)
+	} else {
 		var mismatchDetails string
 		if sn == nil { // node found -> path matched
 			mismatchDetails = fmt.Sprintf("path '%s' matched, but %s", request.URL.Path, endpointMismatchDetails)
@@ -448,16 +417,16 @@ func (r *MockRouter) addMismatch(sn *model.EpSearchNode, pathPos int, endpointMi
 			}
 			mismatchDetails = fmt.Sprintf("path '%s' not matched, subpath which matched: '%s'", request.URL.Path, matchedSubPath)
 		}
-		actualRequest := &model.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
-		mismatch := &model.Mismatch{
+		actualRequest := &matches.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
+		mismatch := &matches.Mismatch{
 			MismatchDetails: mismatchDetails,
 			Timestamp:       time.Now(),
 			ActualRequest:   actualRequest}
-		r.Mismatches = append(r.Mismatches, mismatch)
+		r.matchstore.AddMismatches([]*matches.Mismatch{mismatch})
 	}
 }
 
-func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *model.MockEndpoint, match *model.Match, requestPathParams map[string]string) {
+func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *MockEndpoint, match *matches.Match, requestPathParams map[string]string) {
 	writer.Header().Add(HEADER_KEY_ENDPOINT_ID, endpoint.Id)
 	responseTemplateData, err := r.createResponseTemplateData(request, requestPathParams)
 	if err != nil {
@@ -515,7 +484,7 @@ func (r *MockRouter) renderResponse(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
-	match.ActualResponse = &model.ActualResponse{StatusCode: responseStatus, Header: headers}
+	match.ActualResponse = &matches.ActualResponse{StatusCode: responseStatus, Header: headers}
 }
 
 func (r *MockRouter) createResponseTemplateData(request *http.Request, requestPathParams map[string]string) (*ResponseTemplateData, error) {

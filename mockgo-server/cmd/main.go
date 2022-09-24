@@ -12,8 +12,8 @@ import (
 	"github.com/alitari/mockgo-server/config"
 	"github.com/alitari/mockgo/kvstore"
 	"github.com/alitari/mockgo/logging"
+	"github.com/alitari/mockgo/mock"
 	"github.com/alitari/mockgo/model"
-	"github.com/alitari/mockgo/router"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -28,7 +28,7 @@ const banner = `
 type Configuration struct {
 	LoglevelConfig       int           `default:"1" split_words:"true"`
 	LoglevelMock         int           `default:"1" split_words:"true"`
-	ConfigPort           int        `default:"8080" split_words:"true"`
+	ConfigPort           int           `default:"8080" split_words:"true"`
 	ConfigUsername       string        `default:"mockgo" split_words:"true"`
 	ConfigPassword       string        `default:"password" split_words:"true"`
 	MockPort             int           `default:"8081" split_words:"true"`
@@ -89,7 +89,7 @@ Cluster:
 		clusterSetup.String(), c.ClusterUrls, c.HttpClientTimeout, c.ClusterPodLabelValue)
 }
 
-func sigtermListener(mockRouter *router.MockRouter, configRouter *config.ConfigRouter, loggerUtil *logging.LoggerUtil) {
+func sigtermListener(mockRouter *mock.MockRouter, configRouter *config.ConfigRouter, loggerUtil *logging.LoggerUtil) {
 	loggerUtil.LogWhenVerbose("Listening shutdown signals...")
 	c := make(chan os.Signal, 1) // we need to reserve to buffer size 1, so the notifier are not blocked
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -111,7 +111,7 @@ func main() {
 	startServe(mockRouter)
 }
 
-func createRouters(kvstore *kvstore.KVStoreJSON) (*router.MockRouter, *config.ConfigRouter) {
+func createRouters(kvstore *kvstore.KVStoreJSON) (*mock.MockRouter, *config.ConfigRouter) {
 	configuration := createConfiguration().validateAndFix()
 
 	configLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelConfig))
@@ -135,14 +135,14 @@ func createConfiguration() *Configuration {
 	return &configuration
 }
 
-func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStoreJSON, logger *logging.LoggerUtil) *router.MockRouter {
-	mockRouter := router.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir,
+func createMockRouter(configuration *Configuration, kvstore *kvstore.KVStoreJSON, logger *logging.LoggerUtil) *mock.MockRouter {
+	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir,
 		configuration.MockPort, kvstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly,
 		"", "", configuration.HttpClientTimeout, logger)
 	return mockRouter
 }
 
-func createConfigRouter(configuration *Configuration, mockRouter *router.MockRouter, kvStore *kvstore.KVStoreJSON, logger *logging.LoggerUtil) *config.ConfigRouter {
+func createConfigRouter(configuration *Configuration, mockRouter *mock.MockRouter, kvStore *kvstore.KVStoreJSON, logger *logging.LoggerUtil) *config.ConfigRouter {
 	configRouter := config.NewConfigRouter(configuration.ConfigUsername, configuration.ConfigPassword, mockRouter,
 		configuration.ConfigPort, configuration.ClusterUrls, configuration.ClusterPodLabelValue, kvStore, configuration.HttpClientTimeout, logger)
 	err := configRouter.DownloadKVStoreFromCluster()

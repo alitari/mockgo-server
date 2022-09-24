@@ -11,13 +11,11 @@ import (
 )
 
 type KVStore interface {
-	GetVal(key string) interface{}
-	PutVal(key string, storeVal interface{})
-	GetAll() map[string]interface{}
-	PutAll(content map[string]interface{})
+	GetVal(key string) (interface{}, error)
+	PutVal(key string, storeVal interface{}) error
+	GetAll() (map[string]interface{}, error)
+	PutAll(content map[string]interface{}) error
 }
-
-
 
 type KVStoreJSON struct {
 	log   bool
@@ -44,30 +42,6 @@ func (pop PatchOp) String() string {
 	return "unknown"
 }
 
-type KVStoreInMemory struct {
-	store map[string]interface{}
-}
-
-func (s *KVStoreInMemory) GetVal(key string) interface{} {
-	return s.store[key]
-}
-
-func (s *KVStoreInMemory) PutVal(key string, storeVal interface{}) {
-	s.store[key] = storeVal
-}
-
-func (s *KVStoreInMemory) GetAll() map[string]interface{} {
-	return s.store
-}
-
-func (s *KVStoreInMemory) PutAll(content map[string]interface{}) {
-	s.store = content
-}
-
-func NewKVStoreInMemory() KVStoreInMemory {
-	return KVStoreInMemory{store: map[string]interface{}{}}
-}
-
 func NewKVStoreJSON(kvStore KVStore, log bool) *KVStoreJSON {
 	return &KVStoreJSON{store: kvStore, log: log}
 }
@@ -78,20 +52,23 @@ func (s *KVStoreJSON) PutAsJson(key, jsonStr string) error {
 	if err != nil {
 		return err
 	}
-	s.Put(key, storeVal)
-	return nil
+	err = s.Put(key, storeVal)
+	return err
 }
 
-func (s *KVStoreJSON) Get(key string) interface{} {
+func (s *KVStoreJSON) Get(key string) (interface{}, error) {
 	return s.store.GetVal(key)
 }
 
-func (s *KVStoreJSON) Put(key string, storeVal interface{}) {
-	s.store.PutVal(key, storeVal)
+func (s *KVStoreJSON) Put(key string, storeVal interface{}) error {
+	return s.store.PutVal(key, storeVal)
 }
 
 func (s *KVStoreJSON) GetAsJson(key string) (string, error) {
-	storeVal := s.Get(key)
+	storeVal, err := s.Get(key)
+	if err != nil {
+		return "", err
+	}
 	storeJson, err := json.Marshal(storeVal)
 	if err != nil {
 		return "", err
@@ -99,12 +76,12 @@ func (s *KVStoreJSON) GetAsJson(key string) (string, error) {
 	return string(storeJson), nil
 }
 
-func (s *KVStoreJSON) GetAll() map[string]interface{} {
+func (s *KVStoreJSON) GetAll() (map[string]interface{}, error) {
 	return s.store.GetAll()
 }
 
-func (s *KVStoreJSON) PutAll(content map[string]interface{}) {
-	s.store.PutAll(content)
+func (s *KVStoreJSON) PutAll(content map[string]interface{}) error {
+	return s.store.PutAll(content)
 }
 
 func (s *KVStoreJSON) PutAllJson(allStoreJson string) error {
@@ -113,12 +90,14 @@ func (s *KVStoreJSON) PutAllJson(allStoreJson string) error {
 	if err != nil {
 		return err
 	}
-	s.PutAll(*allStoreVal)
-	return nil
+	return s.PutAll(*allStoreVal)
 }
 
 func (s *KVStoreJSON) GetAllJson() (string, error) {
-	storeVal := s.GetAll()
+	storeVal, err := s.GetAll()
+	if err != nil {
+		return "", err
+	}
 	storeJson, err := json.Marshal(storeVal)
 	if err != nil {
 		return "", err
@@ -166,7 +145,11 @@ func (s *KVStoreJSON) patch(key, patchJson string) error {
 
 func (s *KVStoreJSON) LookUp(key, jsonPath string) (interface{}, error) {
 	s.logStr("jsonpath=" + jsonPath)
-	res, err := jsonpath.JsonPathLookup(s.Get(key), jsonPath)
+	value, err := s.Get(key)
+	if err != nil {
+		return "", err
+	}
+	res, err := jsonpath.JsonPathLookup(value, jsonPath)
 	if err != nil {
 		return "", err
 	}

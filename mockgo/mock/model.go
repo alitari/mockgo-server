@@ -1,47 +1,9 @@
-package model
+package mock
 
 import (
-	"net/http"
 	"regexp"
 	"text/template"
-	"time"
-
-	"github.com/gorilla/mux"
 )
-
-type Serving interface {
-	Name() string
-	Router() *mux.Router
-	Server() *http.Server
-	Port() int
-}
-
-
-
-type Match struct {
-	EndpointId     string          `json:"endpointId"`
-	Timestamp      time.Time       `json:"timestamp"`
-	ActualRequest  *ActualRequest  `json:"actualRequest"`
-	ActualResponse *ActualResponse `json:"actualResponse"`
-}
-
-type Mismatch struct {
-	MismatchDetails string         `json:"MismatchDetails"`
-	Timestamp       time.Time      `json:"timestamp"`
-	ActualRequest   *ActualRequest `json:"actualRequest"`
-}
-
-type ActualRequest struct {
-	Method string              `json:"method" `
-	URL    string              `json:"url" `
-	Header map[string][]string `json:"header" `
-	Host   string              `json:"host" `
-}
-
-type ActualResponse struct {
-	StatusCode int               `json:"statusCode"`
-	Header     map[string]string `json:"header"`
-}
 
 type MatchRequest struct {
 	Scheme     string            `yaml:"scheme" json:"scheme"`

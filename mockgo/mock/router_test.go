@@ -1,4 +1,4 @@
-package router
+package mock
 
 import (
 	"io"
@@ -13,7 +13,7 @@ import (
 
 	"github.com/alitari/mockgo/kvstore"
 	"github.com/alitari/mockgo/logging"
-	"github.com/alitari/mockgo/model"
+	"github.com/alitari/mockgo/matches"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
@@ -38,7 +38,7 @@ type renderingTestCase struct {
 	name                       string
 	requestParams              map[string]string
 	request                    *http.Request
-	response                   *model.MockResponse
+	response                   *MockResponse
 	expectedResponseStatusCode int
 	expectedResponseBody       string
 	expectedResponseHeader     map[string]string
@@ -98,17 +98,6 @@ func TestMatchRequestToEndpoint_MismatchMinmaxMocks(t *testing.T) {
 
 	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
 
-}
-
-func TestMatchRequestToEndpoint_MatchesCountOnly(t *testing.T) {
-	mockRouter := createMockRouter(t, "minmaxmocks", true, false)
-	request := createRequest(http.MethodGet, "http://host/minimal", "", nil, nil)
-	ep, _, _ := mockRouter.matchRequestToEndpoint(request)
-	assert.Equal(t, "minimal", ep.Id)
-	assert.NotNil(t, mockRouter.Matches)
-	assert.Nil(t, mockRouter.Matches[ep.Id])
-	assert.NotNil(t, mockRouter.MatchesCount)
-	assert.Equal(t, int64(1), mockRouter.MatchesCount[ep.Id])
 }
 
 func TestMatchRequestToEndpoint_MatchWildcards(t *testing.T) {
@@ -244,31 +233,31 @@ func TestRenderResponse_Simple(t *testing.T) {
 }`
 
 	testCases := []*renderingTestCase{
-		{name: "status", response: &model.MockResponse{StatusCode: "204"},
+		{name: "status", response: &MockResponse{StatusCode: "204"},
 			expectedResponseStatusCode: 204},
-		{name: "body", response: &model.MockResponse{Body: "Hello"},
+		{name: "body", response: &MockResponse{Body: "Hello"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "Hello"},
-		{name: "body from response file", response: &model.MockResponse{BodyFilename: "simple-response.json"},
+		{name: "body from response file", response: &MockResponse{BodyFilename: "simple-response.json"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "{\n    \"greets\": \"Hello\"\n}"},
-		{name: "template RequestPathParams", response: &model.MockResponse{Body: "{{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "Hello"},
+		{name: "template RequestPathParams", response: &MockResponse{Body: "{{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "Hello"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "Hello"},
-		{name: "template RequestParam statuscode", response: &model.MockResponse{StatusCode: "{{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "202"},
+		{name: "template RequestParam statuscode", response: &MockResponse{StatusCode: "{{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "202"},
 			expectedResponseStatusCode: 202},
-		{name: "template RequestParam headers", response: &model.MockResponse{Headers: "requestParam: {{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "param1HeaderValue"},
+		{name: "template RequestParam headers", response: &MockResponse{Headers: "requestParam: {{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "param1HeaderValue"},
 			expectedResponseStatusCode: 200,
 			expectedResponseHeader:     map[string]string{"requestParam": "param1HeaderValue"}},
 		{name: "template Request url",
-			response: &model.MockResponse{Body: "incoming request url: '{{ .RequestUrl }}'"},
+			response: &MockResponse{Body: "incoming request url: '{{ .RequestUrl }}'"},
 			request: &http.Request{URL: &url.URL{User: url.User("alex"), Scheme: "https", Host: "myhost", Path: "/mypath"},
 				Method: http.MethodGet,
 				Header: map[string][]string{"headerKey": {"headerValue"}}},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "incoming request url: 'https://alex@myhost/mypath'"},
 		{name: "template response file all request params",
-			response:                   &model.MockResponse{BodyFilename: "request-template-response.json"},
+			response:                   &MockResponse{BodyFilename: "request-template-response.json"},
 			request:                    createRequest("PUT", "https://coolhost.cooldomain.com/coolpath", "{ \"requestBodyKey\": \"requestBodyValue\" }", map[string][]string{"myheaderKey": {"myheaderValue"}}, nil),
 			requestParams:              map[string]string{"myparam1": "myvalue"},
 			expectedResponseStatusCode: 200,
@@ -294,10 +283,10 @@ func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestC
 			if testCase.request == nil {
 				testCase.request = createRequest(http.MethodGet, "http://host/minimal", "", nil, nil)
 			}
-			endpoint := &model.MockEndpoint{Id: testCase.name, Response: testCase.response}
+			endpoint := &MockEndpoint{Id: testCase.name, Response: testCase.response}
 			err := mockRouter.initResponseTemplates(endpoint, nil)
 			assert.NoError(t, err, "testcase: '"+testCase.name+"': error in initResonseTemplates")
-			mockRouter.renderResponse(recorder, testCase.request, endpoint, &model.Match{}, testCase.requestParams)
+			mockRouter.renderResponse(recorder, testCase.request, endpoint, &matches.Match{}, testCase.requestParams)
 
 			assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode, "testcase: '"+testCase.name+"': unexpected statuscode")
 
@@ -322,17 +311,21 @@ func assertMatchRequestToEndpoint(t *testing.T, mockRouter *MockRouter, testCase
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			timeStamp := time.Now()
-			matchCountBefore := mockRouter.MatchesCount[testCase.expectedMatchEndpointId]
+			matchCountBefore, err := mockRouter.matchstore.GetMatchesCount(testCase.expectedMatchEndpointId)
+			assert.NoError(t, err)
 			ep, match, requestParams := mockRouter.matchRequestToEndpoint(testCase.request)
 			matchCountAfter := int(matchCountBefore + 1)
 			assert.NotNil(t, match, "expect a match")
 			assert.NotNil(t, ep, "for a match, we expect an endpoint")
 			assert.Equal(t, testCase.expectedMatchEndpointId, match.EndpointId)
+			actualCount, err := mockRouter.matchstore.GetMatchesCount(testCase.expectedMatchEndpointId)
+			assert.NoError(t, err)
+			assert.Equal(t, int64(matchCountAfter), actualCount, "expect matches are counted")
+			currentMatches, err := mockRouter.matchstore.GetMatches(testCase.expectedMatchEndpointId)
+			assert.NoError(t, err)
+			assert.Len(t, currentMatches, matchCountAfter, "expect a mismatch object stored")
 
-			assert.Equal(t, int64(matchCountAfter), mockRouter.MatchesCount[testCase.expectedMatchEndpointId], "expect matches are counted")
-			assert.Len(t, mockRouter.Matches[testCase.expectedMatchEndpointId], matchCountAfter, "expect a mismatch object stored")
-
-			currentMatch := mockRouter.Matches[testCase.expectedMatchEndpointId][matchCountAfter-1]
+			currentMatch := currentMatches[matchCountAfter-1]
 			actualRequest := currentMatch.ActualRequest
 			assert.Equal(t, testCase.request.Method, actualRequest.Method)
 			assert.Equal(t, testCase.request.Host, actualRequest.Host)
@@ -355,42 +348,46 @@ func assertMismatchRequestToEndpoint(t *testing.T, mockRouter *MockRouter, testC
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			timeStamp := time.Now()
-			mismatchCountBefore := mockRouter.MismatchesCount
+			mismatchCountBefore, err := mockRouter.matchstore.GetMismatchesCount()
+			assert.NoError(t, err)
 			_, match, _ := mockRouter.matchRequestToEndpoint(testCase.request)
 			mismatchCountAfter := int(mismatchCountBefore + 1)
 			assert.Nil(t, match, "expected not a match")
-			assert.Equal(t, int64(mismatchCountAfter), mockRouter.MismatchesCount, "expect mismatches are counted")
-			assert.Len(t, mockRouter.Mismatches, mismatchCountAfter, "expect a mismatch object stored")
+			mismatchCount, err := mockRouter.matchstore.GetMismatchesCount()
+			assert.NoError(t, err)
+			assert.Equal(t, int64(mismatchCountAfter), mismatchCount, "expect mismatches are counted")
+			mismatches, err := mockRouter.matchstore.GetMismatches()
+			assert.NoError(t, err)
+			assert.Len(t, mismatches, mismatchCountAfter, "expect a mismatch object stored")
 
-			actualRequest := mockRouter.Mismatches[mismatchCountAfter-1].ActualRequest
+			actualRequest := mismatches[mismatchCountAfter-1].ActualRequest
 			assert.Equal(t, testCase.request.Method, actualRequest.Method)
 			assert.Equal(t, testCase.request.Host, actualRequest.Host)
 			assert.Equal(t, testCase.request.URL.String(), actualRequest.URL)
 
-			assert.Equal(t, testCase.expectedMismatchDetails, mockRouter.Mismatches[mismatchCountAfter-1].MismatchDetails)
+			assert.Equal(t, testCase.expectedMismatchDetails, mismatches[mismatchCountAfter-1].MismatchDetails)
 
-			assert.LessOrEqual(t, timeStamp, mockRouter.Mismatches[mismatchCountAfter-1].Timestamp)
+			assert.LessOrEqual(t, timeStamp, mismatches[mismatchCountAfter-1].Timestamp)
 		})
 	}
 }
 
 func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, mismatchesCountOnly bool) *MockRouter {
-	mockRouter := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, 0, createInMemoryStore(), matchesCountOnly, mismatchesCountOnly, proxyConfigRouterPath, "", httpClientTimeout, logging.NewLoggerUtil(logging.Debug))
+	mockRouter := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, createInMemoryMatchStore(), proxyConfigRouterPath, "", httpClientTimeout, logging.NewLoggerUtil(logging.Debug))
 	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	err := mockRouter.LoadFiles(nil)
 	assert.NoError(t, err)
 	return mockRouter
 }
 
-func createInMemoryStore() *kvstore.KVStoreJSON {
-	kvstoreImpl := kvstore.NewKVStoreInMemory()
-	return kvstore.NewKVStoreJSON(&kvstoreImpl, true)
+func createInMemoryMatchStore() matches.Matchstore {
+	return matches.NewInMemoryMatchstore(false,false)
 }
 
 func runAndCheckCoverage(testPackage string, m *testing.M, treshold float64) int {
 
 	code := m.Run()
-	
+
 	if code == 0 && testing.CoverMode() != "" {
 		coverage := testing.Coverage()
 		if coverage < treshold {

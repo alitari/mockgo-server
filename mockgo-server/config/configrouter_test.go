@@ -14,8 +14,8 @@ import (
 
 	"github.com/alitari/mockgo/kvstore"
 	"github.com/alitari/mockgo/logging"
+	"github.com/alitari/mockgo/mock"
 	"github.com/alitari/mockgo/model"
-	"github.com/alitari/mockgo/router"
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -612,9 +612,9 @@ func assertConfigRouterResponse(handler http.Handler, testCases []*configRouterT
 	}
 }
 
-func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, matchesRecordMisMatch bool) *router.MockRouter {
+func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, matchesRecordMisMatch bool) *mock.MockRouter {
 	kvstore := createInMemoryStore()
-	mockRouter := router.NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, 0, kvstore, matchesCountOnly, matchesRecordMisMatch, proxyConfigRouterPath, "", httpClientTimeout, logging.NewLoggerUtil(logging.Debug))
+	mockRouter := mock.NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, 0, kvstore, matchesCountOnly, matchesRecordMisMatch, proxyConfigRouterPath, "", httpClientTimeout, logging.NewLoggerUtil(logging.Debug))
 	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	err := mockRouter.LoadFiles(nil)
 	assert.NoError(t, err)

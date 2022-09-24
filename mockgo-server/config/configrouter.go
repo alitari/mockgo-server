@@ -12,8 +12,8 @@ import (
 
 	"github.com/alitari/mockgo/kvstore"
 	"github.com/alitari/mockgo/logging"
+	"github.com/alitari/mockgo/mock"
 	"github.com/alitari/mockgo/model"
-	"github.com/alitari/mockgo/router"
 	"github.com/google/uuid"
 
 	"github.com/go-http-utils/headers"
@@ -55,7 +55,7 @@ func (c ClusterSetup) String() string {
 }
 
 type ConfigRouter struct {
-	mockRouter           *router.MockRouter
+	mockRouter           *mock.MockRouter
 	router               *mux.Router
 	server               *http.Server
 	port                 int
@@ -84,7 +84,7 @@ type RemoveKVStoreRequest struct {
 	Path string `json:"path"`
 }
 
-func NewConfigRouter(username, password string, mockRouter *router.MockRouter, port int, clusterUrls []string, clusterPodLabelValue string, kvstore *kvstore.KVStoreJSON, httpClientTimeout time.Duration, logger *logging.LoggerUtil) *ConfigRouter {
+func NewConfigRouter(username, password string, mockRouter *mock.MockRouter, port int, clusterUrls []string, clusterPodLabelValue string, kvstore *kvstore.KVStoreJSON, httpClientTimeout time.Duration, logger *logging.LoggerUtil) *ConfigRouter {
 	configRouter := &ConfigRouter{
 		mockRouter:           mockRouter,
 		port:                 port,
@@ -137,7 +137,7 @@ func (r *ConfigRouter) newRouter() {
 	router.NewRoute().Name("deleteMatches").Path("/matches").Methods(http.MethodDelete).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMatchesFromAll))
 	router.NewRoute().Name("deleteMismatches").Path("/mismatches").Methods(http.MethodDelete).HandlerFunc(requestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.deleteMismatchesFromAll))
 	router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(requestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.transferMatchesHandler))
-	
+
 	r.router = router
 	r.server = &http.Server{Addr: ":" + strconv.Itoa(r.port), Handler: r.router}
 }
