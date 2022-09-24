@@ -13,7 +13,7 @@ import (
 )
 
 type MatchAPIRouter struct {
-	router            *mux.Router
+	Router            *mux.Router
 	matchStore        Matchstore
 	logger            *logging.LoggerUtil
 	basicAuthUsername string
@@ -48,7 +48,7 @@ func (r *MatchAPIRouter) newRouter() {
 	router.NewRoute().Name("deleteMismatches").Path("/mismatches").Methods(http.MethodDelete).
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.handleDeleteMismatches))
 	// router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.transferMatchesHandler))
-	r.router = router
+	r.Router = router
 }
 
 func (r *MatchAPIRouter) health(writer http.ResponseWriter, request *http.Request) {

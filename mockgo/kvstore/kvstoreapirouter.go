@@ -29,7 +29,7 @@ type RemoveKVStoreRequest struct {
 	Path string `json:"path"`
 }
 
-func NewConfigRouter(username, password string, kvstore *KVStoreJSON, logger *logging.LoggerUtil) *KVStoreAPIRouter {
+func NewKVStoreAPIRouter(username, password string, kvstore *KVStoreJSON, logger *logging.LoggerUtil) *KVStoreAPIRouter {
 	configRouter := &KVStoreAPIRouter{
 		logger:            logger,
 		kvstore:           kvstore,

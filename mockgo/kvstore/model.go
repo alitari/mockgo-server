@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"text/template"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	jsonpath "github.com/oliveagle/jsonpath"
@@ -172,5 +173,42 @@ func (s *KVStoreJSON) LookUpJson(key, jsonPath string) (string, error) {
 func (s *KVStoreJSON) logStr(message string) {
 	if s.log {
 		log.Print(message)
+	}
+}
+
+func (s *KVStoreJSON) TemplateFuncMap() template.FuncMap {
+	return template.FuncMap{
+		"kvStoreGet": func(key string) interface{} {
+			if val, err := s.store.GetVal(key); err != nil {
+				return ""
+			} else {
+				return val
+			}
+		},
+		"kvStorePut": func(key string, val interface{}) string {
+			if err := s.store.PutVal(key, val); err != nil {
+				return err.Error()
+			}
+			return ""
+		},
+		"kvStoreAdd": func(key, path, value string) string {
+			if err := s.PatchAdd(key, path, value); err != nil {
+				return err.Error()
+			}
+			return ""
+		},
+		"kvStoreRemove": func(key, path string) string {
+			if err := s.PatchRemove(key, path); err != nil {
+				return err.Error()
+			}
+			return ""
+		},
+		"kvStoreJsonPath": func(key, jsonPath string) interface{} {
+			if val, err := s.LookUp(key, jsonPath); err != nil {
+				return err.Error()
+			} else {
+				return val
+			}
+		},
 	}
 }

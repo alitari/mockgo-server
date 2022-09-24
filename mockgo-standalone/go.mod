@@ -1,4 +1,4 @@
-module github.com/alitari/mockgo-server
+module github.com/alitari/mockgo-standalone
 
 go 1.19
 
