@@ -1,9 +1,9 @@
 FROM golang:1.19.1 as builder
 WORKDIR /app
 COPY go.* ./
+COPY mockgo ./mockgo
+COPY mockgo-server ./mockgo-server
 RUN go mod download
-COPY cmd ./cmd
-COPY internal ./internal
 COPY scripts/go-build.sh .
 COPY test/main ./test
 RUN ./go-build.sh

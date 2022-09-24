@@ -5,7 +5,7 @@ build:
     - image: dev.local/mockgo-server
       context: .
       docker:
-        dockerfile: build/docker/Dockerfile
+        dockerfile: build/docker/mockgo-server.Dockerfile
 
 deploy:
   helm:
