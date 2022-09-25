@@ -131,6 +131,7 @@ func (s *KVStoreJSON) patch(key, patchJson string) error {
 	if err != nil {
 		return err
 	}
+	
 	s.logStr("storeJson=" + storeJson)
 	modifiedStoreJson, err := patch.Apply([]byte(storeJson))
 	if err != nil {

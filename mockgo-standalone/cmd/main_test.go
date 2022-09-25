@@ -1,22 +1,22 @@
 package main
 
 import (
-	"bytes"
-	"io"
-	"log"
-	"math/rand"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/alitari/mockgo/util"
 )
+
+const ()
 
 var httpClient = http.Client{Timeout: time.Duration(1) * time.Second}
 var port = 8081
-var apiPassword = randString(10)
+var urlPrefix = fmt.Sprintf("http://localhost:%d", port)
+var apiPassword = util.RandString(10)
 
 func TestMain(m *testing.M) {
 	os.Setenv("LOGLEVEL_API", "2")
@@ -28,63 +28,15 @@ func TestMain(m *testing.M) {
 	os.Setenv("MATCHES_RECORD_REQUESTS", "true")
 	os.Setenv("MISMATCHES_RECORD_REQUESTS", "true")
 	go main()
-	time.Sleep(200* time.Millisecond)
-	code := runAndCheckCoverage("main", m, 0.65)
+	time.Sleep(200 * time.Millisecond)
+	code := util.RunAndCheckCoverage("main", m, 0.65)
 	os.Exit(code)
 }
 
-
-func request(t *testing.T, method, path string, header map[string][]string, body string, expectedStatus int, assertBody func(responseBody string)) {
-	url := "http://localhost:" + strconv.Itoa(port) + path
-	t.Logf("calling url: '%s' ...", url)
-
-	var bodyReader io.Reader
-	if len(body) > 0 {
-		bodyReader = bytes.NewBufferString(body)
-	}
-	request, err := http.NewRequest(method, url, bodyReader)
-	assert.NoError(t, err)
-	request.Header = header
-	response, err := httpClient.Do(request)
-	assert.NoError(t, err)
-	defer response.Body.Close()
-	t.Logf("response status: '%s'", response.Status)
-	assert.Equal(t, expectedStatus, response.StatusCode)
-	respBytes, err := io.ReadAll(response.Body)
-	respBody := string(respBytes)
-	assert.NoError(t, err)
-	t.Logf("response body:\n '%s'", respBody)
-	if assertBody != nil {
-		assertBody(respBody)
-	}
-}
-
 func TestMain_health(t *testing.T) {
-	request(t, http.MethodGet, "/health", map[string][]string{}, "", http.StatusOK, nil)
+	util.RequestCall(t, httpClient,  http.MethodGet, urlPrefix+"/health", map[string][]string{}, "", http.StatusOK, nil)
 }
 
-
-// func TestMain_uploadKvStore(t *testing.T) {
-// 	// delete kv store for all
-// 	requestToAllNodes(t, true, http.MethodPut, "/kvstore", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "{}", http.StatusNoContent, nil)
-
-// 	kvstore := `{"store1":{"mykey":"myvalue"}}`
-// 	requestToNode(t, 0, true, http.MethodPut, "/kvstore", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, kvstore, http.StatusNoContent, nil)
-// 	requestToNode(t, 0, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
-// 		assert.Equal(t, kvstore, responseBody)
-// 	})
-// 	// upload kvstore not advertised
-// 	requestToNode(t, 1, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
-// 		assert.Equal(t, "{}", responseBody)
-// 	})
-// 	stopNode(1)
-// 	startNode(1)
-// 	time.Sleep(100 * time.Millisecond)
-// 	// kvstore synced from node 0 at boot time
-// 	requestToNode(t, 1, true, http.MethodGet, "/kvstore", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
-// 		assert.Equal(t, kvstore, responseBody)
-// 	})
-// }
 // func TestMain_getMatches(t *testing.T) {
 // 	// get matches
 // 	requestToNode(t, 0, true, http.MethodGet, "/matches", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
@@ -342,27 +294,3 @@ func TestMain_health(t *testing.T) {
 // 		requestToNode(t, i, config, method, path, header, body, expectedStatus, assertBody)
 // 	}
 // }
-
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-func randString(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
-	}
-	return string(b)
-}
-
-func runAndCheckCoverage(testPackage string, m *testing.M, treshold float64) int {
-
-	code := m.Run()
-
-	if code == 0 && testing.CoverMode() != "" {
-		coverage := testing.Coverage()
-		if coverage < treshold {
-			log.Printf("%s tests passed, but coverage must be above %2.2f%%, but it is %2.2f%%\n", testPackage, treshold*100, coverage*100)
-			code = -1
-		}
-	}
-	return code
-}
