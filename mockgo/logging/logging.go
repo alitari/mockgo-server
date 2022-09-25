@@ -127,5 +127,3 @@ func (lrw *LoggingResponseWriter) Log() {
 		lrw.loggerUtil.logger.Printf("LoggingResponseWriter: Failed to send out response: %v", err)
 	}
 }
-
-

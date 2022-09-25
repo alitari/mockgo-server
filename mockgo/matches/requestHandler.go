@@ -12,27 +12,24 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type MatchAPIRouter struct {
-	Router            *mux.Router
+type MatchesRequestHandler struct {
 	matchStore        Matchstore
 	logger            *logging.LoggerUtil
 	basicAuthUsername string
 	basicAuthPassword string
 }
 
-func NewMatchAPIRouter(username, password string, matchStore Matchstore, logger *logging.LoggerUtil) *MatchAPIRouter {
-	configRouter := &MatchAPIRouter{
+func NewMatchesRequestHandler(username, password string, matchStore Matchstore, logger *logging.LoggerUtil) *MatchesRequestHandler {
+	configRouter := &MatchesRequestHandler{
 		matchStore:        matchStore,
 		logger:            logger,
 		basicAuthUsername: username,
 		basicAuthPassword: password,
 	}
-	configRouter.newRouter()
 	return configRouter
 }
 
-func (r *MatchAPIRouter) newRouter() {
-	router := mux.NewRouter()
+func (r *MatchesRequestHandler) AddRoutes(router *mux.Router) {
 	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).
 		HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
 	router.NewRoute().Name("getMatches").Path("/matches/{endpointId}").Methods(http.MethodGet).
@@ -48,14 +45,13 @@ func (r *MatchAPIRouter) newRouter() {
 	router.NewRoute().Name("deleteMismatches").Path("/mismatches").Methods(http.MethodDelete).
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.handleDeleteMismatches))
 	// router.NewRoute().Name("transferMatches").Path("/transfermatches").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.transferMatchesHandler))
-	r.Router = router
 }
 
-func (r *MatchAPIRouter) health(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) health(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (r *MatchAPIRouter) handleMatches(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) handleMatches(writer http.ResponseWriter, request *http.Request) {
 	endpointId := mux.Vars(request)["endpointId"]
 	if r.matchStore.HasMatchesCountOnly() {
 		if matchesCount, err := r.matchStore.GetMatchesCount(endpointId); err != nil {
@@ -72,7 +68,7 @@ func (r *MatchAPIRouter) handleMatches(writer http.ResponseWriter, request *http
 	}
 }
 
-func (r *MatchAPIRouter) handleMismatches(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) handleMismatches(writer http.ResponseWriter, request *http.Request) {
 	if r.matchStore.HasMismatchesCountOnly() {
 		if mismatchesCount, err := r.matchStore.GetMismatchesCount(); err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
@@ -88,7 +84,7 @@ func (r *MatchAPIRouter) handleMismatches(writer http.ResponseWriter, request *h
 	}
 }
 
-func (r *MatchAPIRouter) handleDeleteMatches(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) handleDeleteMatches(writer http.ResponseWriter, request *http.Request) {
 	if err := r.matchStore.DeleteMatches(); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
@@ -96,7 +92,7 @@ func (r *MatchAPIRouter) handleDeleteMatches(writer http.ResponseWriter, request
 	}
 }
 
-func (r *MatchAPIRouter) handleDeleteMismatches(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) handleDeleteMismatches(writer http.ResponseWriter, request *http.Request) {
 	if err := r.matchStore.DeleteMismatches(); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
@@ -104,7 +100,7 @@ func (r *MatchAPIRouter) handleDeleteMismatches(writer http.ResponseWriter, requ
 	}
 }
 
-func (r *MatchAPIRouter) handleAddMatches(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) handleAddMatches(writer http.ResponseWriter, request *http.Request) {
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
@@ -142,7 +138,7 @@ func (r *MatchAPIRouter) handleAddMatches(writer http.ResponseWriter, request *h
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (r *MatchAPIRouter) handleAddMismatches(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) handleAddMismatches(writer http.ResponseWriter, request *http.Request) {
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)

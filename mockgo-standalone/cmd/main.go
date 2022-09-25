@@ -1,17 +1,16 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/alitari/mockgo/kvstore"
 	"github.com/alitari/mockgo/logging"
 	"github.com/alitari/mockgo/matches"
 	"github.com/alitari/mockgo/mock"
+	"github.com/gorilla/mux"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -23,18 +22,21 @@ const banner = `
 Standalone         |___/     
 `
 
+type RequestHandler interface {
+	AddRoutes(router *mux.Router)
+}
+
 type Configuration struct {
-	LoglevelAPI         int    `default:"1" split_words:"true"`
-	LoglevelMock        int    `default:"1" split_words:"true"`
-	APIPort             int    `default:"8080" split_words:"true"`
-	APIUsername         string `default:"mockgo" split_words:"true"`
-	APIPassword         string `default:"password" split_words:"true"`
-	MockPort            int    `default:"8081" split_words:"true"`
-	MockDir             string `default:"." split_words:"true"`
-	MockFilepattern     string `default:"*-mock.*" split_words:"true"`
-	MatchesCountOnly    bool   `default:"true" split_words:"true"`
-	MismatchesCountOnly bool   `default:"true" split_words:"true"`
-	ResponseDir         string `default:"./responses" split_words:"true"`
+	LoglevelAPI              int    `default:"1" split_words:"true"`
+	LoglevelMock             int    `default:"1" split_words:"true"`
+	APIUsername              string `default:"mockgo" split_words:"true"`
+	APIPassword              string `default:"password" split_words:"true"`
+	MockPort                 int    `default:"8081" split_words:"true"`
+	MockDir                  string `default:"." split_words:"true"`
+	MockFilepattern          string `default:"*-mock.*" split_words:"true"`
+	MatchesRecordRequests    bool   `default:"false" split_words:"true"`
+	MismatchesRecordRequests bool   `default:"false" split_words:"true"`
+	ResponseDir              string `default:"." split_words:"true"`
 }
 
 func (c *Configuration) info() string {
@@ -47,7 +49,6 @@ func (c *Configuration) info() string {
 	return fmt.Sprintf(`
 
 API: 
-  Port: %v
   BasicAuth User: '%s'
   BasicAuth Password: %s
   LogLevel: '%s'
@@ -58,35 +59,30 @@ Mock Server:
   Filepattern: '%s'
   Response Dir: '%s'
   LogLevel: '%s'
-
-CountOnly:
+  
+Record Requests:
   Matches: %v
   Mismatches: %v
-`,
-		c.APIPort, c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
+  `,
+		c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
 		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, logging.ParseLogLevel(c.LoglevelMock).String(),
-		c.MatchesCountOnly, c.MismatchesCountOnly)
+		c.MatchesRecordRequests, c.MismatchesRecordRequests)
 }
 
 func main() {
+	log.Print(banner)
 	configuration := createConfiguration()
-	matchStore := matches.NewInMemoryMatchstore(configuration.MatchesCountOnly, configuration.MismatchesCountOnly)
-	matchRouter := createMatchAPIRouter(configuration, matchStore)
-	kvStoreAPIRouter := createKVStoreAPIRouter(configuration)
-	mockRouter := createMockRouter(configuration, matchStore)
+	log.Print(configuration.info())
+	matchStore := matches.NewInMemoryMatchstore(!configuration.MatchesRecordRequests, !configuration.MismatchesRecordRequests)
+	matchHandler := createMatchHandler(configuration, matchStore)
+	kvStoreHandler := createKVStoreHandler(configuration)
+	mockHandler := createMockHandler(configuration, matchStore)
+	if err := mockHandler.LoadFiles(nil); err != nil {
+		log.Fatalf("can't load mock files: %v", err)
+	}
+	startServing(configuration, matchHandler, kvStoreHandler, mockHandler)
 	// go startServe(configRouter)
 	// startServe(mockRouter)
-}
-
-func createMatchAPIRouter(configuration *Configuration, matchstore matches.Matchstore) *matches.MatchAPIRouter {
-	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	return matches.NewMatchAPIRouter(configuration.APIUsername, configuration.APIPassword, matchStore, matchLogger)
-}
-
-func createKVStoreAPIRouter(configuration *Configuration) *kvstore.KVStoreAPIRouter {
-	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	kvstoreJson := kvstore.NewKVStoreJSON(kvstore.NewKVStoreInMemory(), logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
-	return kvstore.NewKVStoreAPIRouter(configuration.APIUsername, configuration.APIPassword, kvstoreJson, kvstoreLogger)
 }
 
 func createConfiguration() *Configuration {
@@ -97,33 +93,34 @@ func createConfiguration() *Configuration {
 	return &configuration
 }
 
-func createMockRouter(configuration *Configuration, matchstore matches.Matchstore) *mock.MockRouter {
-	mockLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMock))
-	mockRouter := mock.NewMockRouter(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, matchstore, "", "", time.Second, mockLogger)
-	return mockRouter
+func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.MatchesRequestHandler {
+	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
+	return matches.NewMatchesRequestHandler(configuration.APIUsername, configuration.APIPassword, matchstore, matchLogger)
 }
 
-func startServeAPI(configuration *Configuration, matchRouter *matches.MatchAPIRouter, kvStoreRouter *kvstore.KVStoreAPIRouter) error {
-	log.Printf("Serving %s on port %v", "startServeAPI", configuration.APIPort)
-	
-	server := &http.Server{Addr: ":" + strconv.Itoa(configuration.APIPort), Handler: matchRouter.Router}
+func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestHandler {
+	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
+	kvstoreJson := kvstore.NewKVStoreJSON(kvstore.NewInmemoryKVStore(), logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
+	return kvstore.NewKVStoreRequestHandler(configuration.APIUsername, configuration.APIPassword, kvstoreJson, kvstoreLogger)
+}
+
+func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.MockRequestHandler {
+	mockLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMock))
+	mockHandler := mock.NewMockRequestHandler(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, matchstore, mockLogger)
+	return mockHandler
+}
+
+func startServing(configuration *Configuration, requestHandlers ...RequestHandler) error {
+	router := mux.NewRouter()
+	for _, handler := range requestHandlers {
+		handler.AddRoutes(router)
+	}
+	server := &http.Server{Addr: ":" + strconv.Itoa(configuration.MockPort), Handler: router}
+	log.Printf("Serving on '%s'", server.Addr)
+
 	err := server.ListenAndServe()
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func stopServe(serving model.Serving) {
-	log.Printf("Stop Serving %s on port %d", serving.Name(), serving.Port())
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := serving.Server().Shutdown(ctx); err != nil {
-		log.Fatalf("Can't stop server %v", err)
-	}
-}
-
-func createInMemoryStore() *kvstore.KVStoreJSON {
-	kvstoreImpl := kvstore.NewKVStoreInMemory()
-	return kvstore.NewKVStoreJSON(&kvstoreImpl, true)
 }

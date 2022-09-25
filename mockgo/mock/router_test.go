@@ -17,9 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const httpClientTimeout = 1 * time.Second
-const proxyConfigRouterPath = "/__"
-
 type matchingTestCase struct {
 	name                    string
 	request                 *http.Request
@@ -275,7 +272,7 @@ func createRequest(method, url, bodyStr string, header map[string][]string, urlV
 	return request
 }
 
-func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestCase, t *testing.T) {
+func assertRenderingResponse(mockRouter *MockRequestHandler, testCases []*renderingTestCase, t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
@@ -306,7 +303,7 @@ func assertRenderingResponse(mockRouter *MockRouter, testCases []*renderingTestC
 	}
 }
 
-func assertMatchRequestToEndpoint(t *testing.T, mockRouter *MockRouter, testCases []*matchingTestCase) {
+func assertMatchRequestToEndpoint(t *testing.T, mockRouter *MockRequestHandler, testCases []*matchingTestCase) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			timeStamp := time.Now()
@@ -343,7 +340,7 @@ func assertMatchRequestToEndpoint(t *testing.T, mockRouter *MockRouter, testCase
 	}
 }
 
-func assertMismatchRequestToEndpoint(t *testing.T, mockRouter *MockRouter, testCases []*mismatchingTestCase) {
+func assertMismatchRequestToEndpoint(t *testing.T, mockRouter *MockRequestHandler, testCases []*mismatchingTestCase) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			timeStamp := time.Now()
@@ -371,8 +368,8 @@ func assertMismatchRequestToEndpoint(t *testing.T, mockRouter *MockRouter, testC
 	}
 }
 
-func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, mismatchesCountOnly bool) *MockRouter {
-	mockRouter := NewMockRouter("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, createInMemoryMatchStore(), proxyConfigRouterPath, "", httpClientTimeout, logging.NewLoggerUtil(logging.Debug))
+func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, mismatchesCountOnly bool) *MockRequestHandler {
+	mockRouter := NewMockRequestHandler("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, createInMemoryMatchStore(), logging.NewLoggerUtil(logging.Debug))
 	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	err := mockRouter.LoadFiles(nil)
 	assert.NoError(t, err)
@@ -380,7 +377,7 @@ func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, mismat
 }
 
 func createInMemoryMatchStore() matches.Matchstore {
-	return matches.NewInMemoryMatchstore(false,false)
+	return matches.NewInMemoryMatchstore(false, false)
 }
 
 func runAndCheckCoverage(testPackage string, m *testing.M, treshold float64) int {
