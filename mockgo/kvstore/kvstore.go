@@ -70,6 +70,9 @@ func (s *KVStoreJSON) GetAsJson(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if storeVal == nil {
+		return "{}", nil
+	}
 	storeJson, err := json.Marshal(storeVal)
 	if err != nil {
 		return "", err
@@ -131,7 +134,7 @@ func (s *KVStoreJSON) patch(key, patchJson string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	s.logStr("storeJson=" + storeJson)
 	modifiedStoreJson, err := patch.Apply([]byte(storeJson))
 	if err != nil {
