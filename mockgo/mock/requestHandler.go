@@ -437,7 +437,8 @@ func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request 
 		return
 	}
 
-	match.ActualResponse = &matches.ActualResponse{StatusCode: responseStatus, Header: headers}
+	//TODO: handle headers
+	match.ActualResponse = &matches.ActualResponse{StatusCode: responseStatus, Header: make(map[string][]string)}
 }
 
 func (r *MockRequestHandler) createResponseTemplateData(request *http.Request, requestPathParams map[string]string) (*ResponseTemplateData, error) {

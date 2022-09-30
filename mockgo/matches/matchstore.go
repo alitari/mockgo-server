@@ -24,16 +24,16 @@ type ActualRequest struct {
 
 type ActualResponse struct {
 	StatusCode int               `json:"statusCode"`
-	Header     map[string]string `json:"header"`
+	Header     map[string][]string `json:"header"`
 }
 
 type Matchstore interface {
 	HasMatchesCountOnly() bool
 	HasMismatchesCountOnly() bool
-	GetMatches( endpointId string) ([]*Match, error)
+	GetMatches(endpointId string) ([]*Match, error)
 	AddMatches(matches map[string][]*Match) error
 	GetMatchesCount(endpointId string) (int64, error)
-	AddMatchesCount( matchesCount map[string] int64) error
+	AddMatchesCount(matchesCount map[string]int64) error
 	GetMismatches() ([]*Mismatch, error)
 	AddMismatches([]*Mismatch) error
 	GetMismatchesCount() (int64, error)
