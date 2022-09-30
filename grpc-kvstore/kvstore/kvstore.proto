@@ -1,0 +1,17 @@
+syntax = "proto3";
+option go_package = "github.com/alitari/mockgo-grpc-kvstore/kvstore";
+
+import "google/protobuf/any.proto";
+
+package kvstore;
+
+service KVStore {
+    rpc StoreVal( StoreValRequest) returns (StoreValResponse) {}
+}
+
+message StoreValRequest {
+    string key = 1;
+    string value = 2;
+}
+
+message StoreValResponse {}

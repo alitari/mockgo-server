@@ -22,6 +22,6 @@ func (s *InmemoryKVStore) PutAll(content map[string]interface{}) error {
 	return nil
 }
 
-func NewInmemoryKVStore() KVStore {
+func NewInmemoryKVStore() *InmemoryKVStore {
 	return &InmemoryKVStore{store: map[string]interface{}{}}
 }
