@@ -5,7 +5,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
+	grpckvstore "github.com/alitari/mockgo-grpc-kvstore/kvstore"
+	"github.com/alitari/mockgo-grpc-matchstore/matchstore"
 	"github.com/alitari/mockgo/kvstore"
 	"github.com/alitari/mockgo/logging"
 	"github.com/alitari/mockgo/matches"
@@ -19,7 +22,7 @@ const banner = `
 |  \/  |___  __| |______ ___ 
 | |\/| / _ \/ _| / / _  / _ \
 |_|  |_\___/\__|_\_\__, \___/
-Standalone         |___/     
+Cluster-grpc       |___/     
 `
 
 type RequestHandler interface {
@@ -27,16 +30,26 @@ type RequestHandler interface {
 }
 
 type Configuration struct {
-	LoglevelAPI         int    `default:"1" split_words:"true"`
-	LoglevelMock        int    `default:"1" split_words:"true"`
-	APIUsername         string `default:"mockgo" split_words:"true"`
-	APIPassword         string `default:"password" split_words:"true"`
-	MockPort            int    `default:"8081" split_words:"true"`
-	MockDir             string `default:"." split_words:"true"`
-	MockFilepattern     string `default:"*-mock.*" split_words:"true"`
-	MatchesCountOnly    bool   `default:"true" split_words:"true"`
-	MismatchesCountOnly bool   `default:"true" split_words:"true"`
-	ResponseDir         string `default:"." split_words:"true"`
+	LoglevelAPI         int      `default:"1" split_words:"true"`
+	LoglevelMock        int      `default:"1" split_words:"true"`
+	APIUsername         string   `default:"mockgo" split_words:"true"`
+	APIPassword         string   `default:"password" split_words:"true"`
+	MockPort            int      `default:"8081" split_words:"true"`
+	MockDir             string   `default:"." split_words:"true"`
+	MockFilepattern     string   `default:"*-mock.*" split_words:"true"`
+	ResponseDir         string   `default:"." split_words:"true"`
+	ClusterHostnames    []string ` split_words:"true"`
+	MatchstorePort      int      `default:"50051" split_words:"true"`
+	MatchesCountOnly    bool     `default:"true" split_words:"true"`
+	MismatchesCountOnly bool     `default:"true" split_words:"true"`
+	KvstorePort         int      `default:"50151" split_words:"true"`
+}
+
+func (c *Configuration) validate() error {
+	if len( c.ClusterHostnames) < 2 {
+		return fmt.Errorf("you must define multiple hostnames, but you have just '%v'",c.ClusterHostnames)
+	}
+	return nil
 }
 
 func (c *Configuration) info() string {
@@ -63,20 +76,25 @@ Mock Server:
 Count only:
   Matches: %v
   Mismatches: %v
+
+Cluster:
+  Hostnames: %v
+  Matchstore port: %d
+  KVstore port: %d
   `,
 		c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
 		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, logging.ParseLogLevel(c.LoglevelMock).String(),
-		c.MatchesCountOnly, c.MismatchesCountOnly)
+		c.MatchesCountOnly, c.MismatchesCountOnly, c.ClusterHostnames, c.MatchstorePort, c.KvstorePort)
 }
 
 func main() {
 	log.Print(banner)
 	configuration := createConfiguration()
 	log.Print(configuration.info())
-	matchStore := matches.NewInMemoryMatchstore(configuration.MatchesCountOnly, configuration.MismatchesCountOnly)
-	matchHandler := createMatchHandler(configuration, matchStore)
+	matchstore := createMatchstore(configuration)
+	matchHandler := createMatchHandler(configuration, matchstore)
 	kvStoreHandler := createKVStoreHandler(configuration)
-	mockHandler := createMockHandler(configuration, matchStore)
+	mockHandler := createMockHandler(configuration, matchstore)
 	if err := mockHandler.LoadFiles(nil); err != nil {
 		log.Fatalf("can't load mock files: %v", err)
 	}
@@ -90,7 +108,28 @@ func createConfiguration() *Configuration {
 	if err := envconfig.Process("", &configuration); err != nil {
 		log.Fatal(err)
 	}
+	if err := configuration.validate(); err != nil {
+		log.Fatal(err)
+	}
 	return &configuration
+}
+
+func createMatchstore(configuration *Configuration) *matchstore.GrpcMatchstore {
+	matchstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
+	addresses := []string{}
+
+	for _, host := range configuration.ClusterHostnames {
+		if strings.Contains(host, ":") {
+			addresses = append(addresses, host)
+		} else {
+			addresses = append(addresses, fmt.Sprintf("%s:%d", host, configuration.MatchstorePort))
+		}
+	}
+	matchStore, err := matchstore.NewGrpcMatchstore(addresses, configuration.MatchstorePort, matchstoreLogger)
+	if err != nil {
+		log.Fatalf("can't initialize grpc matchstore: %v", err)
+	}
+	return matchStore
 }
 
 func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.MatchesRequestHandler {
@@ -100,7 +139,19 @@ func createMatchHandler(configuration *Configuration, matchstore matches.Matchst
 
 func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestHandler {
 	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	kvstoreJson := kvstore.NewKVStoreJSON(kvstore.NewInmemoryKVStore(), logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
+	addresses := []string{}
+	for _, host := range configuration.ClusterHostnames {
+		if strings.Contains(host, ":") {
+			addresses = append(addresses, host)
+		} else {
+			addresses = append(addresses, fmt.Sprintf("%s:%d", host, configuration.KvstorePort))
+		}
+	}
+	kvs, err := grpckvstore.NewGrpcKVstore(addresses, configuration.KvstorePort, kvstoreLogger)
+	if err != nil {
+		log.Fatalf("can't initialize grpc kvstore: %v", err)
+	}
+	kvstoreJson := kvstore.NewKVStoreJSON(kvs, logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
 	return kvstore.NewKVStoreRequestHandler(configuration.APIUsername, configuration.APIPassword, kvstoreJson, kvstoreLogger)
 }
 

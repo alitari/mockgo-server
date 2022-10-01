@@ -1,8 +1,6 @@
 syntax = "proto3";
 option go_package = "github.com/alitari/mockgo-grpc-kvstore/kvstore";
 
-import "google/protobuf/any.proto";
-
 package kvstore;
 
 service KVStore {

@@ -26,7 +26,7 @@ type GrpcMatchstore struct {
 }
 
 func NewGrpcMatchstore(addresses []string, serverPort int, logger *logging.LoggerUtil) (*GrpcMatchstore, error) {
-	matchstore := &GrpcMatchstore{id: uuid.NewString(), InMemoryMatchstore: matches.NewInMemoryMatchstore(false, false), timeout: 1 * time.Second, logger: logger}
+	matchstore := &GrpcMatchstore{id: uuid.New().String(), InMemoryMatchstore: matches.NewInMemoryMatchstore(false, false), timeout: 1 * time.Second, logger: logger}
 	for _, address := range addresses {
 		if conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 			return nil, err

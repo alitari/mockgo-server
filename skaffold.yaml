@@ -2,10 +2,10 @@ apiVersion: skaffold/v2beta28
 kind: Config
 build:
   artifacts:
-    - image: dev.local/mockgo-server
+    - image: dev.local/mockgo-standalone
       context: .
       docker:
-        dockerfile: build/docker/mockgo-server.Dockerfile
+        dockerfile: build/docker/mockgo-standalone.Dockerfile
 
 deploy:
   helm:
@@ -13,23 +13,8 @@ deploy:
       - name: mockgo-server
         chartPath: deployments/helm/mockgo-server
         artifactOverrides:
-          image: dev.local/mockgo-server
+          image: dev.local/mockgo-standalone
         valuesFiles:
-          - deployments/helm/minikube-values.yaml
+          - deployments/helm/minikube-standalone-values.yaml
         setValueTemplates:
-          ingress.configHost: "config.{{.MINIKUBE_IP}}.nip.io"
-          ingress.mockHost: "mock.{{.MINIKUBE_IP}}.nip.io"
-  kustomize:
-    paths:
-      - deployments/kustomize/minikube
-
-profiles:
-  - name: all
-  - name: statefulset
-    patches:
-      - op: remove
-        path: "/deploy/kustomize"
-  - name: knative
-    patches:
-      - op: remove
-        path: "/deploy/helm"
+          ingress.host: "mockgo.{{.MINIKUBE_IP}}.nip.io"

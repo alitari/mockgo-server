@@ -26,7 +26,7 @@ type GrpcKVStore struct {
 }
 
 func NewGrpcKVstore(addresses []string, serverPort int, logger *logging.LoggerUtil) (*GrpcKVStore, error) {
-	kvstore := &GrpcKVStore{id: uuid.NewString(), InmemoryKVStore: kvstore.NewInmemoryKVStore(), timeout: 1 * time.Second, logger: logger}
+	kvstore := &GrpcKVStore{id: uuid.New().String(), InmemoryKVStore: kvstore.NewInmemoryKVStore(), timeout: 1 * time.Second, logger: logger}
 	for _, address := range addresses {
 		if conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 			return nil, err

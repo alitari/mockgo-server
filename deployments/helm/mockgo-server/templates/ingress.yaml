@@ -1,7 +1,5 @@
 {{- if .Values.ingress.enabled -}}
 {{- $fullName := include "mockgoserver.fullname" . -}}
-{{- $svcConfigPort := .Values.configEndpoint.servicePort -}}
-{{- $svcMockPort := .Values.mockEndpoint.servicePort -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -15,25 +13,14 @@ metadata:
 spec:
   ingressClassName: {{ .Values.ingress.ingressClassName}}
   rules:
-    - host: {{ .Values.ingress.configHost }}
+    - host: {{ .Values.ingress.host }}
       http:
         paths:
-          - path: {{ .Values.ingress.configPath }}
-            pathType: {{ .Values.ingress.configPathType }}
+          - path: {{ .Values.ingress.path }}
+            pathType: {{ .Values.ingress.pathType }}
             backend:
               service:
                 name: {{ $fullName }}
                 port:
-                  number: {{ $svcConfigPort }}
-    - host: {{ .Values.ingress.mockHost }}
-      http:
-        paths:
-          - path: {{ .Values.ingress.mockPath }}
-            pathType: {{ .Values.ingress.mockPathType }}
-            backend:
-              service:
-                name: {{ $fullName }}
-                port:
-                  number: {{ $svcMockPort }}
-
+                  number: {{ .Values.servicePort }}
 {{- end }}

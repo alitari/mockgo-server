@@ -1,6 +1,6 @@
-{{- if .Values.cluster.enabled }}
+{{- if not .Values.cluster.enabled }}
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: {{ include "mockgoserver.fullname" . }}
   namespace: {{ include "mockgoserver.namespace" . }}
@@ -14,11 +14,7 @@ spec:
   selector:
     matchLabels:
       {{- include "mockgoserver.selectorLabels" . | nindent 6 }}
-  replicas: {{ .Values.cluster.replicas }}
-  serviceName: {{ include "mockgoserver.fullname" . }}
-
-  podManagementPolicy: {{ .Values.podManagementPolicy }}
-
+  replicas: 1
   template:
     metadata:
       annotations:
@@ -54,21 +50,6 @@ spec:
       {{- with .Values.tolerations }}
       tolerations: {{ toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.topologySpreadConstraints }}
-      topologySpreadConstraints:
-      {{- range .Values.topologySpreadConstraints }}
-      {{- if and .maxSkew .topologyKey }}
-      - maxSkew: {{ .maxSkew }}
-        topologyKey: {{ .topologyKey }}
-        {{- if .whenUnsatisfiable }}
-        whenUnsatisfiable: {{ .whenUnsatisfiable }}
-        {{- end }}
-        labelSelector:
-          matchLabels:
-            {{- include "mockgoserver.selectorLabels" $ | nindent 12 }}
-      {{- end }}
-      {{- end }}
-      {{- end }}
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName | quote }}
       {{- end }}
@@ -85,7 +66,7 @@ spec:
       shareProcessNamespace: true
 
       containers:
-      - name: mockgoserver
+      - name: mockgo-standalone
         image: {{ .Values.image }}
         imagePullPolicy: {{ .Values.pullPolicy }}
         {{- if .Values.securityContext }}
@@ -94,32 +75,23 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
-        lifecycle:
-          preStop:
-            httpGet:
-              port: {{ .Values.configEndpoint.containerPort }}
-              path: /transfermatches
         ports:
-        - containerPort: {{ .Values.configEndpoint.containerPort }}
-          name: config
-        - containerPort: {{ .Values.mockEndpoint.containerPort }}
-          name: mock
+        - containerPort: {{ .Values.containerPort }}
+          name: http
         env:
-        - name: LOGLEVEL_CONFIG
-          value: {{ .Values.logging.config.level | quote }}
+        - name: LOGLEVEL_API
+          value: {{ .Values.logging.api.level | quote }}
         - name: LOGLEVEL_MOCK
           value: {{ .Values.logging.mock.level | quote }}
-        - name: CONFIG_PORT
-          value: {{ .Values.configEndpoint.containerPort | quote }}
-        - name: CONFIG_USERNAME
-          value: {{ .Values.configEndpoint.username | quote }}
-        - name: CONFIG_PASSWORD
+        - name: MOCK_PORT
+          value: {{ .Values.containerPort | quote }}
+        - name: API_USERNAME
+          value: {{ .Values.api.username | quote }}
+        - name: API_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ include "mockgoserver.fullname" . }}
-              key: configPassword
-        - name: MOCK_PORT
-          value: {{ .Values.mockEndpoint.containerPort | quote }}
+              key: apiPassword
         - name: MOCK_DIR
           value: '/etc/mockgoserver-config'
         - name: MOCK_FILEPATTERN
@@ -130,15 +102,13 @@ spec:
           value: {{ .Values.countOnly.matches | quote }}
         - name: MISMATCHES_COUNT_ONLY
           value: {{ .Values.countOnly.mismatches | quote }}
-        - name: CLUSTER_URLS
-          value: "{{ include "mockgoserver.clusterUrls" . }}"
         volumeMounts:
         - name: config-volume
           mountPath: /etc/mockgoserver-config
         livenessProbe:
           httpGet:
             path: /health
-            port: {{ .Values.configEndpoint.containerPort }}
+            port: {{ .Values.containerPort }}
           {{- with .Values.healthcheck.liveness }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
           timeoutSeconds: {{ .timeoutSeconds }}
@@ -150,7 +120,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: {{ .Values.configEndpoint.containerPort }}
+            port: {{ .Values.containerPort }}
         {{- with .Values.healthcheck.readiness }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
           timeoutSeconds: {{ .timeoutSeconds }}
