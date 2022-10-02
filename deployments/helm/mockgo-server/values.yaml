@@ -30,6 +30,9 @@ cluster:
   replicas: 3
   # Define if mockgo-server is using FQDN name for clustering (i.e. mockgo-server-0.mockgo-server.default.svc.cluster.local) or short name (i.e. mockgo-server-0.mockgo-server.default).
   useFQDN: true
+  grpcPorts:
+    matchstore: 50051
+    kvstore: 50151
 
 image: mockgo-standalone:1.0.0-alpine
 pullPolicy: IfNotPresent

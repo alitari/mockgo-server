@@ -6,15 +6,27 @@ build:
       context: .
       docker:
         dockerfile: build/docker/mockgo-standalone.Dockerfile
+    - image: dev.local/mockgo-grpc
+      context: .
+      docker:
+        dockerfile: build/docker/mockgo-grpc.Dockerfile
 
 deploy:
   helm:
     releases:
-      - name: mockgo-server
+      - name: mockgo-standalone
         chartPath: deployments/helm/mockgo-server
         artifactOverrides:
           image: dev.local/mockgo-standalone
         valuesFiles:
           - deployments/helm/minikube-standalone-values.yaml
         setValueTemplates:
-          ingress.host: "mockgo.{{.MINIKUBE_IP}}.nip.io"
+          ingress.host: "mockgo-standalone.{{.MINIKUBE_IP}}.nip.io"
+      - name: mockgo-grpc
+        chartPath: deployments/helm/mockgo-server
+        artifactOverrides:
+          image: dev.local/mockgo-grpc
+        valuesFiles:
+          - deployments/helm/minikube-grpc-values.yaml
+        setValueTemplates:
+          ingress.host: "mockgo-grpc.{{.MINIKUBE_IP}}.nip.io"

@@ -25,9 +25,9 @@ healthcheck:
 
 logging:
   api:
-    level: 2
+    level: 1
   mock:
-    level: 2
+    level: 1
 
 mocks:
 - name: hello

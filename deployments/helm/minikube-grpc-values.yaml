@@ -1,15 +1,21 @@
-image: mockgo-server:latest
+image: mockgo-grpc:latest
 pullPolicy: Never
 ingress:
   enabled: true
-  # configHost: "config.192.168.67.2.nip.io"
-  # mockHost: "mock.192.168.67.2.nip.io"
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "250m"
+  limits:
+    memory: "128Mi"
+    cpu: "500m"
 
 cluster:
   enabled: true
   replicas: 3
 
-configEndpoint:
+api:
   password: asecretPassword
 
 healthcheck:
@@ -19,7 +25,7 @@ healthcheck:
     initialDelaySeconds: 2
 
 logging:
-  config:
+  api:
     level: 2
   mock:
     level: 2
@@ -33,60 +39,6 @@ mocks:
         path: '/hello1'
       response:
         bodyFilename: "hello1-response.json"
-    - id: hello2
-      request:
-        path: '/hello2'
-      response:
-        headers: |
-          Content-Type: "application/text"
-        body: "Hello World!"
-    - id: hello3
-      request:
-        path: '/hello3/{name}'
-      response:
-        headers: |
-          Content-Type: "application/text"
-        bodyFilename: "hello3-response.txt"
-    - id: hello4
-      request:
-        path: '/hello4/*/{name}'
-      response:
-        headers: |
-          Content-Type: "application/json"
-        bodyFilename: "hello4-response.json"
-    - id: hello5
-      request:
-        path: '/hello5/{name}/*'
-      response:
-        headers: |
-          Content-Type: "application/json"
-        bodyFilename: "hello4-response.json"
-    - id: hello6
-      request:
-        path: '/hello6/{sender}/*/{receiver}'
-      response:
-        headers: |
-          Content-Type: "application/json"
-        bodyFilename: "hello6-response.json"
-    - id: hello7
-      request:
-        path: '/hello7/{sender}/{receiver}/**'
-      response:
-        headers: |
-          Content-Type: "application/json"
-        bodyFilename: "hello6-response.json"
-    - id: hello8
-      request:
-        path: '/hello8/**/last'
-      response:
-        statusCode: 202
-    - id: hello9
-      request:
-        path: '/hello9/**/sender/{sender}/**/receiver/{receiver}'
-      response:
-        headers: |
-          Content-Type: "application/json"
-        bodyFilename: "hello6-response.json"
 
 responses:
 - name: hello1
@@ -94,22 +46,4 @@ responses:
   config: |
     {
       "hello": "World"
-    }
-- name: hello3
-  type: txt
-  config: |
-    hello, world, {{ .RequestPathParams.name }} !
-
-- name: hello4
-  type: json
-  config: |
-    {
-      "message" :"Hello world, {{ .RequestPathParams.name }} !"
-    }
-
-- name: hello6
-  type: json
-  config: |
-    {
-      "{{ .RequestPathParams.sender }}": "says 'hello' to {{ .RequestPathParams.receiver }} !"
     }
