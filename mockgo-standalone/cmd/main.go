@@ -73,7 +73,7 @@ func main() {
 	log.Print(banner)
 	configuration := createConfiguration()
 	log.Print(configuration.info())
-	matchStore := matches.NewInMemoryMatchstore(configuration.MatchesCountOnly, configuration.MismatchesCountOnly)
+	matchStore := matches.NewInMemoryMatchstore()
 	matchHandler := createMatchHandler(configuration, matchStore)
 	kvStoreHandler := createKVStoreHandler(configuration)
 	mockHandler := createMockHandler(configuration, matchStore)
@@ -95,7 +95,8 @@ func createConfiguration() *Configuration {
 
 func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.MatchesRequestHandler {
 	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	return matches.NewMatchesRequestHandler(configuration.APIUsername, configuration.APIPassword, matchstore, matchLogger)
+	return matches.NewMatchesRequestHandler(configuration.APIUsername, configuration.APIPassword,
+		matchstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly, matchLogger)
 }
 
 func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestHandler {

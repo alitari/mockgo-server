@@ -9,6 +9,8 @@ package matchstore;
 service Matchstore {
 	rpc FetchMatches( EndPointRequest) returns (MatchesResponse) {}
 	rpc FetchMismatches(MismatchRequest) returns ( MismatchesResponse) {}
+    rpc FetchMatchesCount( EndPointRequest) returns (MatchesCountResponse) {}
+	rpc FetchMismatchesCount(MismatchRequest) returns ( MismatchesCountResponse) {}
 }
 
 message EndPointRequest {
@@ -21,8 +23,16 @@ message MatchesResponse {
     repeated Match matches = 1;
 }
 
+message MatchesCountResponse {
+    int32 matchesCount = 1;
+}
+
 message MismatchesResponse {
     repeated Mismatch mismatches = 1;
+}
+
+message MismatchesCountResponse {
+    int32 mismatchesCount = 1;
 }
 
 message Match {

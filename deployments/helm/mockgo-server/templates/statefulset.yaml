@@ -103,6 +103,10 @@ spec:
           value: {{ .Values.logging.api.level | quote }}
         - name: LOGLEVEL_MOCK
           value: {{ .Values.logging.mock.level | quote }}
+        - name: LOGLEVEL_KVSTORE
+          value: {{ .Values.logging.kvstore.level | quote }}
+        - name: LOGLEVEL_MATCHSTORE
+          value: {{ .Values.logging.matchstore.level | quote }}
         - name: MOCK_PORT
           value: {{ .Values.containerPort | quote }}
         - name: API_USERNAME

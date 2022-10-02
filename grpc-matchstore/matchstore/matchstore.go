@@ -26,7 +26,7 @@ type GrpcMatchstore struct {
 }
 
 func NewGrpcMatchstore(addresses []string, serverPort int, logger *logging.LoggerUtil) (*GrpcMatchstore, error) {
-	matchstore := &GrpcMatchstore{id: uuid.New().String(), InMemoryMatchstore: matches.NewInMemoryMatchstore(false, false), timeout: 1 * time.Second, logger: logger}
+	matchstore := &GrpcMatchstore{id: uuid.New().String(), InMemoryMatchstore: matches.NewInMemoryMatchstore(), timeout: 1 * time.Second, logger: logger}
 	for _, address := range addresses {
 		if conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 			return nil, err
@@ -71,6 +71,16 @@ func (g *GrpcMatchstore) FetchMatches(ctx context.Context, endpointRequest *EndP
 	return &MatchesResponse{Matches: protoMatches}, nil
 }
 
+func (g *GrpcMatchstore) FetchMatchesCount(ctx context.Context, endpointRequest *EndPointRequest) (*MatchesCountResponse, error) {
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : fetching matches count for endpointId: %s ...", g.id, endpointRequest.Id))
+	matchesCount, err := g.InMemoryMatchstore.GetMatchesCount(endpointRequest.Id)
+	if err != nil {
+		return nil, err
+	}
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : return %d matches", g.id, matchesCount))
+	return &MatchesCountResponse{MatchesCount: int32(matchesCount)}, nil
+}
+
 func (g *GrpcMatchstore) FetchMismatches(context.Context, *MismatchRequest) (*MismatchesResponse, error) {
 	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : fetching mismatches...", g.id))
 	mismatches, err := g.InMemoryMatchstore.GetMismatches()
@@ -85,8 +95,19 @@ func (g *GrpcMatchstore) FetchMismatches(context.Context, *MismatchRequest) (*Mi
 	return &MismatchesResponse{Mismatches: protoMismatches}, nil
 }
 
+func (g *GrpcMatchstore) FetchMismatchesCount(context.Context, *MismatchRequest) (*MismatchesCountResponse, error) {
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : fetching mismatches count ...", g.id))
+	mismatchesCount, err := g.InMemoryMatchstore.GetMismatchesCount()
+	if err != nil {
+		return nil, err
+	}
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : return %d mismatches", g.id, mismatchesCount))
+	return &MismatchesCountResponse{MismatchesCount: int32(mismatchesCount)}, nil
+}
+
 func (g *GrpcMatchstore) GetMatches(endpointId string) ([]*matches.Match, error) {
-	res := []*matches.Match{}
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : get matches for endpointId: %s ...", g.id, endpointId))
+	matches := []*matches.Match{}
 	for _, client := range g.clients {
 		ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 		response, err := client.FetchMatches(ctx, &EndPointRequest{Id: endpointId})
@@ -95,14 +116,32 @@ func (g *GrpcMatchstore) GetMatches(endpointId string) ([]*matches.Match, error)
 			return nil, err
 		}
 		for _, match := range response.GetMatches() {
-			res = append(res, mapProtoMatch(match))
+			matches = append(matches, mapProtoMatch(match))
 		}
 	}
-	return res, nil
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : return %d matches as result for endpointId: %s ...", g.id, len(matches), endpointId))
+	return matches, nil
+}
+
+func (g *GrpcMatchstore) GetMatchesCount(endpointId string) (int, error) {
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : get matchesCount for endpointId: %s ...", g.id, endpointId))
+	matchesCount := 0
+	for _, client := range g.clients {
+		ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+		response, err := client.FetchMatchesCount(ctx, &EndPointRequest{Id: endpointId})
+		defer cancel()
+		if err != nil {
+			return -1, err
+		}
+		matchesCount = matchesCount + int(response.MatchesCount)
+	}
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : return %d matches as result for endpointId: %s", g.id, matchesCount, endpointId))
+	return matchesCount, nil
 }
 
 func (g *GrpcMatchstore) GetMismatches() ([]*matches.Mismatch, error) {
-	res := []*matches.Mismatch{}
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : get mismatches ...", g.id))
+	mismatches := []*matches.Mismatch{}
 	for _, client := range g.clients {
 		ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 		response, err := client.FetchMismatches(ctx, &MismatchRequest{})
@@ -111,10 +150,26 @@ func (g *GrpcMatchstore) GetMismatches() ([]*matches.Mismatch, error) {
 			return nil, err
 		}
 		for _, match := range response.GetMismatches() {
-			res = append(res, mapProtoMismatch(match))
+			mismatches = append(mismatches, mapProtoMismatch(match))
 		}
 	}
-	return res, nil
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : return %d mismatches as result", g.id, len(mismatches)))
+	return mismatches, nil
+}
+func (g *GrpcMatchstore) GetMismatchesCount() (int, error) {
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : get mismatches count ...", g.id))
+	mismatchesCount := 0
+	for _, client := range g.clients {
+		ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+		response, err := client.FetchMismatchesCount(ctx, &MismatchRequest{})
+		defer cancel()
+		if err != nil {
+			return -1, err
+		}
+		mismatchesCount = mismatchesCount + int(response.MismatchesCount)
+	}
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : return %d mismatches as result", g.id, mismatchesCount))
+	return mismatchesCount, nil
 }
 
 func mapProtoMatch(protomatch *Match) *matches.Match {

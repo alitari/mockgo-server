@@ -345,38 +345,30 @@ func (r *MockRequestHandler) matchBody(matchRequest *MatchRequest, request *http
 func (r *MockRequestHandler) addMatch(endPoint *MockEndpoint, request *http.Request) *matches.Match {
 	actualRequest := &matches.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
 	match := &matches.Match{EndpointId: endPoint.Id, Timestamp: time.Now(), ActualRequest: actualRequest}
-	if r.matchstore.HasMatchesCountOnly() {
-		r.matchstore.AddMatchesCount(map[string]int64{endPoint.Id: 1})
-	} else {
-		r.matchstore.AddMatches(map[string][]*matches.Match{endPoint.Id: {match}})
-	}
+	r.matchstore.AddMatches(map[string][]*matches.Match{endPoint.Id: {match}})
 	return match
 }
 
 func (r *MockRequestHandler) addMismatch(sn *EpSearchNode, pathPos int, endpointMismatchDetails string, request *http.Request) {
-	if r.matchstore.HasMismatchesCountOnly() {
-		r.matchstore.AddMismatchesCount(1)
+	var mismatchDetails string
+	if sn == nil { // node found -> path matched
+		mismatchDetails = fmt.Sprintf("path '%s' matched, but %s", request.URL.Path, endpointMismatchDetails)
 	} else {
-		var mismatchDetails string
-		if sn == nil { // node found -> path matched
-			mismatchDetails = fmt.Sprintf("path '%s' matched, but %s", request.URL.Path, endpointMismatchDetails)
+		var matchedSubPath string
+		if pathPos == math.MaxInt {
+			matchedSubPath = request.URL.Path
 		} else {
-			var matchedSubPath string
-			if pathPos == math.MaxInt {
-				matchedSubPath = request.URL.Path
-			} else {
-				pathSegments := strings.Split(request.URL.Path, "/")[1:]
-				matchedSubPath = strings.Join(pathSegments[:pathPos-1], "/")
-			}
-			mismatchDetails = fmt.Sprintf("path '%s' not matched, subpath which matched: '%s'", request.URL.Path, matchedSubPath)
+			pathSegments := strings.Split(request.URL.Path, "/")[1:]
+			matchedSubPath = strings.Join(pathSegments[:pathPos-1], "/")
 		}
-		actualRequest := &matches.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
-		mismatch := &matches.Mismatch{
-			MismatchDetails: mismatchDetails,
-			Timestamp:       time.Now(),
-			ActualRequest:   actualRequest}
-		r.matchstore.AddMismatches([]*matches.Mismatch{mismatch})
+		mismatchDetails = fmt.Sprintf("path '%s' not matched, subpath which matched: '%s'", request.URL.Path, matchedSubPath)
 	}
+	actualRequest := &matches.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
+	mismatch := &matches.Mismatch{
+		MismatchDetails: mismatchDetails,
+		Timestamp:       time.Now(),
+		ActualRequest:   actualRequest}
+	r.matchstore.AddMismatches([]*matches.Mismatch{mismatch})
 }
 
 func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *MockEndpoint, match *matches.Match, requestPathParams map[string]string) {

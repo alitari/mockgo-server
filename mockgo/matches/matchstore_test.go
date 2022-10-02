@@ -30,18 +30,8 @@ func createMatchForRequest(endpointId string, request *http.Request) *Match {
 	return match
 }
 
-func TestMatchstore_HasMatchesCountOnly(t *testing.T) {
-	assert.True(t, NewInMemoryMatchstore(true, false).HasMatchesCountOnly())
-	assert.False(t, NewInMemoryMatchstore(false, false).HasMatchesCountOnly())
-}
-
-func TestMatchstore_HasMismatchesCountOnly(t *testing.T) {
-	assert.True(t, NewInMemoryMatchstore(false, true).HasMismatchesCountOnly())
-	assert.False(t, NewInMemoryMatchstore(false, false).HasMismatchesCountOnly())
-}
-
 func TestMatchstore_GetMatches(t *testing.T) {
-	matchstore := NewInMemoryMatchstore(true, true)
+	matchstore := NewInMemoryMatchstore()
 	endpointId := "endpointId"
 	matchstore.matches = map[string][]*Match{endpointId: {createMatch(endpointId)}}
 	matches, err := matchstore.GetMatches(endpointId)

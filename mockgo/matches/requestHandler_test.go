@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 
 func startServing() {
 	logger := logging.NewLoggerUtil(logging.Debug)
-	matchesRequestHandler = NewMatchesRequestHandler(username, password, NewInMemoryMatchstore(false, false), logger)
+	matchesRequestHandler = NewMatchesRequestHandler(username, password, NewInMemoryMatchstore(), false,false,logger)
 	router := mux.NewRouter()
 	matchesRequestHandler.AddRoutes(router)
 	server := &http.Server{Addr: ":" + strconv.Itoa(port), Handler: router}

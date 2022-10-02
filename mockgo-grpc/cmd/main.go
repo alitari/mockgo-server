@@ -32,6 +32,8 @@ type RequestHandler interface {
 type Configuration struct {
 	LoglevelAPI         int      `default:"1" split_words:"true"`
 	LoglevelMock        int      `default:"1" split_words:"true"`
+	LoglevelMatchstore  int      `default:"1" split_words:"true"`
+	LoglevelKvstore     int      `default:"1" split_words:"true"`
 	APIUsername         string   `default:"mockgo" split_words:"true"`
 	APIPassword         string   `default:"password" split_words:"true"`
 	MockPort            int      `default:"8081" split_words:"true"`
@@ -46,9 +48,15 @@ type Configuration struct {
 }
 
 func (c *Configuration) validate() error {
-	if len( c.ClusterHostnames) < 2 {
-		return fmt.Errorf("you must define multiple hostnames, but you have just '%v'",c.ClusterHostnames)
+
+	if len(c.ClusterHostnames) < 2 {
+		return fmt.Errorf("you must define multiple hostnames, but you have just '%v'", c.ClusterHostnames)
 	}
+	// fix empty string at the end
+	if len(c.ClusterHostnames[len(c.ClusterHostnames)-1]) == 0 {
+		c.ClusterHostnames = c.ClusterHostnames[:len(c.ClusterHostnames)-1]
+	}
+	log.Printf("Cluster size: %d", len(c.ClusterHostnames))
 	return nil
 }
 
@@ -77,14 +85,22 @@ Count only:
   Matches: %v
   Mismatches: %v
 
+Matchstore:
+  Port: %d
+  LogLevel: %s
+
+KVStore:
+  Port: %d
+  LogLevel: %s
+
 Cluster:
   Hostnames: %v
-  Matchstore port: %d
-  KVstore port: %d
-  `,
+`,
 		c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
 		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, logging.ParseLogLevel(c.LoglevelMock).String(),
-		c.MatchesCountOnly, c.MismatchesCountOnly, c.ClusterHostnames, c.MatchstorePort, c.KvstorePort)
+		c.MatchesCountOnly, c.MismatchesCountOnly, c.MatchstorePort, logging.ParseLogLevel(c.LoglevelMatchstore).String(),
+		c.KvstorePort, logging.ParseLogLevel(c.LoglevelKvstore).String(),
+		c.ClusterHostnames)
 }
 
 func main() {
@@ -115,7 +131,7 @@ func createConfiguration() *Configuration {
 }
 
 func createMatchstore(configuration *Configuration) *matchstore.GrpcMatchstore {
-	matchstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
+	matchstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMatchstore))
 	addresses := []string{}
 
 	for _, host := range configuration.ClusterHostnames {
@@ -134,11 +150,12 @@ func createMatchstore(configuration *Configuration) *matchstore.GrpcMatchstore {
 
 func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.MatchesRequestHandler {
 	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	return matches.NewMatchesRequestHandler(configuration.APIUsername, configuration.APIPassword, matchstore, matchLogger)
+	return matches.NewMatchesRequestHandler(configuration.APIUsername, configuration.APIPassword,
+		matchstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly, matchLogger)
 }
 
 func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestHandler {
-	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
+	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelKvstore))
 	addresses := []string{}
 	for _, host := range configuration.ClusterHostnames {
 		if strings.Contains(host, ":") {

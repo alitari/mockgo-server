@@ -26,8 +26,12 @@ healthcheck:
 
 logging:
   api:
-    level: 2
+    level: 1
   mock:
+    level: 1
+  kvstore:
+    level: 1
+  matchstore:
     level: 2
 
 mocks:

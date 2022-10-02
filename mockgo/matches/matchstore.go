@@ -28,16 +28,12 @@ type ActualResponse struct {
 }
 
 type Matchstore interface {
-	HasMatchesCountOnly() bool
-	HasMismatchesCountOnly() bool
 	GetMatches(endpointId string) ([]*Match, error)
 	AddMatches(matches map[string][]*Match) error
-	GetMatchesCount(endpointId string) (int64, error)
-	AddMatchesCount(matchesCount map[string]int64) error
+	GetMatchesCount(endpointId string) (int, error)
 	GetMismatches() ([]*Mismatch, error)
 	AddMismatches([]*Mismatch) error
-	GetMismatchesCount() (int64, error)
-	AddMismatchesCount(int64) error
+	GetMismatchesCount() (int, error)
 	DeleteMatches() error
 	DeleteMismatches() error
 }

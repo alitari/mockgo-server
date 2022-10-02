@@ -19,10 +19,15 @@ countOnly:
   matches: true
   mismatches: true
 
-logging:
-  config:
-    level: 1 # 0 only errors, 1 verbose , 2 debug
+# 0 only errors, 1 verbose , 2 debug
+logging: 
+  api:
+    level: 1
   mock:
+    level: 1
+  kvstore:
+    level: 1
+  matchstore:
     level: 1
 
 cluster:
