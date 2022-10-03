@@ -84,6 +84,7 @@ containerPort: 8080
 servicePort: 8080
 
 api:
+  pathPrefix: "/__"
   username: mockgo
   password: password
 

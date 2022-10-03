@@ -109,6 +109,8 @@ spec:
           value: {{ .Values.logging.matchstore.level | quote }}
         - name: MOCK_PORT
           value: {{ .Values.containerPort | quote }}
+        - name: API_PATH_PREFIX
+          value: {{ .Values.api.pathPrefix | quote }}
         - name: API_USERNAME
           value: {{ .Values.api.username | quote }}
         - name: API_PASSWORD
@@ -137,7 +139,7 @@ spec:
           mountPath: /etc/mockgoserver-config
         livenessProbe:
           httpGet:
-            path: /health
+            path: {{ .Values.api.pathPrefix }}/health
             port: {{ .Values.containerPort }}
           {{- with .Values.healthcheck.liveness }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
@@ -149,7 +151,7 @@ spec:
 
         readinessProbe:
           httpGet:
-            path: /health
+            path: {{ .Values.api.pathPrefix }}/health
             port: {{ .Values.containerPort }}
         {{- with .Values.healthcheck.readiness }}
           initialDelaySeconds: {{ .initialDelaySeconds }}

@@ -13,6 +13,7 @@ import (
 )
 
 type KVStoreRequestHandler struct {
+	pathPrefix        string
 	logger            *logging.LoggerUtil
 	kvstore           *KVStoreJSON
 	basicAuthUsername string
@@ -28,8 +29,9 @@ type RemoveKVStoreRequest struct {
 	Path string `json:"path"`
 }
 
-func NewKVStoreRequestHandler(username, password string, kvstore *KVStoreJSON, logger *logging.LoggerUtil) *KVStoreRequestHandler {
+func NewKVStoreRequestHandler(pathPrefix, username, password string, kvstore *KVStoreJSON, logger *logging.LoggerUtil) *KVStoreRequestHandler {
 	configRouter := &KVStoreRequestHandler{
+		pathPrefix:        pathPrefix,
 		logger:            logger,
 		kvstore:           kvstore,
 		basicAuthUsername: username,
@@ -39,13 +41,13 @@ func NewKVStoreRequestHandler(username, password string, kvstore *KVStoreJSON, l
 }
 
 func (r *KVStoreRequestHandler) AddRoutes(router *mux.Router) {
-	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
-	router.NewRoute().Name("setKVStore").Path("/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", []string{"key"}, r.handleSetKVStore))
-	router.NewRoute().Name("getKVStore").Path("/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.handleGetKVStore))
-	router.NewRoute().Name("addKVStore").Path("/kvstore/{key}/add").Methods(http.MethodPost).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.handleAddKVStore))
-	router.NewRoute().Name("removeKVStore").Path("/kvstore/{key}/remove").Methods(http.MethodPost).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.handleRemoveKVStore))
-	router.NewRoute().Name("uploadKVStore").Path("/kvstore").Methods(http.MethodPut).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.handleUploadKVStore))
-	router.NewRoute().Name("downloadKVStore").Path("/kvstore").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.handleDownloadKVStore))
+	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
+	router.NewRoute().Name("setKVStore").Path(r.pathPrefix + "/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", []string{"key"}, r.handleSetKVStore))
+	router.NewRoute().Name("getKVStore").Path(r.pathPrefix + "/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.handleGetKVStore))
+	router.NewRoute().Name("addKVStore").Path(r.pathPrefix + "/kvstore/{key}/add").Methods(http.MethodPost).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.handleAddKVStore))
+	router.NewRoute().Name("removeKVStore").Path(r.pathPrefix + "/kvstore/{key}/remove").Methods(http.MethodPost).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.handleRemoveKVStore))
+	router.NewRoute().Name("uploadKVStore").Path(r.pathPrefix + "/kvstore").Methods(http.MethodPut).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.handleUploadKVStore))
+	router.NewRoute().Name("downloadKVStore").Path(r.pathPrefix + "/kvstore").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.handleDownloadKVStore))
 }
 
 func (r *KVStoreRequestHandler) health(writer http.ResponseWriter, request *http.Request) {

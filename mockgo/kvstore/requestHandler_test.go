@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 func startServing() {
 	kvstoreLogger := logging.NewLoggerUtil(logging.Debug)
 	kvstoreJson := NewKVStoreJSON(NewInmemoryKVStore(), true)
-	kvstoreHandler = NewKVStoreRequestHandler(username, password, kvstoreJson, kvstoreLogger)
+	kvstoreHandler = NewKVStoreRequestHandler("",username, password, kvstoreJson, kvstoreLogger)
 	router := mux.NewRouter()
 	kvstoreHandler.AddRoutes(router)
 	server := &http.Server{Addr: ":" + strconv.Itoa(port), Handler: router}

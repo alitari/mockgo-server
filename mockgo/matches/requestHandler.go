@@ -10,6 +10,7 @@ import (
 )
 
 type MatchesRequestHandler struct {
+	pathPrefix          string
 	matchStore          Matchstore
 	logger              *logging.LoggerUtil
 	basicAuthUsername   string
@@ -18,8 +19,9 @@ type MatchesRequestHandler struct {
 	mismatchesCountOnly bool
 }
 
-func NewMatchesRequestHandler(username, password string, matchStore Matchstore, matchesCountOnly, mismatchesCountOnly bool, logger *logging.LoggerUtil) *MatchesRequestHandler {
+func NewMatchesRequestHandler(pathPrefix, username, password string, matchStore Matchstore, matchesCountOnly, mismatchesCountOnly bool, logger *logging.LoggerUtil) *MatchesRequestHandler {
 	configRouter := &MatchesRequestHandler{
+		pathPrefix:          pathPrefix,
 		matchStore:          matchStore,
 		logger:              logger,
 		basicAuthUsername:   username,
@@ -40,15 +42,15 @@ func (r *MatchesRequestHandler) AddRoutes(router *mux.Router) {
 	if r.mismatchesCountOnly {
 		getMismatchesHandler = r.handleMismatchesCount
 	}
-	router.NewRoute().Name("getMatches").Path("/matches/{endpointId}").Methods(http.MethodGet).
+	router.NewRoute().Name("getMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodGet).
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"endpointId"}, getMatchesHandler))
-	router.NewRoute().Name("getMismatches").Path("/mismatches").Methods(http.MethodGet).
+	router.NewRoute().Name("getMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodGet).
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, getMismatchesHandler))
-	router.NewRoute().Name("deleteMatches").Path("/matches/{endpointId}").Methods(http.MethodDelete).
+	router.NewRoute().Name("deleteMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodDelete).
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.handleDeleteMatches))
-	router.NewRoute().Name("deleteMismatches").Path("/mismatches").Methods(http.MethodDelete).
+	router.NewRoute().Name("deleteMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodDelete).
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.handleDeleteMismatches))
-	router.NewRoute().Name("health").Path("/health").Methods(http.MethodGet).
+	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
 		HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
 }
 

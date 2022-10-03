@@ -34,6 +34,7 @@ type Configuration struct {
 	LoglevelMock        int      `default:"1" split_words:"true"`
 	LoglevelMatchstore  int      `default:"1" split_words:"true"`
 	LoglevelKvstore     int      `default:"1" split_words:"true"`
+	APIPathPrefix       string   `default:"/__" split_words:"true"`
 	APIUsername         string   `default:"mockgo" split_words:"true"`
 	APIPassword         string   `default:"password" split_words:"true"`
 	MockPort            int      `default:"8081" split_words:"true"`
@@ -56,7 +57,6 @@ func (c *Configuration) validate() error {
 	if len(c.ClusterHostnames[len(c.ClusterHostnames)-1]) == 0 {
 		c.ClusterHostnames = c.ClusterHostnames[:len(c.ClusterHostnames)-1]
 	}
-	log.Printf("Cluster size: %d", len(c.ClusterHostnames))
 	return nil
 }
 
@@ -70,6 +70,7 @@ func (c *Configuration) info() string {
 	return fmt.Sprintf(`
 
 API: 
+  Path prefix: '%s'
   BasicAuth User: '%s'
   BasicAuth Password: %s
   LogLevel: '%s'
@@ -96,7 +97,7 @@ KVStore:
 Cluster:
   Hostnames: %v
 `,
-		c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
+		c.APIPathPrefix, c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
 		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, logging.ParseLogLevel(c.LoglevelMock).String(),
 		c.MatchesCountOnly, c.MismatchesCountOnly, c.MatchstorePort, logging.ParseLogLevel(c.LoglevelMatchstore).String(),
 		c.KvstorePort, logging.ParseLogLevel(c.LoglevelKvstore).String(),
@@ -150,7 +151,7 @@ func createMatchstore(configuration *Configuration) *matchstore.GrpcMatchstore {
 
 func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.MatchesRequestHandler {
 	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	return matches.NewMatchesRequestHandler(configuration.APIUsername, configuration.APIPassword,
+	return matches.NewMatchesRequestHandler( configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
 		matchstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly, matchLogger)
 }
 
@@ -169,7 +170,7 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestH
 		log.Fatalf("can't initialize grpc kvstore: %v", err)
 	}
 	kvstoreJson := kvstore.NewKVStoreJSON(kvs, logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
-	return kvstore.NewKVStoreRequestHandler(configuration.APIUsername, configuration.APIPassword, kvstoreJson, kvstoreLogger)
+	return kvstore.NewKVStoreRequestHandler( configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJson, kvstoreLogger)
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.MockRequestHandler {
