@@ -37,8 +37,8 @@ func (s *InMemoryMatchstore) GetMismatchesCount() (int, error) {
 	return len(s.mismatches), nil
 }
 
-func (s *InMemoryMatchstore) DeleteMatches() error {
-	s.matches = make(map[string][]*Match)
+func (s *InMemoryMatchstore) DeleteMatches(endpointId string) error {
+	s.matches[endpointId] = nil
 	return nil
 }
 func (s *InMemoryMatchstore) DeleteMismatches() error {

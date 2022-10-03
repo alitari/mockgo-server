@@ -96,6 +96,8 @@ func createMismatchForRequest(request *http.Request) *matches.Mismatch {
 func TestMatchstore_GetMatches(t *testing.T) {
 	endpointId1 := "endpoint1"
 	endpointId2 := "endpoint2"
+	matchstores[0].DeleteMatches(endpointId1)
+	matchstores[0].DeleteMatches(endpointId2)
 	matchstores[0].AddMatches(map[string][]*matches.Match{endpointId1: createMatchesForEndpoint(endpointId1, 1)})
 	matchstores[1].AddMatches(map[string][]*matches.Match{endpointId1: createMatchesForEndpoint(endpointId1, 1)})
 	matchstores[0].AddMatches(map[string][]*matches.Match{endpointId2: createMatchesForEndpoint(endpointId2, 2)})
@@ -116,6 +118,7 @@ func TestMatchstore_GetMatches(t *testing.T) {
 }
 
 func TestMatchstore_GetMismatches(t *testing.T) {
+	matchstores[0].DeleteMismatches()
 	matchstores[0].AddMismatches(createMismatches(1))
 	matchstores[1].AddMismatches(createMismatches(2))
 
@@ -126,5 +129,27 @@ func TestMatchstore_GetMismatches(t *testing.T) {
 	mismatches, err = matchstores[1].GetMismatches()
 	assert.NoError(t, err)
 	assert.Len(t, mismatches, 3)
+}
 
+func TestMatchstore_DeleteMatches(t *testing.T) {
+	endpointId1 := "endpoint1"
+	endpointId2 := "endpoint2"
+	matchstores[0].AddMatches(map[string][]*matches.Match{endpointId1: createMatchesForEndpoint(endpointId1, 4)})
+	matchstores[1].AddMatches(map[string][]*matches.Match{endpointId2: createMatchesForEndpoint(endpointId2, 5)})
+	matchstores[0].DeleteMatches(endpointId2)
+	matches, err := matchstores[1].GetMatches(endpointId2)
+	assert.NoError(t, err)
+	assert.Empty(t, matches)
+	matchstores[1].DeleteMatches(endpointId1)
+	matches, err = matchstores[0].GetMatches(endpointId1)
+	assert.NoError(t, err)
+	assert.Empty(t, matches)
+}
+
+func TestMatchstore_DeleteMismatches(t *testing.T) {
+	matchstores[0].AddMismatches(createMismatches(5))
+	matchstores[1].DeleteMismatches()
+	mismatches, err := matchstores[0].GetMismatches()
+	assert.NoError(t, err)
+	assert.Empty(t, mismatches)
 }

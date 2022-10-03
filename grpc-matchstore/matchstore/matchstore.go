@@ -105,6 +105,24 @@ func (g *GrpcMatchstore) FetchMismatchesCount(context.Context, *MismatchRequest)
 	return &MismatchesCountResponse{MismatchesCount: int32(mismatchesCount)}, nil
 }
 
+func (g *GrpcMatchstore) RemoveMatches(ctx context.Context, endpointRequest *EndPointRequest) (*RemoveResponse, error) {
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : remove matches for endpoint %s ...", g.id, endpointRequest.Id))
+	if err := g.InMemoryMatchstore.DeleteMatches(endpointRequest.Id); err != nil {
+		return nil, err
+	}
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : matches removed", g.id))
+	return &RemoveResponse{}, nil
+}
+
+func (g *GrpcMatchstore) RemoveMismatches(ctx context.Context, in *MismatchRequest) (*RemoveResponse, error) {
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : remove mismatches ...", g.id))
+	if err := g.InMemoryMatchstore.DeleteMismatches(); err != nil {
+		return nil, err
+	}
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : mismatches removed", g.id))
+	return &RemoveResponse{}, nil
+}
+
 func (g *GrpcMatchstore) GetMatches(endpointId string) ([]*matches.Match, error) {
 	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : get matches for endpointId: %s ...", g.id, endpointId))
 	matches := []*matches.Match{}
@@ -170,6 +188,34 @@ func (g *GrpcMatchstore) GetMismatchesCount() (int, error) {
 	}
 	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : return %d mismatches as result", g.id, mismatchesCount))
 	return mismatchesCount, nil
+}
+
+func (g *GrpcMatchstore) DeleteMatches(endpointId string) error {
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : delete matches for endpointId: %s ...", g.id, endpointId))
+	for _, client := range g.clients {
+		ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+		_, err := client.RemoveMatches(ctx, &EndPointRequest{Id: endpointId})
+		defer cancel()
+		if err != nil {
+			return err
+		}
+	}
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : matches for endpointId: %s deleted", g.id, endpointId))
+	return nil
+}
+
+func (g *GrpcMatchstore) DeleteMismatches() error {
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : delete mismatches ...", g.id))
+	for _, client := range g.clients {
+		ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+		_, err := client.RemoveMismatches(ctx, &MismatchRequest{})
+		defer cancel()
+		if err != nil {
+			return err
+		}
+	}
+	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : mismatches deleted", g.id))
+	return nil
 }
 
 func mapProtoMatch(protomatch *Match) *matches.Match {

@@ -7,10 +7,12 @@ package matchstore;
 
 
 service Matchstore {
-	rpc FetchMatches( EndPointRequest) returns (MatchesResponse) {}
-	rpc FetchMismatches(MismatchRequest) returns ( MismatchesResponse) {}
-    rpc FetchMatchesCount( EndPointRequest) returns (MatchesCountResponse) {}
-	rpc FetchMismatchesCount(MismatchRequest) returns ( MismatchesCountResponse) {}
+    rpc FetchMatches( EndPointRequest) returns ( MatchesResponse) {}
+    rpc FetchMismatches(MismatchRequest) returns ( MismatchesResponse) {}
+    rpc FetchMatchesCount( EndPointRequest) returns ( MatchesCountResponse) {}
+    rpc FetchMismatchesCount(MismatchRequest) returns ( MismatchesCountResponse) {}
+    rpc RemoveMatches(EndPointRequest) returns ( RemoveResponse) {}
+    rpc RemoveMismatches(MismatchRequest) returns ( RemoveResponse) {}
 }
 
 message EndPointRequest {
@@ -34,6 +36,8 @@ message MismatchesResponse {
 message MismatchesCountResponse {
     int32 mismatchesCount = 1;
 }
+
+message RemoveResponse {}
 
 message Match {
     string endpointId = 1;

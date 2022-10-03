@@ -34,6 +34,6 @@ type Matchstore interface {
 	GetMismatches() ([]*Mismatch, error)
 	AddMismatches([]*Mismatch) error
 	GetMismatchesCount() (int, error)
-	DeleteMatches() error
+	DeleteMatches(endpointId string) error
 	DeleteMismatches() error
 }
