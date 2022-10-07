@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestMain_health(t *testing.T) {
-	util.RequestCall(t, httpClient,  http.MethodGet, urlPrefix+"/health", map[string][]string{}, "", http.StatusOK, nil)
+	util.RequestCall(t, httpClient,  http.MethodGet, urlPrefix+"/__/health", map[string][]string{}, "", http.StatusOK, nil)
 }
 
 // func TestMain_getMatches(t *testing.T) {

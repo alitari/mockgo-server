@@ -310,16 +310,16 @@ func assertMatchRequestToEndpoint(t *testing.T, mockRouter *MockRequestHandler, 
 			matchCountBefore, err := mockRouter.matchstore.GetMatchesCount(testCase.expectedMatchEndpointId)
 			assert.NoError(t, err)
 			ep, match, requestParams := mockRouter.matchRequestToEndpoint(testCase.request)
-			matchCountAfter := int(matchCountBefore + 1)
+			matchCountAfter := matchCountBefore + 1
 			assert.NotNil(t, match, "expect a match")
 			assert.NotNil(t, ep, "for a match, we expect an endpoint")
 			assert.Equal(t, testCase.expectedMatchEndpointId, match.EndpointId)
 			actualCount, err := mockRouter.matchstore.GetMatchesCount(testCase.expectedMatchEndpointId)
 			assert.NoError(t, err)
-			assert.Equal(t, int64(matchCountAfter), actualCount, "expect matches are counted")
+			assert.Equal(t, matchCountAfter, actualCount, "expect matches are counted")
 			currentMatches, err := mockRouter.matchstore.GetMatches(testCase.expectedMatchEndpointId)
 			assert.NoError(t, err)
-			assert.Len(t, currentMatches, matchCountAfter, "expect a mismatch object stored")
+			assert.Len(t, currentMatches, int(matchCountAfter), "expect a mismatch object stored")
 
 			currentMatch := currentMatches[matchCountAfter-1]
 			actualRequest := currentMatch.ActualRequest
@@ -347,14 +347,14 @@ func assertMismatchRequestToEndpoint(t *testing.T, mockRouter *MockRequestHandle
 			mismatchCountBefore, err := mockRouter.matchstore.GetMismatchesCount()
 			assert.NoError(t, err)
 			_, match, _ := mockRouter.matchRequestToEndpoint(testCase.request)
-			mismatchCountAfter := int(mismatchCountBefore + 1)
+			mismatchCountAfter := mismatchCountBefore + 1
 			assert.Nil(t, match, "expected not a match")
 			mismatchCount, err := mockRouter.matchstore.GetMismatchesCount()
 			assert.NoError(t, err)
-			assert.Equal(t, int64(mismatchCountAfter), mismatchCount, "expect mismatches are counted")
+			assert.Equal(t, mismatchCountAfter, mismatchCount, "expect mismatches are counted")
 			mismatches, err := mockRouter.matchstore.GetMismatches()
 			assert.NoError(t, err)
-			assert.Len(t, mismatches, mismatchCountAfter, "expect a mismatch object stored")
+			assert.Len(t, mismatches, int(mismatchCountAfter), "expect a mismatch object stored")
 
 			actualRequest := mismatches[mismatchCountAfter-1].ActualRequest
 			assert.Equal(t, testCase.request.Method, actualRequest.Method)
