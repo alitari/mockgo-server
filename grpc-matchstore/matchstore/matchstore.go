@@ -79,7 +79,7 @@ func (g *GrpcMatchstore) FetchMatchesCount(ctx context.Context, endpointRequest 
 		return nil, err
 	}
 	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : return %d matches", g.id, matchesCount))
-	return &MatchesCountResponse{MatchesCount: int32(matchesCount)}, nil
+	return &MatchesCountResponse{MatchesCount: matchesCount}, nil
 }
 
 func (g *GrpcMatchstore) FetchMismatches(context.Context, *MismatchRequest) (*MismatchesResponse, error) {
@@ -103,7 +103,7 @@ func (g *GrpcMatchstore) FetchMismatchesCount(context.Context, *MismatchRequest)
 		return nil, err
 	}
 	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : return %d mismatches", g.id, mismatchesCount))
-	return &MismatchesCountResponse{MismatchesCount: int32(mismatchesCount)}, nil
+	return &MismatchesCountResponse{MismatchesCount: mismatchesCount}, nil
 }
 
 func (g *GrpcMatchstore) RemoveMatches(ctx context.Context, endpointRequest *EndPointRequest) (*RemoveResponse, error) {
@@ -122,23 +122,6 @@ func (g *GrpcMatchstore) RemoveMismatches(ctx context.Context, in *MismatchReque
 	}
 	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : mismatches removed", g.id))
 	return &RemoveResponse{}, nil
-}
-
-func (g *GrpcMatchstore) AddAll(ctx context.Context, addAllRequest *AddAllRequest) (*AddAllResponse, error) {
-	matchesCount := 0
-	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : add all matches ...", g.id))
-	for endpoint, matches := range addAllRequest.Matches {
-		for _, match := range matches.Matches {
-			g.InMemoryMatchstore.AddMatch(endpoint, mapProtoMatch(match))
-			matchesCount++
-		}
-	}
-	for _, mismatch := range addAllRequest.Mismatches.Mismatches {
-		g.InMemoryMatchstore.AddMismatch(mapProtoMismatch(mismatch))
-	}
-
-	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : added %d matches and %d mismatches", g.id, matchesCount, len(addAllRequest.Mismatches.Mismatches)))
-	return &AddAllResponse{}, nil
 }
 
 func (g *GrpcMatchstore) GetMatches(endpointId string) ([]*matches.Match, error) {
@@ -236,30 +219,6 @@ func (g *GrpcMatchstore) DeleteMismatches() error {
 	return nil
 }
 
-func (g *GrpcMatchstore) Transfer() error {
-	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : start transfer ...", g.id))
-	g.transferLock = true
-	defer func() {
-		g.transferLock = false
-	}()
-	matches, mismatches, _, _ := g.InMemoryMatchstore.GetAll()
-	allMatches := mapMatches(matches)
-	allMismatches := mapMismatches(mismatches)
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	for _, client := range g.clients {
-		response, err := client.AddAll(ctx, &AddAllRequest{Matches: allMatches, Mismatches: allMismatches})
-		if err != nil {
-			return err
-		}
-		if !response.Locked {
-			break
-		}
-	}
-	g.logger.LogWhenDebug(fmt.Sprintf("matchstore: %s : transfer completed", g.id))
-	return nil
-}
-
 func mapProtoMatch(protomatch *Match) *matches.Match {
 	match := &matches.Match{EndpointId: protomatch.EndpointId, Timestamp: protomatch.Timestamp.AsTime(),
 		ActualRequest:  &matches.ActualRequest{Method: protomatch.ActualRequest.Method, URL: protomatch.ActualRequest.Url, Header: mapProtoHeader(protomatch.ActualRequest.Header), Host: protomatch.ActualRequest.Host},
@@ -267,17 +226,6 @@ func mapProtoMatch(protomatch *Match) *matches.Match {
 	return match
 }
 
-func mapMatches(matches map[string][]*matches.Match) map[string]*MatchesResponse {
-	allProtoMatches := map[string]*MatchesResponse{}
-	for endpoint, matches := range matches {
-		var protoMatches []*Match
-		for _, match := range matches {
-			protoMatches = append(protoMatches, mapMatch(match))
-		}
-		allProtoMatches[endpoint] = &MatchesResponse{Matches: protoMatches}
-	}
-	return allProtoMatches
-}
 
 func mapMatch(match *matches.Match) *Match {
 	protoMatch := &Match{EndpointId: match.EndpointId, Timestamp: timestamppb.New(match.Timestamp),
@@ -290,14 +238,6 @@ func mapProtoMismatch(protomismatch *Mismatch) *matches.Mismatch {
 	mismatch := &matches.Mismatch{MismatchDetails: protomismatch.MismatchDetails, Timestamp: protomismatch.Timestamp.AsTime(),
 		ActualRequest: &matches.ActualRequest{Method: protomismatch.ActualRequest.Method, URL: protomismatch.ActualRequest.Url, Header: mapProtoHeader(protomismatch.ActualRequest.Header), Host: protomismatch.ActualRequest.Host}}
 	return mismatch
-}
-
-func mapMismatches(mismatches []*matches.Mismatch) *MismatchesResponse {
-	var protoMismatches []*Mismatch
-	for _, mismatch := range mismatches {
-		protoMismatches = append(protoMismatches, mapMismatch(mismatch))
-	}
-	return &MismatchesResponse{Mismatches: protoMismatches}
 }
 
 func mapMismatch(mismatch *matches.Mismatch) *Mismatch {

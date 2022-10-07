@@ -29,7 +29,6 @@ type ActualResponse struct {
 
 type Matchstore interface {
 	GetMatches(endpointId string) ([]*Match, error)
-	Transfer() error
 	GetMatchesCount(endpointId string) (uint64, error)
 	GetMismatches() ([]*Mismatch, error)
 	AddMatch(endpointId string, match *Match) error

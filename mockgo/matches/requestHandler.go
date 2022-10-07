@@ -42,10 +42,6 @@ func (r *MatchesRequestHandler) AddRoutes(router *mux.Router) {
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.handleDeleteMatches))
 	router.NewRoute().Name("deleteMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodDelete).
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.handleDeleteMismatches))
-
-	router.NewRoute().Name("transferMatches").Path(r.pathPrefix + "/transfermatches").Methods(http.MethodPost).
-		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "", "", nil, r.handleTransferMatches))
-
 	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
 		HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
 }
@@ -105,11 +101,4 @@ func (r *MatchesRequestHandler) handleDeleteMismatches(writer http.ResponseWrite
 	}
 }
 
-func (r *MatchesRequestHandler) handleTransferMatches(writer http.ResponseWriter, request *http.Request) {
-	if err := r.matchStore.Transfer(); err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-	} else {
-		writer.WriteHeader(http.StatusOK)
-	}
-}
 

@@ -44,6 +44,7 @@ func startMatchsroreCluster() {
 		}
 		matchstores = append(matchstores, matchStore)
 	}
+	time.Sleep(100 * time.Millisecond)
 }
 
 func stopCluster() {

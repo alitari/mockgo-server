@@ -90,11 +90,6 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
-        lifecycle:
-          preStop:
-            httpGet:
-              port: {{ .Values.containerPort }}
-              path: /transfermatches
         ports:
         - name: http
           containerPort: {{ .Values.containerPort }}

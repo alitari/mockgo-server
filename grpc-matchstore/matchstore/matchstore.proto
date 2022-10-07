@@ -13,7 +13,6 @@ service Matchstore {
     rpc FetchMismatchesCount(MismatchRequest) returns ( MismatchesCountResponse) {}
     rpc RemoveMatches(EndPointRequest) returns ( RemoveResponse) {}
     rpc RemoveMismatches(MismatchRequest) returns ( RemoveResponse) {}
-    rpc AddAll(AddAllRequest) returns ( AddAllResponse) {}
 }
 
 message EndPointRequest {
@@ -22,17 +21,12 @@ message EndPointRequest {
 
 message MismatchRequest {}
 
-message AddAllRequest {
-    map<string, MatchesResponse> matches = 1;
-    MismatchesResponse mismatches = 2;
-}
-
 message MatchesResponse {
     repeated Match matches = 1;
 }
 
 message MatchesCountResponse {
-    int32 matchesCount = 1;
+    uint64 matchesCount = 1;
 }
 
 message MismatchesResponse {
@@ -40,7 +34,7 @@ message MismatchesResponse {
 }
 
 message MismatchesCountResponse {
-    int32 mismatchesCount = 1;
+    uint64 mismatchesCount = 1;
 }
 
 message RemoveResponse {}
