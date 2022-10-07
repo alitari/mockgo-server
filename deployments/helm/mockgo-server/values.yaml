@@ -15,9 +15,8 @@ responses:
       "hello": "World"
     }
 
-countOnly:
-  matches: true
-  mismatches: true
+matches:
+  capacity: 1000
 
 # 0 only errors, 1 verbose , 2 debug
 logging: 

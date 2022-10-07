@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 
 func startServing() {
 	logger := logging.NewLoggerUtil(logging.Debug)
-	matchesRequestHandler = NewMatchesRequestHandler("", username, password, NewInMemoryMatchstore(), false, false, logger)
+	matchesRequestHandler = NewMatchesRequestHandler("", username, password, NewInMemoryMatchstore(uint16(100)), logger)
 	router := mux.NewRouter()
 	matchesRequestHandler.AddRoutes(router)
 	server := &http.Server{Addr: ":" + strconv.Itoa(port), Handler: router}
@@ -54,7 +54,7 @@ func TestMatchesRequestHandler_health(t *testing.T) {
 
 func TestMatchesRequestHandler_getMatches(t *testing.T) {
 	endpointId := "myEndpointId"
-	err := matchesRequestHandler.matchStore.AddMatches(map[string][]*Match{endpointId: createMatchesForEndpoint(endpointId, 1)})
+	err := matchesRequestHandler.matchStore.AddMatch(endpointId, createMatch(endpointId))
 	assert.NoError(t, err)
 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/matches/"+endpointId,
 		map[string][]string{headers.Authorization: {util.BasicAuth(username, password)}, headers.Accept: {"application/json"}},

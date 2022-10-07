@@ -27,17 +27,16 @@ type RequestHandler interface {
 }
 
 type Configuration struct {
-	LoglevelAPI         int    `default:"1" split_words:"true"`
-	LoglevelMock        int    `default:"1" split_words:"true"`
-	APIPathPrefix       string `default:"/__" split_words:"true"`
-	APIUsername         string `default:"mockgo" split_words:"true"`
-	APIPassword         string `default:"password" split_words:"true"`
-	MockPort            int    `default:"8081" split_words:"true"`
-	MockDir             string `default:"." split_words:"true"`
-	MockFilepattern     string `default:"*-mock.*" split_words:"true"`
-	MatchesCountOnly    bool   `default:"true" split_words:"true"`
-	MismatchesCountOnly bool   `default:"true" split_words:"true"`
-	ResponseDir         string `default:"." split_words:"true"`
+	LoglevelAPI     int    `default:"1" split_words:"true"`
+	LoglevelMock    int    `default:"1" split_words:"true"`
+	APIPathPrefix   string `default:"/__" split_words:"true"`
+	APIUsername     string `default:"mockgo" split_words:"true"`
+	APIPassword     string `default:"password" split_words:"true"`
+	MockPort        int    `default:"8081" split_words:"true"`
+	MockDir         string `default:"." split_words:"true"`
+	MockFilepattern string `default:"*-mock.*" split_words:"true"`
+	MatchesCapacity int    `default:"1000" split_words:"true"`
+	ResponseDir     string `default:"." split_words:"true"`
 }
 
 func (c *Configuration) info() string {
@@ -62,20 +61,19 @@ Mock Server:
   Response Dir: '%s'
   LogLevel: '%s'
   
-Count only:
-  Matches: %v
-  Mismatches: %v
+Matches:
+  Capacity: %d
   `,
 		c.APIPathPrefix, c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
 		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, logging.ParseLogLevel(c.LoglevelMock).String(),
-		c.MatchesCountOnly, c.MismatchesCountOnly)
+		c.MatchesCapacity)
 }
 
 func main() {
 	log.Print(banner)
 	configuration := createConfiguration()
 	log.Print(configuration.info())
-	matchStore := matches.NewInMemoryMatchstore()
+	matchStore := matches.NewInMemoryMatchstore(uint16(configuration.MatchesCapacity))
 	matchHandler := createMatchHandler(configuration, matchStore)
 	kvStoreHandler := createKVStoreHandler(configuration)
 	mockHandler := createMockHandler(configuration, matchStore)
@@ -98,7 +96,7 @@ func createConfiguration() *Configuration {
 func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.MatchesRequestHandler {
 	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
 	return matches.NewMatchesRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
-		matchstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly, matchLogger)
+		matchstore, matchLogger)
 }
 
 func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestHandler {

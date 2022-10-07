@@ -30,22 +30,21 @@ type RequestHandler interface {
 }
 
 type Configuration struct {
-	LoglevelAPI         int      `default:"1" split_words:"true"`
-	LoglevelMock        int      `default:"1" split_words:"true"`
-	LoglevelMatchstore  int      `default:"1" split_words:"true"`
-	LoglevelKvstore     int      `default:"1" split_words:"true"`
-	APIPathPrefix       string   `default:"/__" split_words:"true"`
-	APIUsername         string   `default:"mockgo" split_words:"true"`
-	APIPassword         string   `default:"password" split_words:"true"`
-	MockPort            int      `default:"8081" split_words:"true"`
-	MockDir             string   `default:"." split_words:"true"`
-	MockFilepattern     string   `default:"*-mock.*" split_words:"true"`
-	ResponseDir         string   `default:"." split_words:"true"`
-	ClusterHostnames    []string ` split_words:"true"`
-	MatchstorePort      int      `default:"50051" split_words:"true"`
-	MatchesCountOnly    bool     `default:"true" split_words:"true"`
-	MismatchesCountOnly bool     `default:"true" split_words:"true"`
-	KvstorePort         int      `default:"50151" split_words:"true"`
+	LoglevelAPI        int      `default:"1" split_words:"true"`
+	LoglevelMock       int      `default:"1" split_words:"true"`
+	LoglevelMatchstore int      `default:"1" split_words:"true"`
+	LoglevelKvstore    int      `default:"1" split_words:"true"`
+	APIPathPrefix      string   `default:"/__" split_words:"true"`
+	APIUsername        string   `default:"mockgo" split_words:"true"`
+	APIPassword        string   `default:"password" split_words:"true"`
+	MockPort           int      `default:"8081" split_words:"true"`
+	MockDir            string   `default:"." split_words:"true"`
+	MockFilepattern    string   `default:"*-mock.*" split_words:"true"`
+	ResponseDir        string   `default:"." split_words:"true"`
+	ClusterHostnames   []string ` split_words:"true"`
+	MatchstorePort     int      `default:"50051" split_words:"true"`
+	MatchstoreCapacity int      `default:"1000" split_words:"true"`
+	KvstorePort        int      `default:"50151" split_words:"true"`
 }
 
 func (c *Configuration) validate() error {
@@ -82,13 +81,10 @@ Mock Server:
   Response Dir: '%s'
   LogLevel: '%s'
   
-Count only:
-  Matches: %v
-  Mismatches: %v
-
 Matchstore:
   Port: %d
   LogLevel: %s
+  Capacity: %d
 
 KVStore:
   Port: %d
@@ -99,7 +95,7 @@ Cluster:
 `,
 		c.APIPathPrefix, c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
 		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, logging.ParseLogLevel(c.LoglevelMock).String(),
-		c.MatchesCountOnly, c.MismatchesCountOnly, c.MatchstorePort, logging.ParseLogLevel(c.LoglevelMatchstore).String(),
+		c.MatchstorePort, logging.ParseLogLevel(c.LoglevelMatchstore).String(), c.MatchstoreCapacity,
 		c.KvstorePort, logging.ParseLogLevel(c.LoglevelKvstore).String(),
 		c.ClusterHostnames)
 }
@@ -142,7 +138,7 @@ func createMatchstore(configuration *Configuration) *matchstore.GrpcMatchstore {
 			addresses = append(addresses, fmt.Sprintf("%s:%d", host, configuration.MatchstorePort))
 		}
 	}
-	matchStore, err := matchstore.NewGrpcMatchstore(addresses, configuration.MatchstorePort, matchstoreLogger)
+	matchStore, err := matchstore.NewGrpcMatchstore(addresses, configuration.MatchstorePort, uint16(configuration.MatchstoreCapacity), matchstoreLogger)
 	if err != nil {
 		log.Fatalf("can't initialize grpc matchstore: %v", err)
 	}
@@ -151,8 +147,8 @@ func createMatchstore(configuration *Configuration) *matchstore.GrpcMatchstore {
 
 func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.MatchesRequestHandler {
 	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	return matches.NewMatchesRequestHandler( configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
-		matchstore, configuration.MatchesCountOnly, configuration.MismatchesCountOnly, matchLogger)
+	return matches.NewMatchesRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
+		matchstore, matchLogger)
 }
 
 func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestHandler {
@@ -170,7 +166,7 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestH
 		log.Fatalf("can't initialize grpc kvstore: %v", err)
 	}
 	kvstoreJson := kvstore.NewKVStoreJSON(kvs, logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
-	return kvstore.NewKVStoreRequestHandler( configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJson, kvstoreLogger)
+	return kvstore.NewKVStoreRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJson, kvstoreLogger)
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.MockRequestHandler {

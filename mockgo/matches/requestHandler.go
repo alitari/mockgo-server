@@ -10,46 +10,42 @@ import (
 )
 
 type MatchesRequestHandler struct {
-	pathPrefix          string
-	matchStore          Matchstore
-	logger              *logging.LoggerUtil
-	basicAuthUsername   string
-	basicAuthPassword   string
-	matchesCountOnly    bool
-	mismatchesCountOnly bool
+	pathPrefix        string
+	matchStore        Matchstore
+	logger            *logging.LoggerUtil
+	basicAuthUsername string
+	basicAuthPassword string
 }
 
-func NewMatchesRequestHandler(pathPrefix, username, password string, matchStore Matchstore, matchesCountOnly, mismatchesCountOnly bool, logger *logging.LoggerUtil) *MatchesRequestHandler {
+func NewMatchesRequestHandler(pathPrefix, username, password string, matchStore Matchstore, logger *logging.LoggerUtil) *MatchesRequestHandler {
 	configRouter := &MatchesRequestHandler{
-		pathPrefix:          pathPrefix,
-		matchStore:          matchStore,
-		logger:              logger,
-		basicAuthUsername:   username,
-		basicAuthPassword:   password,
-		matchesCountOnly:    matchesCountOnly,
-		mismatchesCountOnly: mismatchesCountOnly,
+		pathPrefix:        pathPrefix,
+		matchStore:        matchStore,
+		logger:            logger,
+		basicAuthUsername: username,
+		basicAuthPassword: password,
 	}
 	return configRouter
 }
 
 func (r *MatchesRequestHandler) AddRoutes(router *mux.Router) {
-	getMatchesHandler := r.handleMatches
 
-	if r.matchesCountOnly {
-		getMatchesHandler = r.handleMatchesCount
-	}
-	getMismatchesHandler := r.handleMismatches
-	if r.mismatchesCountOnly {
-		getMismatchesHandler = r.handleMismatchesCount
-	}
 	router.NewRoute().Name("getMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodGet).
-		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"endpointId"}, getMatchesHandler))
+		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"endpointId"}, r.handleMatches))
+	router.NewRoute().Name("getMatchesCount").Path(r.pathPrefix + "/matchesCount/{endpointId}").Methods(http.MethodGet).
+		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"endpointId"}, r.handleMatchesCount))
 	router.NewRoute().Name("getMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodGet).
-		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, getMismatchesHandler))
+		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.handleMismatches))
+	router.NewRoute().Name("getMismatchesCount").Path(r.pathPrefix + "/mismatchesCount").Methods(http.MethodGet).
+		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.handleMismatchesCount))
 	router.NewRoute().Name("deleteMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodDelete).
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.handleDeleteMatches))
 	router.NewRoute().Name("deleteMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodDelete).
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.handleDeleteMismatches))
+
+	router.NewRoute().Name("transferMatches").Path(r.pathPrefix + "/transfermatches").Methods(http.MethodPost).
+		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "", "", nil, r.handleTransferMatches))
+
 	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
 		HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
 }
@@ -108,3 +104,12 @@ func (r *MatchesRequestHandler) handleDeleteMismatches(writer http.ResponseWrite
 		writer.WriteHeader(http.StatusOK)
 	}
 }
+
+func (r *MatchesRequestHandler) handleTransferMatches(writer http.ResponseWriter, request *http.Request) {
+	if err := r.matchStore.Transfer(); err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+	} else {
+		writer.WriteHeader(http.StatusOK)
+	}
+}
+

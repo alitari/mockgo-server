@@ -377,7 +377,7 @@ func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, mismat
 }
 
 func createInMemoryMatchStore() matches.Matchstore {
-	return matches.NewInMemoryMatchstore()
+	return matches.NewInMemoryMatchstore(uint16(10))
 }
 
 func runAndCheckCoverage(testPackage string, m *testing.M, treshold float64) int {

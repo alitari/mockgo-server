@@ -345,7 +345,7 @@ func (r *MockRequestHandler) matchBody(matchRequest *MatchRequest, request *http
 func (r *MockRequestHandler) addMatch(endPoint *MockEndpoint, request *http.Request) *matches.Match {
 	actualRequest := &matches.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
 	match := &matches.Match{EndpointId: endPoint.Id, Timestamp: time.Now(), ActualRequest: actualRequest}
-	r.matchstore.AddMatches(map[string][]*matches.Match{endPoint.Id: {match}})
+	r.matchstore.AddMatch(endPoint.Id, match)
 	return match
 }
 
@@ -368,7 +368,7 @@ func (r *MockRequestHandler) addMismatch(sn *EpSearchNode, pathPos int, endpoint
 		MismatchDetails: mismatchDetails,
 		Timestamp:       time.Now(),
 		ActualRequest:   actualRequest}
-	r.matchstore.AddMismatches([]*matches.Mismatch{mismatch})
+	r.matchstore.AddMismatch(mismatch)
 }
 
 func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *MockEndpoint, match *matches.Match, requestPathParams map[string]string) {

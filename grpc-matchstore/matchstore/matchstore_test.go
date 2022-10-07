@@ -38,7 +38,7 @@ func getClusterAdresses() []string {
 func startMatchsroreCluster() {
 	addresses := getClusterAdresses()
 	for i := 0; i < clusterSize; i++ {
-		matchStore, err := NewGrpcMatchstore(addresses, startPort+i, logging.NewLoggerUtil(logging.Debug))
+		matchStore, err := NewGrpcMatchstore(addresses, startPort+i, uint16(100), logging.NewLoggerUtil(logging.Debug))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -54,20 +54,16 @@ func stopCluster() {
 
 var timeStamp = time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 
-func createMatchesForEndpoint(endpointId string, count int) []*matches.Match {
-	var matches []*matches.Match
+func addMatchesForEndpoint(storeNr int, endpointId string, count int) {
 	for i := 0; i < count; i++ {
-		matches = append(matches, createMatch(endpointId))
+		matchstores[storeNr].AddMatch(endpointId, createMatch(endpointId))
 	}
-	return matches
 }
 
-func createMismatches(count int) []*matches.Mismatch {
-	var matches []*matches.Mismatch
+func addMismatches(storeNr int, count int) {
 	for i := 0; i < count; i++ {
-		matches = append(matches, createMismatch())
+		matchstores[storeNr].AddMismatch(createMismatch())
 	}
-	return matches
 }
 
 func createMatch(endpointId string) *matches.Match {
@@ -75,16 +71,16 @@ func createMatch(endpointId string) *matches.Match {
 	return createMatchForRequest(endpointId, request)
 }
 
-func createMismatch() *matches.Mismatch {
-	request := &http.Request{Method: http.MethodGet, URL: &url.URL{Path: "http://myhost"}}
-	return createMismatchForRequest(request)
-}
-
 func createMatchForRequest(endpointId string, request *http.Request) *matches.Match {
 	actualRequest := &matches.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
 	actualResponse := &matches.ActualResponse{StatusCode: http.StatusOK, Header: map[string][]string{"key1": {"val1"}}}
 	match := &matches.Match{EndpointId: endpointId, Timestamp: timeStamp, ActualRequest: actualRequest, ActualResponse: actualResponse}
 	return match
+}
+
+func createMismatch() *matches.Mismatch {
+	request := &http.Request{Method: http.MethodGet, URL: &url.URL{Path: "http://myhost"}}
+	return createMismatchForRequest(request)
 }
 
 func createMismatchForRequest(request *http.Request) *matches.Mismatch {
@@ -98,10 +94,10 @@ func TestMatchstore_GetMatches(t *testing.T) {
 	endpointId2 := "endpoint2"
 	matchstores[0].DeleteMatches(endpointId1)
 	matchstores[0].DeleteMatches(endpointId2)
-	matchstores[0].AddMatches(map[string][]*matches.Match{endpointId1: createMatchesForEndpoint(endpointId1, 1)})
-	matchstores[1].AddMatches(map[string][]*matches.Match{endpointId1: createMatchesForEndpoint(endpointId1, 1)})
-	matchstores[0].AddMatches(map[string][]*matches.Match{endpointId2: createMatchesForEndpoint(endpointId2, 2)})
-	matchstores[1].AddMatches(map[string][]*matches.Match{endpointId2: createMatchesForEndpoint(endpointId2, 1)})
+	addMatchesForEndpoint(0, endpointId1, 1)
+	addMatchesForEndpoint(1, endpointId1, 1)
+	addMatchesForEndpoint(0, endpointId2, 2)
+	addMatchesForEndpoint(1, endpointId2, 1)
 	matchesEndpoint1, err := matchstores[0].GetMatches(endpointId1)
 	assert.NoError(t, err)
 	assert.Len(t, matchesEndpoint1, 2)
@@ -119,8 +115,10 @@ func TestMatchstore_GetMatches(t *testing.T) {
 
 func TestMatchstore_GetMismatches(t *testing.T) {
 	matchstores[0].DeleteMismatches()
-	matchstores[0].AddMismatches(createMismatches(1))
-	matchstores[1].AddMismatches(createMismatches(2))
+	// matchstores[0].AddMismatches(createMismatches(1))
+	addMismatches(0, 1)
+	// matchstores[1].AddMismatches(createMismatches(2))
+	addMismatches(1, 2)
 
 	mismatches, err := matchstores[0].GetMismatches()
 	assert.NoError(t, err)
@@ -134,8 +132,8 @@ func TestMatchstore_GetMismatches(t *testing.T) {
 func TestMatchstore_DeleteMatches(t *testing.T) {
 	endpointId1 := "endpoint1"
 	endpointId2 := "endpoint2"
-	matchstores[0].AddMatches(map[string][]*matches.Match{endpointId1: createMatchesForEndpoint(endpointId1, 4)})
-	matchstores[1].AddMatches(map[string][]*matches.Match{endpointId2: createMatchesForEndpoint(endpointId2, 5)})
+	addMatchesForEndpoint(0, endpointId1, 4)
+	addMatchesForEndpoint(1, endpointId2, 5)
 	matchstores[0].DeleteMatches(endpointId2)
 	matches, err := matchstores[1].GetMatches(endpointId2)
 	assert.NoError(t, err)
@@ -147,7 +145,7 @@ func TestMatchstore_DeleteMatches(t *testing.T) {
 }
 
 func TestMatchstore_DeleteMismatches(t *testing.T) {
-	matchstores[0].AddMismatches(createMismatches(5))
+	addMismatches(0, 5)
 	matchstores[1].DeleteMismatches()
 	mismatches, err := matchstores[0].GetMismatches()
 	assert.NoError(t, err)
