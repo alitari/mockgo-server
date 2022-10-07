@@ -13,15 +13,6 @@ func (s *InmemoryKVStore) PutVal(key string, storeVal interface{}) error {
 	return nil
 }
 
-func (s *InmemoryKVStore) GetAll() (map[string]interface{}, error) {
-	return s.store, nil
-}
-
-func (s *InmemoryKVStore) PutAll(content map[string]interface{}) error {
-	s.store = content
-	return nil
-}
-
 func NewInmemoryKVStore() *InmemoryKVStore {
 	return &InmemoryKVStore{store: map[string]interface{}{}}
 }

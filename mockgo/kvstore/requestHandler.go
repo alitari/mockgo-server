@@ -46,34 +46,10 @@ func (r *KVStoreRequestHandler) AddRoutes(router *mux.Router) {
 	router.NewRoute().Name("getKVStore").Path(r.pathPrefix + "/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.handleGetKVStore))
 	router.NewRoute().Name("addKVStore").Path(r.pathPrefix + "/kvstore/{key}/add").Methods(http.MethodPost).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.handleAddKVStore))
 	router.NewRoute().Name("removeKVStore").Path(r.pathPrefix + "/kvstore/{key}/remove").Methods(http.MethodPost).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.handleRemoveKVStore))
-	router.NewRoute().Name("uploadKVStore").Path(r.pathPrefix + "/kvstore").Methods(http.MethodPut).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", nil, r.handleUploadKVStore))
-	router.NewRoute().Name("downloadKVStore").Path(r.pathPrefix + "/kvstore").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.handleDownloadKVStore))
 }
 
 func (r *KVStoreRequestHandler) health(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
-}
-
-func (r *KVStoreRequestHandler) handleDownloadKVStore(writer http.ResponseWriter, request *http.Request) {
-	if kvs, err := r.kvstore.GetAll(); err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-	} else {
-		util.WriteEntity(writer, kvs)
-	}
-}
-
-func (r *KVStoreRequestHandler) handleUploadKVStore(writer http.ResponseWriter, request *http.Request) {
-	body, err := io.ReadAll(request.Body)
-	if err != nil {
-		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = r.kvstore.PutAllJson(string(body))
-	if err != nil {
-		http.Error(writer, "Problem creating kvstore: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writer.WriteHeader(http.StatusNoContent)
 }
 
 func (r *KVStoreRequestHandler) handleGetKVStore(writer http.ResponseWriter, request *http.Request) {

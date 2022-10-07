@@ -14,8 +14,6 @@ import (
 type KVStore interface {
 	GetVal(key string) (interface{}, error)
 	PutVal(key string, storeVal interface{}) error
-	GetAll() (map[string]interface{}, error)
-	PutAll(content map[string]interface{}) error
 }
 
 type KVStoreJSON struct {
@@ -72,35 +70,6 @@ func (s *KVStoreJSON) GetAsJson(key string) (string, error) {
 	}
 	if storeVal == nil {
 		return "{}", nil
-	}
-	storeJson, err := json.Marshal(storeVal)
-	if err != nil {
-		return "", err
-	}
-	return string(storeJson), nil
-}
-
-func (s *KVStoreJSON) GetAll() (map[string]interface{}, error) {
-	return s.store.GetAll()
-}
-
-func (s *KVStoreJSON) PutAll(content map[string]interface{}) error {
-	return s.store.PutAll(content)
-}
-
-func (s *KVStoreJSON) PutAllJson(allStoreJson string) error {
-	allStoreVal := &map[string]interface{}{}
-	err := json.Unmarshal([]byte(allStoreJson), allStoreVal)
-	if err != nil {
-		return err
-	}
-	return s.PutAll(*allStoreVal)
-}
-
-func (s *KVStoreJSON) GetAllJson() (string, error) {
-	storeVal, err := s.GetAll()
-	if err != nil {
-		return "", err
 	}
 	storeJson, err := json.Marshal(storeVal)
 	if err != nil {
