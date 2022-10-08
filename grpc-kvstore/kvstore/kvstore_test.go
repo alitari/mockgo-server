@@ -20,7 +20,7 @@ var kvstores []*GrpcKVStore
 func TestMain(m *testing.M) {
 	startKVStoreCluster()
 	time.Sleep(300 * time.Millisecond)
-	code := util.RunAndCheckCoverage("main", m, 0.65)
+	code := util.RunAndCheckCoverage("main", m, 0.4)
 	stopCluster()
 	os.Exit(code)
 }

@@ -30,7 +30,7 @@ var kvstoreHandler *KVStoreRequestHandler
 func TestMain(m *testing.M) {
 	go startServing()
 	time.Sleep(200 * time.Millisecond)
-	code := util.RunAndCheckCoverage("requestHandlerTest", m, 0.60)
+	code := util.RunAndCheckCoverage("requestHandlerTest", m, 0.50)
 	os.Exit(code)
 }
 

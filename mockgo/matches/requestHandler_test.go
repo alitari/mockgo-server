@@ -19,7 +19,7 @@ import (
 const (
 	username = "mockgo"
 	password = "password"
-	port     = 8080
+	port     = 9999
 )
 
 var urlPrefix = fmt.Sprintf("http://localhost:%d", port)
@@ -30,7 +30,7 @@ var matchesRequestHandler *MatchesRequestHandler
 func TestMain(m *testing.M) {
 	go startServing()
 	time.Sleep(200 * time.Millisecond)
-	code := util.RunAndCheckCoverage("matchesRequestHandlerTest", m, 0.60)
+	code := util.RunAndCheckCoverage("matchesRequestHandlerTest", m, 0.40)
 	os.Exit(code)
 }
 

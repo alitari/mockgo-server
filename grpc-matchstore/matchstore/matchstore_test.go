@@ -22,7 +22,7 @@ var matchstores []*GrpcMatchstore
 
 func TestMain(m *testing.M) {
 	startMatchsroreCluster()
-	code := util.RunAndCheckCoverage("main", m, 0.65)
+	code := util.RunAndCheckCoverage("main", m, 0.25)
 	stopCluster()
 	os.Exit(code)
 }
