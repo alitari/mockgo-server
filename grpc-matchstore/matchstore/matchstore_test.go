@@ -90,6 +90,22 @@ func createMismatchForRequest(request *http.Request) *matches.Mismatch {
 	return mismatch
 }
 
+func TestMatchstore_GetMatchesSort(t *testing.T) {
+	endpointId1 := "endpoint1"
+	matchstores[0].DeleteMatches(endpointId1)
+	err := matchstores[0].AddMatch(endpointId1, createMatchForRequest(endpointId1, &http.Request{Method: http.MethodGet, URL: &url.URL{Scheme: "http", Host: "host1"}}))
+	assert.NoError(t, err)
+	err = matchstores[0].AddMatch(endpointId1, createMatchForRequest(endpointId1, &http.Request{Method: http.MethodGet, URL: &url.URL{Scheme: "http", Host: "host2"}}))
+	assert.NoError(t, err)
+	err = matchstores[1].AddMatch(endpointId1, createMatchForRequest(endpointId1, &http.Request{Method: http.MethodGet, URL: &url.URL{Scheme: "http", Host: "host3"}}))
+	assert.NoError(t, err)
+	matches, err := matchstores[0].GetMatches(endpointId1)
+	assert.NoError(t, err)
+	assert.Equal(t, "http://host1", matches[0].ActualRequest.URL)
+	assert.Equal(t, "http://host3", matches[1].ActualRequest.URL)
+	assert.Equal(t, "http://host2", matches[2].ActualRequest.URL)
+}
+
 func TestMatchstore_GetMatches(t *testing.T) {
 	endpointId1 := "endpoint1"
 	endpointId2 := "endpoint2"
