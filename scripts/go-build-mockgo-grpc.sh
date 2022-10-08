@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
+
+set -e
 
 cd mockgo-grpc/cmd
 CGO_ENABLED=0 GOOS=linux go build -v -o ../../bin/mockgo-grpc
