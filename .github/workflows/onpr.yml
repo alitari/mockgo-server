@@ -16,6 +16,10 @@ jobs:
       with:
         go-version: 1.19
 
+    - name: protobuf
+      run: |
+        apt update -y && apt install -y protobuf-compiler
+
     - name: Build mockgo
       run: ./scripts/go-build-mockgo-standalone.sh
 
@@ -24,6 +28,9 @@ jobs:
 
     - name: Build proto grpc matchstore
       run: ./scripts/go-build-grpc-matchstore.sh
+
+    - name: Build mockgo-grpc
+      run: ./scripts/go-build-mockgo-grpc.sh
 
     - name: Test all
       run: ./scripts/go-test-all.sh
