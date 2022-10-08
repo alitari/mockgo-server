@@ -100,24 +100,29 @@ jobs:
     - name: Precheck environment
       run: ./scripts/acceptance-test-precheck.sh
 
-    # - name: Set up Python
-    #   uses: actions/setup-python@v4
-    #   with:
-    #     python-version: 3.10.6
-    # - name: Install dependencies
-    #   run: |
-    #     python -m pip install --upgrade pip
-    #     pip3 install tavern==$TAVERNVER pytest-html
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.10.6
 
-    # - name: Run acceptance tests with tavern
-    #   run: |
-    #     export CONFIG_HOST=config.${MINIKUBE_IP}.nip.io
-    #     export MOCK_HOST=mock.${MINIKUBE_IP}.nip.io
-    #     py.test -vv --html=./reports/tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip3 install tavern==$TAVERNVER pytest-html
 
-    # - name: Publish report 
-    #   uses: JamesIves/github-pages-deploy-action@v4
-    #   with:
-    #     folder: reports
+    - name: Run acceptance tests for mockgo-standalone
+      run: |
+        export MOCKGO_HOST=mockgo-standalone.${MINIKUBE_IP}.nip.io
+        py.test -vv --html=./reports/mockgo-standalone-tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
+
+    - name: Run acceptance tests for mockgo-grpc
+      run: |
+        export MOCKGO_HOST=mockgo-grpc.${MINIKUBE_IP}.nip.io
+        py.test -vv --html=./reports/mockgo-grpc-tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
+
+    - name: Publish report 
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        folder: reports
 
 
