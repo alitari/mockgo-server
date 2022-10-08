@@ -6,7 +6,7 @@ on:
 
 jobs:
 
-  golang-build-test:
+  golang-builds:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -14,16 +14,29 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.18
+        go-version: 1.19
 
-    - name: Build
-      run: ./scripts/go-build.sh 
+    - name: protobuf
+      run: |
+        sudo apt update -y
+        sudo apt install -y protobuf-compiler
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
-    - name: Test
-      run: go test -coverprofile cover.out ./...
+    - name: Build mockgo
+      run: ./scripts/go-build-mockgo-standalone.sh
 
-    - name: Cover output
-      run: go tool cover -func=cover.out
+    - name: Build proto grpc kvstore
+      run: ./scripts/go-build-grpc-kvstore.sh
+
+    - name: Build proto grpc matchstore
+      run: ./scripts/go-build-grpc-matchstore.sh
+
+    - name: Build mockgo-grpc
+      run: ./scripts/go-build-mockgo-grpc.sh
+
+    - name: Test all
+      run: ./scripts/go-test-all.sh
 
   docker-build:
     runs-on: ubuntu-latest
@@ -36,13 +49,21 @@ jobs:
       with:
         install: true
 
-    - name: Build and push
+    - name: Build mockgo-standalone
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./build/docker/Dockerfile
+        file: ./build/docker/mockgo-standalone.Dockerfile
         push: false
-        tags: alitari/mockgo-server:latest
+        tags: alitari/mockgo-standalone:latest
+
+    - name: Build mockgo-grpc
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./build/docker/mockgo-grpc.Dockerfile
+        push: false
+        tags: alitari/mockgo-grpc:latest
 
   acceptance-tests:
     env:
@@ -57,8 +78,11 @@ jobs:
       uses: hiberbee/github-action-minikube@1.7.0
       with:
         addons: ingress
+
     - name: Get Minikube IP
-      run: echo "MINIKUBE_IP=${{ steps.minikube.outputs.ip }}" >> $GITHUB_ENV
+      run: |
+        echo "MINIKUBE_IP=${{ steps.minikube.outputs.ip }}" >> $GITHUB_ENV
+
     - name: Get cluster info
       run: kubectl cluster-info
 
@@ -66,27 +90,35 @@ jobs:
       uses: hiberbee/github-action-skaffold@1.22.0
       with:
         command: run
+
     - name: Get Helm releases
       run: helm list
+
     - name: Show k8s resources
       run: kubectl get pod,service,statefulset,configmap,secret,ingress
+
     - name: Precheck environment
-      run: ./scripts/integration-test-precheck.sh
+      run: ./scripts/acceptance-test-precheck.sh
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: 3.10.6
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip3 install tavern==$TAVERNVER pytest-html
 
-    - name: Run acceptance tests with tavern
+    - name: Run acceptance tests for mockgo-standalone
       run: |
-        export CONFIG_HOST=config.${MINIKUBE_IP}.nip.io
-        export MOCK_HOST=mock.${MINIKUBE_IP}.nip.io
-        py.test -vv --html=./reports/tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
+        export MOCKGO_HOST=mockgo-standalone.${MINIKUBE_IP}.nip.io
+        py.test -vv --html=./reports/mockgo-standalone-tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
+
+    - name: Run acceptance tests for mockgo-grpc
+      run: |
+        export MOCKGO_HOST=mockgo-grpc.${MINIKUBE_IP}.nip.io
+        py.test -vv --html=./reports/mockgo-grpc-tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
 
     - name: Publish report 
       uses: JamesIves/github-pages-deploy-action@v4

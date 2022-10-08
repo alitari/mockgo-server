@@ -15,15 +15,30 @@ responses:
       "hello": "World"
     }
 
-countOnly:
-  matches: true
-  mismatches: true
+matches:
+  capacity: 1000
 
+# 0 only errors, 1 verbose , 2 debug
+logging: 
+  api:
+    level: 1
+  mock:
+    level: 1
+  kvstore:
+    level: 1
+  matchstore:
+    level: 1
 
-logging:
-  verbose: true
+cluster:
+  enabled: false
+  replicas: 3
+  # Define if mockgo-server is using FQDN name for clustering (i.e. mockgo-server-0.mockgo-server.default.svc.cluster.local) or short name (i.e. mockgo-server-0.mockgo-server.default).
+  useFQDN: true
+  grpcPorts:
+    matchstore: 50051
+    kvstore: 50151
 
-image: mockgo-server:1.0.0-alpine
+image: mockgo-standalone:1.0.0-alpine
 pullPolicy: IfNotPresent
 
 terminationGracePeriodSeconds: 30
@@ -46,12 +61,9 @@ ingress:
   enabled: false
   annotations: {}
   ingressClassName: nginx
-  configHost: "confighost"
-  configPath: "/"
-  configPathType: Prefix
-  mockHost: "mockhost"
-  mockPath: "/"
-  mockPathType: Prefix
+  host: "host"
+  path: "/"
+  pathType: Prefix
 
 # securityContext for the mockgo-server container
 securityContext: {}
@@ -67,15 +79,14 @@ serviceAccount:
 
 resources: {}
 
-configEndpoint:
-  containerPort: 8080
-  servicePort: 8080
+containerPort: 8080
+servicePort: 8080
+
+api:
+  pathPrefix: "/__"
   username: mockgo
   password: password
-  
-mockEndpoint:
-  containerPort: 8081
-  servicePort: 80
+
 
 nameOverride: ""
 namespaceOverride: ""
@@ -118,17 +129,11 @@ tolerations: []
 #    value: "value"
 #    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 
-# Annotations to add to the mockgo-server StatefulSet
-statefulSetAnnotations: {}
+# Annotations to add to the controlling k8s resource ( statefuleset or deployment)
+annotations: {}
 
-# Labels to add to the pods of the mockgo-server StatefulSet
-statefulSetPodLabels: {}
+podLabels: {}
 
-cluster:
-  enabled: false
-  replicas: 3
-  # Define if mockgo-server is using FQDN name for clustering (i.e. mockgo-server-0.mockgo-server.default.svc.cluster.local) or short name (i.e. mockgo-server-0.mockgo-server.default).
-  useFQDN: true
 
 # Cluster Domain configured on the kubelets
 # https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/

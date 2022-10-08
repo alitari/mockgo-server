@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mockgo-server
+data:
+  my-mock.yaml: |
+    endpoints:
+    - id: my
+      request:
+        path: '/my/**/alex'
+      response:
+        bodyFilename: "my-response.json"
+  my-response.json: |
+    {
+      "my": "Hello"
+    }

@@ -1,0 +1,9 @@
+go 1.19
+
+use (
+	./mockgo
+	./mockgo-standalone
+	./mockgo-grpc
+	./grpc-matchstore
+	./grpc-kvstore
+)

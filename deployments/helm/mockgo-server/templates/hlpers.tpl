@@ -60,19 +60,15 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{/*
 Return the mockgoserver cluster routes.
 */}}
-{{- define "mockgoserver.clusterUrls" -}}
-{{- if .Values.cluster.enabled }}
+{{- define "mockgoserver.clusterHostnames" -}}
 {{- $name := (include "mockgoserver.fullname" . ) -}}
 {{- $namespace := (include "mockgoserver.namespace" . ) -}}
 {{- $clusterDomain := .Values.k8sClusterDomain -}}
-{{- $port := .Values.configEndpoint.servicePort -}}
-
 {{- range $i, $e := until (.Values.cluster.replicas | int) -}}
 {{- if $.Values.cluster.useFQDN }}
-{{- printf "http://%s-%d.%s.%s.svc.%s:%.0f," $name $i $name $namespace $clusterDomain $port -}}
+{{- printf "%s-%d.%s.%s.svc.%s," $name $i $name $namespace $clusterDomain -}}
 {{- else }}
-{{- printf "http://%s-%d.%s.%s.:%.0f," $name $i $name $namespace $port -}}
-{{- end }}
+{{- printf "%s-%d.%s.%s," $name $i $name $namespace -}}
 {{- end }}
 {{- end }}
 {{- end }}

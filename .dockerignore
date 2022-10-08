@@ -1,7 +1,9 @@
 *
-!cmd/
-!go.*
-!internal/
-!scripts/go-build.sh
-!/bin/mockgo-server
-!test/main
+!mockgo/
+!grpc-kvstore/
+!grpc-matchstore/
+!mockgo-standalone/
+!mockgo-grpc/
+!scripts/
+!/bin/
+!go.work

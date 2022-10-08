@@ -10,13 +10,14 @@ metadata:
     {{- toYaml .Values.serviceAnnotations | nindent 4 }}
   {{- end }}
 spec:
+{{- if .Values.cluster.enabled }}
   clusterIP: None
+{{- else }}
+  type: ClusterIP
+{{- end }}
   selector:
     {{- include "mockgoserver.selectorLabels" . | nindent 4 }}
   ports:
-  - name: config
-    targetPort: {{ .Values.configEndpoint.containerPort }}
-    port: {{ .Values.configEndpoint.servicePort }}
-  - name: mock
-    targetPort: {{ .Values.mockEndpoint.containerPort }}
-    port: {{ .Values.mockEndpoint.servicePort }}
+  - name: http
+    targetPort: http
+    port: {{ .Values.servicePort }}

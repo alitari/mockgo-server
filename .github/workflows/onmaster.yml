@@ -23,10 +23,18 @@ jobs:
         username: alitari
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Build and push
+    - name: Build mockgo-standalone
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./build/docker/Dockerfile
+        file: ./build/docker/mockgo-standalone.Dockerfile
         push: true
-        tags: alitari/mockgo-server:latest
+        tags: alitari/mockgo-standalone:latest
+
+    - name: Build mockgo-grpc
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./build/docker/mockgo-grpc.Dockerfile
+        push: true
+        tags: alitari/mockgo-grpc:latest

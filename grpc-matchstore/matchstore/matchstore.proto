@@ -1,0 +1,73 @@
+syntax = "proto3";
+option go_package = "github.com/alitari/mockgo-grpc-matchstore/matchstore";
+
+import "google/protobuf/timestamp.proto";
+
+package matchstore;
+
+
+service Matchstore {
+    rpc FetchMatches( EndPointRequest) returns ( MatchesResponse) {}
+    rpc FetchMismatches(MismatchRequest) returns ( MismatchesResponse) {}
+    rpc FetchMatchesCount( EndPointRequest) returns ( MatchesCountResponse) {}
+    rpc FetchMismatchesCount(MismatchRequest) returns ( MismatchesCountResponse) {}
+    rpc RemoveMatches(EndPointRequest) returns ( RemoveResponse) {}
+    rpc RemoveMismatches(MismatchRequest) returns ( RemoveResponse) {}
+}
+
+message EndPointRequest {
+    string id = 1;
+}
+
+message MismatchRequest {}
+
+message MatchesResponse {
+    repeated Match matches = 1;
+}
+
+message MatchesCountResponse {
+    uint64 matchesCount = 1;
+}
+
+message MismatchesResponse {
+    repeated Mismatch mismatches = 1;
+}
+
+message MismatchesCountResponse {
+    uint64 mismatchesCount = 1;
+}
+
+message RemoveResponse {}
+
+message AddAllResponse {
+    bool locked = 1;
+}
+
+message Match {
+    string endpointId = 1;
+    google.protobuf.Timestamp timestamp = 2;
+    ActualRequest  actualRequest = 3;
+    ActualResponse actualResponse = 4;
+}
+
+message Mismatch {
+    string mismatchDetails = 1;
+    google.protobuf.Timestamp timestamp = 2;
+    ActualRequest  actualRequest = 3;
+}
+
+message ActualRequest {
+    string method = 1;
+    string url = 2;
+    map<string,HeaderValue> header = 3;
+    string host = 4;
+}
+
+message ActualResponse {
+    int32 statusCode = 1;
+    map<string,HeaderValue> header = 2;
+}
+
+message HeaderValue {
+   repeated string val = 1;
+}

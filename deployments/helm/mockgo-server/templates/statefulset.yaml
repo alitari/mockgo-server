@@ -1,4 +1,4 @@
----
+{{- if .Values.cluster.enabled }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -6,19 +6,15 @@ metadata:
   namespace: {{ include "mockgoserver.namespace" . }}
   labels:
     {{- include "mockgoserver.labels" . | nindent 4 }}
-  {{- if .Values.statefulSetAnnotations }}
+  {{- if .Values.annotations }}
   annotations:
-    {{- toYaml .Values.statefulSetAnnotations | nindent 4 }}
+    {{- toYaml .Values.annotations | nindent 4 }}
   {{- end }}
 spec:
   selector:
     matchLabels:
       {{- include "mockgoserver.selectorLabels" . | nindent 6 }}
-  {{- if .Values.cluster.enabled }}
   replicas: {{ .Values.cluster.replicas }}
-  {{- else }}
-  replicas: 1
-  {{- end }}
   serviceName: {{ include "mockgoserver.fullname" . }}
 
   podManagementPolicy: {{ .Values.podManagementPolicy }}
@@ -33,8 +29,8 @@ spec:
       {{- end }}
       labels:
         {{- include "mockgoserver.selectorLabels" . | nindent 8 }}
-        {{- if .Values.statefulSetPodLabels }}
-        {{- tpl (toYaml .Values.statefulSetPodLabels) . | nindent 8 }}
+        {{- if .Values.podLabels }}
+        {{- tpl (toYaml .Values.podLabels) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.terminationGracePeriodSeconds }}
@@ -83,11 +79,7 @@ spec:
           name: {{ include "mockgoserver.fullname" . }}
 
       serviceAccountName: {{ include "mockgoserver.serviceAccountName" . }}
-
-      # Required to be able to HUP signal and apply config
-      # reload to the server without restarting the pod.
       shareProcessNamespace: true
-
       containers:
       - name: mockgoserver
         image: {{ .Values.image }}
@@ -98,49 +90,50 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
-        lifecycle:
-          preStop:
-            httpGet:
-              port: {{ .Values.configEndpoint.containerPort }}
-              path: /transfermatches
         ports:
-        - containerPort: {{ .Values.configEndpoint.containerPort }}
-          name: config
-        - containerPort: {{ .Values.mockEndpoint.containerPort }}
-          name: mock
+        - name: http
+          containerPort: {{ .Values.containerPort }}
         env:
-        - name: VERBOSE
-          value: {{ .Values.logging.verbose | quote }}
-        - name: CONFIG_PORT
-          value: {{ .Values.configEndpoint.containerPort | quote }}
-        - name: CONFIG_USERNAME
-          value: {{ .Values.configEndpoint.username | quote }}
-        - name: CONFIG_PASSWORD
+        - name: LOGLEVEL_API
+          value: {{ .Values.logging.api.level | quote }}
+        - name: LOGLEVEL_MOCK
+          value: {{ .Values.logging.mock.level | quote }}
+        - name: LOGLEVEL_KVSTORE
+          value: {{ .Values.logging.kvstore.level | quote }}
+        - name: LOGLEVEL_MATCHSTORE
+          value: {{ .Values.logging.matchstore.level | quote }}
+        - name: MOCK_PORT
+          value: {{ .Values.containerPort | quote }}
+        - name: API_PATH_PREFIX
+          value: {{ .Values.api.pathPrefix | quote }}
+        - name: API_USERNAME
+          value: {{ .Values.api.username | quote }}
+        - name: API_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ include "mockgoserver.fullname" . }}
-              key: configPassword
-        - name: MOCK_PORT
-          value: {{ .Values.mockEndpoint.containerPort | quote }}
+              key: apiPassword
         - name: MOCK_DIR
           value: '/etc/mockgoserver-config'
         - name: MOCK_FILEPATTERN
           value: '*-mock.yaml'
         - name: RESPONSE_DIR
           value: '/etc/mockgoserver-config'
-        - name: MATCHES_COUNT_ONLY
-          value: {{ .Values.countOnly.matches | quote }}
-        - name: MISMATCHES_COUNT_ONLY
-          value: {{ .Values.countOnly.mismatches | quote }}
-        - name: CLUSTER_URLS
-          value: "{{ include "mockgoserver.clusterUrls" . }}"
+        - name: MATCHES_CAPACITY
+          value: {{ .Values.matches.capacity | quote }}
+        - name: CLUSTER_HOSTNAMES
+          value: "{{ include "mockgoserver.clusterHostnames" . }}"
+        - name: MATCHSTORE_PORT
+          value: {{ .Values.cluster.grpcPorts.matchstore | quote }}
+        - name: KVSTORE_PORT
+          value: {{ .Values.cluster.grpcPorts.kvstore | quote }}
         volumeMounts:
         - name: config-volume
           mountPath: /etc/mockgoserver-config
         livenessProbe:
           httpGet:
-            path: /health
-            port: {{ .Values.configEndpoint.containerPort }}
+            path: {{ .Values.api.pathPrefix }}/health
+            port: {{ .Values.containerPort }}
           {{- with .Values.healthcheck.liveness }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
           timeoutSeconds: {{ .timeoutSeconds }}
@@ -151,8 +144,8 @@ spec:
 
         readinessProbe:
           httpGet:
-            path: /health
-            port: {{ .Values.configEndpoint.containerPort }}
+            path: {{ .Values.api.pathPrefix }}/health
+            port: {{ .Values.containerPort }}
         {{- with .Values.healthcheck.readiness }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
           timeoutSeconds: {{ .timeoutSeconds }}
@@ -160,6 +153,4 @@ spec:
           successThreshold: {{ .successThreshold }}
           failureThreshold: {{ .failureThreshold }}
         {{- end }}
-
-
-
+{{- end }}

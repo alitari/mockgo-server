@@ -1,0 +1,52 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: mockgo-server
+  # labels:
+  #   networking.knative.dev/visibility: cluster-local
+spec:
+  template:
+    metadata:
+      labels:
+        cluster: mockgo
+    spec:
+      containers:
+        - name: mockgo
+          image: dev.local/mockgo-server
+          env:
+            - name: LOGLEVEL_CONFIG
+              value: "2"
+            - name: LOGLEVEL_MOCK
+              value: "1"
+            - name: CONFIG_PORT
+              value: "8081"
+            - name: CONFIG_USERNAME
+              value: "mockgo"
+            - name: CONFIG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mockgo-server
+                  key: configPassword
+            - name: MOCK_PORT
+              value: "8080"
+            - name: MOCK_DIR
+              value: '/etc/mockgoserver-config'
+            - name: MOCK_FILEPATTERN
+              value: '*-mock.yaml'
+            - name: RESPONSE_DIR
+              value: '/etc/mockgoserver-config'
+            - name: MATCHES_COUNT_ONLY
+              value: "true"
+            - name: MISMATCHES_COUNT_ONLY
+              value: "true"
+            - name: CLUSTER_URLS
+              value: "dynamic"
+            - name: CLUSTER_POD_LABEL_VALUE
+              value: mockgo
+            - name: PROXY_CONFIG_ROUTER_PATH
+              value: "/__"
+            - name: KUBEPROXY_PORT
+              value: "8090"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/mockgoserver-config
