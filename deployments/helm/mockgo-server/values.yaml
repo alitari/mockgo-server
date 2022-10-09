@@ -38,7 +38,7 @@ cluster:
     matchstore: 50051
     kvstore: 50151
 
-image: mockgo-standalone:1.0.0-alpine
+image: alitari/mockgo-standalone:latest
 pullPolicy: IfNotPresent
 
 terminationGracePeriodSeconds: 30
