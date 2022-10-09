@@ -15,6 +15,6 @@ entries:
       url: https://github.com/alitari
     name: mockgo-server
     urls:
-    - https://github.com/alitari/mockgo-server/mockgo-server-0.0.1.tgz
+    - https://alitari.github.io/mockgo-server/mockgo-server-0.0.1.tgz 
     version: 0.0.1
 generated: "2022-10-09T10:27:50.985231259+02:00"
