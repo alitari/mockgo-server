@@ -120,9 +120,9 @@ jobs:
         export MOCKGO_HOST=mockgo-grpc.${MINIKUBE_IP}.nip.io
         py.test -vv --html=./reports/mockgo-grpc-tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
 
-    - name: Publish report 
-      uses: JamesIves/github-pages-deploy-action@v4
-      with:
-        folder: reports
+    # - name: Publish report 
+    #   uses: JamesIves/github-pages-deploy-action@v4
+    #   with:
+    #     folder: reports
 
 
