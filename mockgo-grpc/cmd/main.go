@@ -171,7 +171,7 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestH
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.MockRequestHandler {
 	mockLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMock))
-	mockHandler := mock.NewMockRequestHandler(configuration.MockDir, configuration.MockFilepattern, configuration.ResponseDir, matchstore, mockLogger)
+	mockHandler := mock.NewMockRequestHandler(configuration.MockDir, configuration.MockFilepattern, matchstore, mockLogger)
 	return mockHandler
 }
 

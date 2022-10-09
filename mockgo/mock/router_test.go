@@ -369,7 +369,7 @@ func assertMismatchRequestToEndpoint(t *testing.T, mockRouter *MockRequestHandle
 }
 
 func createMockRouter(t *testing.T, testMockDir string, matchesCountOnly, mismatchesCountOnly bool) *MockRequestHandler {
-	mockRouter := NewMockRequestHandler("../../test/"+testMockDir, "*-mock.yaml", "../../test/"+testMockDir, createInMemoryMatchStore(), logging.NewLoggerUtil(logging.Debug))
+	mockRouter := NewMockRequestHandler("../../test/"+testMockDir, "*-mock.yaml", createInMemoryMatchStore(), logging.NewLoggerUtil(logging.Debug))
 	assert.NotNil(t, mockRouter, "Mockrouter must not be nil")
 	err := mockRouter.LoadFiles(nil)
 	assert.NoError(t, err)

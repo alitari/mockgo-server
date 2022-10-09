@@ -117,8 +117,6 @@ spec:
           value: '/etc/mockgoserver-config'
         - name: MOCK_FILEPATTERN
           value: '*-mock.yaml'
-        - name: RESPONSE_DIR
-          value: '/etc/mockgoserver-config'
         - name: MATCHES_CAPACITY
           value: {{ .Values.matches.capacity | quote }}
         - name: CLUSTER_HOSTNAMES

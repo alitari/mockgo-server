@@ -45,17 +45,15 @@ type ResponseTemplateData struct {
 type MockRequestHandler struct {
 	mockDir         string
 	mockFilepattern string
-	responseDir     string
 	logger          *logging.LoggerUtil
 	EpSearchNode    *EpSearchNode
 	matchstore      matches.Matchstore
 }
 
-func NewMockRequestHandler(mockDir, mockFilepattern, responseDir string, matchstore matches.Matchstore, logger *logging.LoggerUtil) *MockRequestHandler {
+func NewMockRequestHandler(mockDir, mockFilepattern string, matchstore matches.Matchstore, logger *logging.LoggerUtil) *MockRequestHandler {
 	mockRouter := &MockRequestHandler{
 		mockDir:         mockDir,
 		mockFilepattern: mockFilepattern,
-		responseDir:     responseDir,
 		logger:          logger,
 		EpSearchNode:    &EpSearchNode{},
 		matchstore:      matchstore,
@@ -131,7 +129,7 @@ func (r *MockRequestHandler) initResponseTemplates(endpoint *MockEndpoint, funcM
 		body = endpoint.Response.Body
 	} else {
 		if len(endpoint.Response.BodyFilename) > 0 {
-			bodyBytes, err := os.ReadFile(filepath.Join(r.responseDir, endpoint.Response.BodyFilename))
+			bodyBytes, err := os.ReadFile(filepath.Join(r.mockDir, endpoint.Response.BodyFilename))
 			if err != nil {
 				return err
 			}
