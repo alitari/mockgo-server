@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/alitari/mockgo/util"
+	"github.com/stretchr/testify/assert"
 )
 
 const ()
@@ -24,7 +25,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("MOCK_PORT", strconv.Itoa(port))
 	os.Setenv("API_PASSWORD", apiPassword)
 	os.Setenv("MOCK_DIR", "../../test/main")
-	os.Setenv("RESPONSE_DIR", "../../test/main/responses")
 	os.Setenv("MATCHES_RECORD_REQUESTS", "true")
 	os.Setenv("MISMATCHES_RECORD_REQUESTS", "true")
 	go main()
@@ -34,8 +34,34 @@ func TestMain(m *testing.M) {
 }
 
 func TestMain_health(t *testing.T) {
-	util.RequestCall(t, httpClient,  http.MethodGet, urlPrefix+"/__/health", map[string][]string{}, "", http.StatusOK, nil)
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/health", map[string][]string{}, "", http.StatusOK, nil)
 }
+
+func TestMain_templateFunctionsKVStore(t *testing.T) {
+	// set kvstore with a template func
+	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/setkvstore/maintest", nil, `{ "mainTest1": "mainTest1Value" }`, 200, func(responseBody string) {
+		expectedResponseBody := `{
+    "message": "set kvstore successfully",
+    "key": "maintest",
+    "value": "{ \"mainTest1\": \"mainTest1Value\" }"
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	})
+}
+
+// 	// get kvstore with the config api
+// 	requestToAllNodes(t, true, http.MethodGet, "/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
+// 		assert.Equal(t, `{"mainTest1":"mainTest1Value"}`, responseBody)
+// 	})
+// 	// get kvstore with a template func
+// 	requestToAllNodes(t, false, http.MethodGet, "/getkvstore/maintest", nil, "", 200, func(responseBody string) {
+// 		expectedResponseBody := `{
+//     "message": "get kvstore successfully",
+//     "key": "maintest",
+//     "value": "{\"mainTest1\":\"mainTest1Value\"}"
+// }`
+// 		assert.Equal(t, expectedResponseBody, responseBody)
+// 	})
 
 // func TestMain_getMatches(t *testing.T) {
 // 	// get matches
@@ -216,31 +242,6 @@ func TestMain_health(t *testing.T) {
 // 	assertMatchesCount(1, 7)    // 7 matches in node 1
 // 	assertMismatchesCount(1, 4) // 4 mismatches in node 1
 // }
-
-// func TestMain_templateFunctionsKVStore(t *testing.T) {
-// 	// set kvstore with a template func
-// 	requestToNode(t, 0, false, http.MethodPut, "/setkvstore/maintest", nil, `{ "mainTest1": "mainTest1Value" }`, 200, func(responseBody string) {
-// 		expectedResponseBody := `{
-//     "message": "set kvstore successfully",
-//     "key": "maintest",
-//     "value": "{ \"mainTest1\": \"mainTest1Value\" }"
-// }`
-// 		assert.Equal(t, expectedResponseBody, responseBody)
-// 	})
-
-// 	// get kvstore with the config api
-// 	requestToAllNodes(t, true, http.MethodGet, "/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {config.BasicAuth("mockgo", configPassword)}}, "", http.StatusOK, func(responseBody string) {
-// 		assert.Equal(t, `{"mainTest1":"mainTest1Value"}`, responseBody)
-// 	})
-// 	// get kvstore with a template func
-// 	requestToAllNodes(t, false, http.MethodGet, "/getkvstore/maintest", nil, "", 200, func(responseBody string) {
-// 		expectedResponseBody := `{
-//     "message": "get kvstore successfully",
-//     "key": "maintest",
-//     "value": "{\"mainTest1\":\"mainTest1Value\"}"
-// }`
-// 		assert.Equal(t, expectedResponseBody, responseBody)
-// 	})
 
 // 	// add kvstore with a template func
 // 	requestToNode(t, 0, false, http.MethodPost, "/addkvstore/maintest", nil, `{ "path": "/mainTest2", "value": "mainTest2Value" }`, 200, func(responseBody string) {
