@@ -23,10 +23,10 @@ COPY ./mockgo-grpc ./mockgo-grpc
 RUN echo "go 1.19\n\nuse (\n    ./mockgo\n    ./grpc-kvstore\n    ./grpc-matchstore\n    ./mockgo-grpc\n)" > ./go.work
 RUN go mod download
 COPY scripts/go-build-mockgo-grpc.sh .
-RUN ./go-build-mockgo-grpc.sh
+RUN ./go-build-mockgo-grpc.sh linux amd64
 
 FROM alpine:3
 WORKDIR /app
 RUN apk add --no-cache ca-certificates
-COPY --from=builder /app/bin/mockgo-grpc ./mockgo-grpc
+COPY --from=builder /app/bin/mockgo-grpc-linux-amd64 ./mockgo-grpc
 CMD ["/app/mockgo-grpc"]

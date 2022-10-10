@@ -3,3 +3,4 @@ bin/
 test/tavern/.pytest_cache
 reports/tavern.html
 *.pb.go
+.github/token

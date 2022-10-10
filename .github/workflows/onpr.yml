@@ -24,7 +24,10 @@ jobs:
         go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
     - name: Build mockgo
-      run: ./scripts/go-build-mockgo-standalone.sh
+      run: |
+        ./scripts/go-build-mockgo-standalone.sh linux amd64
+        ./scripts/go-build-mockgo-standalone.sh linux arm64
+        ./scripts/go-build-mockgo-standalone.sh windows amd64
 
     - name: Build proto grpc kvstore
       run: ./scripts/go-build-grpc-kvstore.sh
@@ -33,7 +36,10 @@ jobs:
       run: ./scripts/go-build-grpc-matchstore.sh
 
     - name: Build mockgo-grpc
-      run: ./scripts/go-build-mockgo-grpc.sh
+      run: |
+        ./scripts/go-build-mockgo-grpc.sh linux amd64
+        ./scripts/go-build-mockgo-grpc.sh linux arm64
+        ./scripts/go-build-mockgo-grpc.sh windows amd64
 
     - name: Test all
       run: ./scripts/go-test-all.sh
