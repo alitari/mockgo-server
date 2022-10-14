@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/alitari/mockgo/util"
+	"github.com/go-http-utils/headers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,13 +38,32 @@ func TestMain_health(t *testing.T) {
 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/health", map[string][]string{}, "", http.StatusOK, nil)
 }
 
-func TestMain_templateFunctionsKVStore(t *testing.T) {
+func TestMain_templateFunctionsPutKVStore(t *testing.T) {
 	// set kvstore with a template func
 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/setkvstore/maintest", nil, `{ "mainTest1": "mainTest1Value" }`, 200, func(responseBody string) {
 		expectedResponseBody := `{
     "message": "set kvstore successfully",
     "key": "maintest",
     "value": "{ \"mainTest1\": \"mainTest1Value\" }"
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	})
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
+		"", http.StatusOK, func(responseBody string) {
+			assert.Equal(t, `{ "mainTest1": "mainTest1Value" }`, responseBody)
+		})
+}
+
+func TestMain_templateFunctionsGetKVStore(t *testing.T) {
+	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
+		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string) {
+		})
+	// get kvstore with a template func
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/getkvstore/maintest", nil, "", 200, func(responseBody string) {
+		expectedResponseBody := `{
+    "message": "get kvstore successfully",
+    "key": "maintest",
+    "value": "{\"key\":\"value\"}"
 }`
 		assert.Equal(t, expectedResponseBody, responseBody)
 	})

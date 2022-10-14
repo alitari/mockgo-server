@@ -65,12 +65,16 @@ func RequestMustHave(loggerUtil *logging.LoggerUtil, expectedUsername, expectedP
 }
 
 func WriteEntity(writer http.ResponseWriter, entity interface{}) {
-	entityBytes, err := json.Marshal(entity)
-	if err != nil {
-		http.Error(writer, fmt.Sprintf("Cannot marshall response: %v", err), http.StatusInternalServerError)
-		return
+	entityString, isString := entity.(string)
+	if !isString {
+		entityBytes, err := json.Marshal(entity)
+		if err != nil {
+			http.Error(writer, fmt.Sprintf("Cannot marshall response: %v", err), http.StatusInternalServerError)
+			return
+		}
+		entityString = string(entityBytes)
 	}
-	_, err = io.WriteString(writer, string(entityBytes))
+	_, err := io.WriteString(writer, entityString)
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("Cannot write response: %v", err), http.StatusInternalServerError)
 		return
