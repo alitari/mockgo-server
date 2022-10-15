@@ -36,7 +36,6 @@ type Configuration struct {
 	MockDir         string `default:"." split_words:"true"`
 	MockFilepattern string `default:"*-mock.*" split_words:"true"`
 	MatchesCapacity int    `default:"1000" split_words:"true"`
-	ResponseDir     string `default:"." split_words:"true"`
 }
 
 func (c *Configuration) info() string {
@@ -58,14 +57,13 @@ Mock Server:
   Port: %v
   Dir: '%s'
   Filepattern: '%s'
-  Response Dir: '%s'
   LogLevel: '%s'
   
 Matches:
   Capacity: %d
   `,
 		c.APIPathPrefix, c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
-		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, logging.ParseLogLevel(c.LoglevelMock).String(),
+		c.MockPort, c.MockDir, c.MockFilepattern, logging.ParseLogLevel(c.LoglevelMock).String(),
 		c.MatchesCapacity)
 }
 
