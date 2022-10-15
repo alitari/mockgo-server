@@ -30,7 +30,7 @@ var kvstoreHandler *KVStoreRequestHandler
 func TestMain(m *testing.M) {
 	go startServing()
 	time.Sleep(200 * time.Millisecond)
-	code := util.RunAndCheckCoverage("requestHandlerTest", m, 0.50)
+	code := util.RunAndCheckCoverage("requestHandlerTest", m, 0.49)
 	os.Exit(code)
 }
 
@@ -75,7 +75,7 @@ func TestKVStoreRequestHandler_getKVStore(t *testing.T) {
 		map[string][]string{headers.Authorization: {util.BasicAuth(username, password)}, headers.Accept: {"application/json"}},
 		"", http.StatusOK,
 		func(responseBody string) {
-			assert.Equal(t, `"expectedVal"`, responseBody)
+			assert.Equal(t, "expectedVal", responseBody)
 		})
 }
 

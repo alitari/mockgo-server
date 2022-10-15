@@ -75,9 +75,9 @@ func main() {
 	log.Print(configuration.info())
 	matchStore := matches.NewInMemoryMatchstore(uint16(configuration.MatchesCapacity))
 	matchHandler := createMatchHandler(configuration, matchStore)
-	kvStoreHandler := createKVStoreHandler(configuration)
+	kvStoreHandler, kvs, logger := createKVStoreHandler(configuration)
 	mockHandler := createMockHandler(configuration, matchStore)
-	if err := mockHandler.LoadFiles(nil); err != nil {
+	if err := mockHandler.LoadFiles(kvstore.KVStoreFuncMap(kvs, logger)); err != nil {
 		log.Fatalf("can't load mock files: %v", err)
 	}
 	startServing(configuration, matchHandler, kvStoreHandler, mockHandler)
@@ -99,10 +99,10 @@ func createMatchHandler(configuration *Configuration, matchstore matches.Matchst
 		matchstore, matchLogger)
 }
 
-func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestHandler {
+func createKVStoreHandler(configuration *Configuration) (*kvstore.KVStoreRequestHandler, *kvstore.KVStoreJSON, *logging.LoggerUtil) {
 	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
 	kvstoreJson := kvstore.NewKVStoreJSON(kvstore.NewInmemoryKVStore(), logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
-	return kvstore.NewKVStoreRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJson, kvstoreLogger)
+	return kvstore.NewKVStoreRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJson, kvstoreLogger), kvstoreJson, kvstoreLogger
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.MockRequestHandler {
