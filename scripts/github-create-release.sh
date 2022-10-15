@@ -7,6 +7,8 @@ then
 fi
 releaseTag=$1
 
+docker login
+
 set -e
 
 PATH="$PATH:$(go env GOPATH)/bin" 
@@ -35,11 +37,17 @@ do
 done
 
 # login in github
-# gh auth login --with-token < .github/token
-# gh auth status
-# gh config set prompt disabled
+gh auth login --with-token < .github/token
+gh auth status
+gh config set prompt disabled
 
-# # create release with tgz as assets
-# gh release create $releaseTag ./bin/*.tgz
+# create release with tgz as assets
+gh release create $releaseTag ./bin/*.tgz
+gh auth logout -h github.com
 
-# gh auth logout -h github.com
+# docker builds
+
+./scripts/docker-build-mockgo-standalone.sh $releaseTag
+
+./scripts/docker-build-mockgo-grpc.sh $releaseTag
+
