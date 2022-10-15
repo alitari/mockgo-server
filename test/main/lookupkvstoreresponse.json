@@ -1,7 +1,7 @@
 {{ $key := .RequestPathParams.key -}}
 {{ $body := .RequestBody -}}
 {{ $jsonPath := .RequestBodyJsonData.jsonPath -}}
-{{ $val := kvStoreJsonPath $key $jsonPath -}}
+{{ $val := kvStoreLookup $key $jsonPath -}}
 {
     "message": "lookup kvstore successfully",
     "key": {{ $key | quote }},

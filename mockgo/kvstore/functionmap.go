@@ -7,7 +7,7 @@ import (
 	"github.com/alitari/mockgo/logging"
 )
 
-func KVStoreFuncMap(kvs *KVStoreJSON, logger * logging.LoggerUtil) template.FuncMap {
+func KVStoreFuncMap(kvs *KVStoreJSON, logger *logging.LoggerUtil) template.FuncMap {
 	return template.FuncMap{
 		"kvStoreGet": func(key string) interface{} {
 			if val, err := kvs.Get(key); err != nil {
@@ -23,30 +23,27 @@ func KVStoreFuncMap(kvs *KVStoreJSON, logger * logging.LoggerUtil) template.Func
 			}
 			return ""
 		},
-		// "kvStoreAdd": func(key, path, value string) string {
-		// 	err := r.addKVStoreToCluster(key, path, value)
-		// 	if err != nil {
-		// 		r.logger.LogAlways(fmt.Sprintf("Error adding value: '%s' with path '%s' in kvStore: '%s' in kvStore: %v", value, path, key, err))
-		// 	}
-		// 	return ""
-		// },
-		// "kvStoreRemove": func(key, path string) string {
-		// 	err := r.removeKVStoreToCluster(key, path)
-		// 	if err != nil {
-		// 		r.logger.LogAlways(fmt.Sprintf("Error removing value on path : '%s'  in kvStore: '%s':  %v", path, key, err))
-		// 	}
-		// 	return ""
-		// },
-		// "kvStoreJsonPath": func(key, jsonPath string) interface{} {
-		// 	value, err := r.kvstore.LookUp(key, jsonPath)
-		// 	if err != nil {
-		// 		r.logger.LogAlways(fmt.Sprintf("Error get value with Jsonpath '%s' in kvStore: '%s' : %v", jsonPath, key, err))
-		// 		return ""
-		// 	}
-		// 	return value
-		// },
-		// "matches": func(id string) []*model.Match {
-		// 	return r.mockRouter.Matches[id]
-		// },
+		"kvStoreAdd": func(key, path, value string) string {
+			err := kvs.PatchAdd(key, path, value)
+			if err != nil {
+				logger.LogError(fmt.Sprintf("Error adding value: '%s' with path '%s' in kvStore: '%s' in kvStore", value, path, key), err)
+			}
+			return ""
+		},
+		"kvStoreRemove": func(key, path string) string {
+			err := kvs.PatchRemove(key, path)
+			if err != nil {
+				logger.LogError(fmt.Sprintf("Error removing value on path : '%s'  in kvStore: '%s'", path, key), err)
+			}
+			return ""
+		},
+		"kvStoreLookup": func(key, jsonPath string) interface{} {
+			value, err := kvs.LookUp(key, jsonPath)
+			if err != nil {
+				logger.LogError(fmt.Sprintf("Error get value with Jsonpath '%s' in kvStore: '%s'", jsonPath, key), err)
+				return ""
+			}
+			return value
+		},
 	}
 }

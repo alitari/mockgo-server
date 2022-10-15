@@ -6,8 +6,8 @@
 
 {
     "message": "add kvstore successfully",
-    "key": {{ $key | quote }}
-    "body": {{ $body | quote }}
-    "path": {{ $path | quote }}
+    "key": {{ $key | quote }},
+    "body": {{ $body | quote }},
+    "path": {{ $path | quote }},
     "value": {{ $val | quote }}
 }

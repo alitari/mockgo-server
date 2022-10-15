@@ -19,13 +19,13 @@ endpoints:
       bodyFilename: "addkvstoreresponse.json"
   - id: "removeKVStore"
     request:
-      method: "POST"
+      method: "DELETE"
       path: '/removekvstore/{key}'
     response:
       bodyFilename: "removekvstoreresponse.json"
   - id: "lookupKVStore"
     request:
-      method: "POST"
+      method: "GET"
       path: '/lookupkvstore/{key}'
     response:
       bodyFilename: "lookupkvstoreresponse.json"
