@@ -2,7 +2,7 @@
 
 *mockgo-server* is a lightweight http server which can be used to mock http endpoints. *mockgo-server* is designed for horizontal scaling and feels at home in cloud environments like kubernetes.
 
-## start
+## let's get started with...
 
 ### binary excutable on your machine
 
@@ -35,7 +35,52 @@ helm upgrade mymock  mockgo-server/mockgo-server --install
 ```
 see [here](./deployments/helm/mockgo-server/README.md) for further helm configuration options.
 
-## usage
 
-### configuration model
+## mockfiles and endpoints
+
+A mockgo-server configuration contist of one or multiple files in yaml format, the so called *mockfiles*. Each *mockfile* contains one or multiple *endpoints*. The *endpoint* defines criterias which qualify the endpoint to serve an incoming request. This process is called *matching*. The second configuration part of an *endpoint* is the defintion of the http response. 
+
+```yaml
+endpoints:
+  - id: "id" # [OPTIONAL] unique string to identify endpoint
+    prio: 1  # [OPTIONAL] integer to define precedence of endpoints if more than one endpoint matches
+    request: # request defines the matching
+      scheme: "https" # [OPTIONAL], match to http schema, possible values: "http" or "https"
+      host: "alexkrieg.com" # [OPTIONAL], match to http host
+      method: "POST" # [OPTIONAL], match to http method, default is "GET"
+      path: "/mypath" # [MANDATORY], match to http request path
+      query: # [OPTIONAL] for matching every key value pair must be part of the http query parameters of the incoming request
+        firstQueryParam: value1
+        secondQueryParam: value2
+      headers: # [OPTIONAL] for matching every key value pair must be part of the http header values of the incoming request
+        Content-Type: "application/json"
+        Myheader: myheaderValue
+      body: "^{.*}$" # [OPTIONAL] regular expression which match to the request body
+    response: # defines the response
+      statusCode: 204 # [MANDATORY], http response code ( see RFC 7231)
+      body: "hello" # [OPTIONAL], response body as string
+      bodyFilename: "response.json" # [OPTIONAL], refer to a file which contains response body
+```
+
+### example
+
+```bash
+# create a mockfile
+cat <<EOF > minimal-mock.yaml
+endpoints:
+- request:
+    path: "/minimal"
+  response:
+    statusCode: 204
+EOF
+# per default mockgo-server looks in the current dir for files with names matching "*-mock.*"
+./bin/mockgo-standalone-linux-amd64
+
+# match
+curl http://localhost:8081/minimal
+# no match 404
+curl http://localhost:8081/wrong
+```
+
+
 
