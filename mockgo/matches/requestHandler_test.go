@@ -59,7 +59,7 @@ func TestMatchesRequestHandler_getMatches(t *testing.T) {
 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/matches/"+endpointId,
 		map[string][]string{headers.Authorization: {util.BasicAuth(username, password)}, headers.Accept: {"application/json"}},
 		"", http.StatusOK,
-		func(responseBody string) {
+		func(responseBody string, header map[string][]string) {
 			assert.Equal(t, `[{"endpointId":"myEndpointId","timestamp":"2009-11-17T20:34:58.651387237Z","actualRequest":{"method":"GET","url":"./http://myhost","header":null,"host":""},"actualResponse":null}]`, responseBody)
 		})
 }

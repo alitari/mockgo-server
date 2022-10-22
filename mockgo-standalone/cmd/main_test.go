@@ -39,7 +39,7 @@ func TestMain_health(t *testing.T) {
 }
 
 func TestMain_templateFunctionsPutKVStore(t *testing.T) {
-	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/setkvstore/maintest", nil, `{ "mainTest1": "mainTest1Value" }`, 200, func(responseBody string) {
+	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/setkvstore/maintest", nil, `{ "mainTest1": "mainTest1Value" }`, 200, func(responseBody string, header map[string][]string) {
 		expectedResponseBody := `{
     "message": "set kvstore successfully",
     "key": "maintest",
@@ -48,16 +48,16 @@ func TestMain_templateFunctionsPutKVStore(t *testing.T) {
 		assert.Equal(t, expectedResponseBody, responseBody)
 	})
 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-		"", http.StatusOK, func(responseBody string) {
+		"", http.StatusOK, func(responseBody string, header map[string][]string) {
 			assert.Equal(t, `{ "mainTest1": "mainTest1Value" }`, responseBody)
 		})
 }
 
 func TestMain_templateFunctionsGetKVStore(t *testing.T) {
 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string) {
+		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
 		})
-	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/getkvstore/maintest", nil, "", 200, func(responseBody string) {
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/getkvstore/maintest", nil, "", 200, func(responseBody string, header map[string][]string) {
 		expectedResponseBody := `{
     "message": "get kvstore successfully",
     "key": "maintest",
@@ -67,12 +67,26 @@ func TestMain_templateFunctionsGetKVStore(t *testing.T) {
 	})
 }
 
+func TestMain_templateFunctionsGetKVStoreInline(t *testing.T) {
+	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
+		`{ "key": "valueInline" }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
+		})
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/getkvstoreInline/maintest", nil, "", 200, func(responseBody string, header map[string][]string) {
+		expectedResponseBody := `{
+    "message": "get kvstore successfully",
+    "key": "maintest",
+    "value": "{\"key\":\"valueInline\"}"
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	})
+}
+
 func TestMain_templateFunctionsAddKVStore(t *testing.T) {
 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string) {
+		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
 		})
 	util.RequestCall(t, httpClient, http.MethodPost, urlPrefix+"/addkvstore/maintest", nil,
-		`{ "path": "/key2", "value": "value2" }`, 200, func(responseBody string) {
+		`{ "path": "/key2", "value": "value2" }`, 200, func(responseBody string, header map[string][]string) {
 			expectedResponseBody := `{
     "message": "add kvstore successfully",
     "key": "maintest",
@@ -83,17 +97,17 @@ func TestMain_templateFunctionsAddKVStore(t *testing.T) {
 			assert.Equal(t, expectedResponseBody, responseBody)
 		})
 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-		"", http.StatusOK, func(responseBody string) {
+		"", http.StatusOK, func(responseBody string, header map[string][]string) {
 			assert.Equal(t, `{"key":"value","key2":"value2"}`, responseBody)
 		})
 }
 
 func TestMain_templateFunctionsRemoveKVStore(t *testing.T) {
 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string) {
+		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
 		})
 	util.RequestCall(t, httpClient, http.MethodDelete, urlPrefix+"/removekvstore/maintest", nil,
-		`{ "path": "/key" }`, 200, func(responseBody string) {
+		`{ "path": "/key" }`, 200, func(responseBody string, header map[string][]string) {
 			expectedResponseBody := `{
     "message": "remove kvstore successfully",
     "key": "maintest",
@@ -103,17 +117,17 @@ func TestMain_templateFunctionsRemoveKVStore(t *testing.T) {
 			assert.Equal(t, expectedResponseBody, responseBody)
 		})
 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-		"", http.StatusOK, func(responseBody string) {
+		"", http.StatusOK, func(responseBody string, header map[string][]string) {
 			assert.Equal(t, `{}`, responseBody)
 		})
 }
 
 func TestMain_templateFunctionsLookupKVStore(t *testing.T) {
 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string) {
+		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
 		})
 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/lookupkvstore/maintest", nil,
-		`{ "jsonPath": "$.key" }`, 200, func(responseBody string) {
+		`{ "jsonPath": "$.key" }`, 200, func(responseBody string, header map[string][]string) {
 			expectedResponseBody := `{
     "message": "lookup kvstore successfully",
     "key": "maintest",
@@ -122,5 +136,38 @@ func TestMain_templateFunctionsLookupKVStore(t *testing.T) {
     "value": "value"
 }`
 			assert.Equal(t, expectedResponseBody, responseBody)
+		})
+}
+
+func TestMain_templateFunctionsResponseCode(t *testing.T) {
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/statusCode/201", nil, "Alex", 201, func(responseBody string, header map[string][]string) {
+		expectedResponseBody := `Alex`
+		assert.Equal(t, expectedResponseBody, responseBody)
+		assert.Equal(t, []string{"/statusCode/201"}, header["Header1"])
+	})
+}
+
+func TestMain_templateFunctionsPeople(t *testing.T) {
+	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/people", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
+		`{ "adults": [], "childs": [] }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
+		})
+
+	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/storePeople", nil, `{ "wrongkey": "Alex", "age": 55 }`, 400, func(responseBody string, header map[string][]string) {
+	})
+	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/storePeople", nil, `{ "name": "Alex", "age": 55 }`, 200, func(responseBody string, header map[string][]string) {
+	})
+	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/storePeople", nil, `{ "name": "Dani", "age": 45 }`, 200, func(responseBody string, header map[string][]string) {
+	})
+	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/storePeople", nil, `{ "name": "Klara", "age": 16 }`, 200, func(responseBody string, header map[string][]string) {
+	})
+
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/getPeople/childs", nil, "", 200,
+		func(responseBody string, header map[string][]string) {
+			assert.Equal(t, "[\n  {\n    \"age\": 16,\n    \"name\": \"Klara\"\n  }\n]", responseBody)
+		})
+
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/getPeople/adults", nil, "", 200,
+		func(responseBody string, header map[string][]string) {
+			assert.Equal(t, "[\n  {\n    \"age\": 55,\n    \"name\": \"Alex\"\n  },\n  {\n    \"age\": 45,\n    \"name\": \"Dani\"\n  }\n]", responseBody)
 		})
 }

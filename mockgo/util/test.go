@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func RequestCall(t *testing.T, httpClient http.Client, method, url string, header map[string][]string, body string, expectedStatus int, assertBody func(responseBody string)) {
+func RequestCall(t *testing.T, httpClient http.Client, method, url string, header map[string][]string, body string, expectedStatus int, assertBody func(responseBody string, header map[string][]string)) {
 	t.Logf("calling url: '%s' ...", url)
 
 	var bodyReader io.Reader
@@ -31,7 +31,7 @@ func RequestCall(t *testing.T, httpClient http.Client, method, url string, heade
 	assert.NoError(t, err)
 	t.Logf("response body:\n '%s'", respBody)
 	if assertBody != nil {
-		assertBody(respBody)
+		assertBody(respBody, response.Header)
 	}
 }
 
