@@ -1,6 +1,11 @@
 # mockgo-server
 
-*mockgo-server* is a lightweight http server which can be used to mock http endpoints. *mockgo-server* is designed for horizontal scaling and feels at home in cloud environments like kubernetes.
+*mockgo-server* is a lightweight http server which can be used to mock http endpoints. *mockgo-server* is designed for horizontal scaling and feels at home in cloud environments like kubernetes. The main software design principles are:
+
+- **Simplicity** : easy configuration with human readable yaml files with reasonable defaults
+- **Scalability** : mockgo-server is designed for horizontal scaling. Therefore it can be used in environments with high http traffic ( e.g. for performance/load tests )
+- **Flexibility** : sometimes requirements for mocking requests goes beyond static responses. With templating mechanism and state management it is possible to implement particular logic for building responses.
+
 
 ## mockfiles and endpoints
 
@@ -82,7 +87,7 @@ The form of a http request can be described as a sequence of *pathsegments* whic
 
 [*go templates*](https://blog.gopheracademy.com/advent-2017/using-go-templates/) can be used for creating dynamic responses. You can refer to following attributes of the incoming request:
 
-| Variable | type |
+| variable | type |
 | -------- | ---- |
 | `RequestPathParams` | `   map[string]string`|
 | `RequestUrl` | `          string`|
@@ -93,13 +98,13 @@ The form of a http request can be described as a sequence of *pathsegments* whic
 | `RequestBodyJsonData` | ` map[string]interface{}`|
 
 The [Sprig library](http://masterminds.github.io/sprig/) for useful functions is available. In order to manage a state you can use a **key-value store** :
-| Function name | signature | description |
+| function name | signature | description |
 | ------------- | --------- | ----------- |
-| `kvStoreGet` | func(key string) interface{} | get the value stored under this key |
-| `kvStorePut` | func(key string, value string) string | store a value with this key |
-| `kvStoreAdd` | func(key, path, value string) string | modify a value with an [json patch](https://jsonpatch.com/) "add" operation |
-| `kvStoreRemove` | func(key, path string) string | modify a value with an [json patch](https://jsonpatch.com/) "remove" operation |
-| `kvStoreLookup` | func(key, jsonPath string) interface{} | get a value with a [json path](https://goessner.net/articles/JsonPath/) expression |
+| `kvStoreGet` | `func(key string) interface{}` | get the value stored under this key |
+| `kvStorePut` | `func(key string, value string) string` | store a value with this key |
+| `kvStoreAdd` | `func(key, path, value string) string` | modify a value with an [json patch](https://jsonpatch.com/) "add" operation |
+| `kvStoreRemove` | `func(key, path string) string` | modify a value with an [json patch](https://jsonpatch.com/) "remove" operation |
+| `kvStoreLookup` | `func(key, jsonPath string) interface{}` | get a value with a [json path](https://goessner.net/articles/JsonPath/) expression |
 
 ### examples
 
@@ -202,7 +207,32 @@ curl -v http://localhost:8081/getPeople/childs
 
 ## mockgo-server api
 
-[TODO]
+The *mockgo-server* stores 2 kinds of state. The first one is the storage of incoming requests. The second state is the build-in *key-value store* which can be utilized for creating dynamic responses. The api is secured with basic auth and can be configured with the environment variables `API_USERNAME` and `API_PASWORD`.
+
+### matching api
+
+The request storage has a limited capacity which can be configured with `MATCHES_CAPACITY`.
+
+| method | path  | description |
+| ------ | ----- | ----------- |
+| `GET` | `/matches/{endpointId}` | returns all requests which matched to an endpoint |
+| `GET` | `/matchesCount/{endpointId}` | returns the count of requests which matched to an endpoint, is not limited through capacity |
+| `GET` | `/mismatches` | returns all requests which didn't match to an endpoint |
+| `GET` | `/mismatchesCount` | returns the count of all requests which didn't match to an endpoint, is not limited through capacity |
+| `DELETE` | `/matches/{endpointId}` | deletes storage of all requests which matched to an endpoint |
+| `DELETE` | `/mismatches` | deletes storage of all requests which didn't match to an endpoint |
+
+### key-value store api
+
+| method | path  | description |
+| ------ | ----- | ----------- |
+| `PUT`  | `/kvstore/{key}`| store content of request body under a key |
+| `GET` | `/kvstore/{key}` | get content of key |
+| `POST` | `/kvstore/{key}/add` | add content to kvstore with a [json patch](https://jsonpatch.com/) "add" operation. The json format of the request payload is `{ "path": json path, "value": json value }` |
+| `POST` | `/kvstore/{key}/remove` | remove content to kvstore with a [json patch](https://jsonpatch.com/) "remove" operation. The json format of the request payload is `{ "path": json path }` |
+
+
+
 
 ## let's get started with...
 
