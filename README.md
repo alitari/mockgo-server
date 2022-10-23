@@ -20,7 +20,7 @@ see [here](./deployments/helm/mockgo-server/README.md) for further helm configur
 If you prefer installing on a/your workstation, define first the environment :
 
 ```bash
-MOCKGO_RELEASE_VERSION="v0.0.4"
+MOCKGO_RELEASE_VERSION="v0.0.5"
 MOCKGO_VARIANT="standalone" # or "grpc"
 MOCKGO_OS="linux" # or "windows"
 MOCKGO_ARCH="amd64" # or "arm64"
