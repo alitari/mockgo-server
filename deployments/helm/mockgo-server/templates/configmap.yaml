@@ -3,11 +3,7 @@ kind: ConfigMap
 metadata:
   name: {{ include "mockgoserver.fullname" . }}
 data:
-   {{- range .Values.mocks }}
-  {{ .name }}-mock.yaml: |-
+{{- range .Values.files }}
+{{ .name | indent 2 }}: |-
 {{ .config | indent 4 }}
-  {{- end }}
-   {{- range .Values.responses }}
-  {{ .name }}-response.{{ .type }}: |-
-{{ .config | indent 4 }}
-  {{- end }}
+{{- end }}
