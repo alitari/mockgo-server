@@ -74,7 +74,7 @@ func TestKVStoreRequestHandler_getKVStore(t *testing.T) {
 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/kvstore/"+key,
 		map[string][]string{headers.Authorization: {util.BasicAuth(username, password)}, headers.Accept: {"application/json"}},
 		"", http.StatusOK,
-		func(responseBody string) {
+		func(responseBody string, header map[string][]string) {
 			assert.Equal(t, "expectedVal", responseBody)
 		})
 }

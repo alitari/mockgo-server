@@ -34,8 +34,8 @@ logging:
   matchstore:
     level: 2
 
-mocks:
-- name: hello
+files:
+- name: hello-mock.yaml
   config: |
     endpoints:
     - id: hello1
@@ -98,27 +98,20 @@ mocks:
           Content-Type: "application/json"
         bodyFilename: "hello6-response.json"
 
-responses:
-- name: hello1
-  type: json
+- name: hello1-response.json
   config: |
     {
       "hello": "World"
     }
-- name: hello3
-  type: txt
+- name: hello3-response.txt
   config: |
     hello, world, {{ .RequestPathParams.name }} !
-
-- name: hello4
-  type: json
+- name: hello4-response.json
   config: |
     {
       "message" :"Hello world, {{ .RequestPathParams.name }} !"
     }
-
-- name: hello6
-  type: json
+- name: hello6-response.json
   config: |
     {
       "{{ .RequestPathParams.sender }}": "says 'hello' to {{ .RequestPathParams.receiver }} !"

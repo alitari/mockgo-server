@@ -1,0 +1,41 @@
+endpoints:
+  - id: "addPeople"
+    request:
+      method: "PUT"
+      path: '/storePeople'
+    response:
+      statusCode: |-
+        {{ $payload := .RequestBodyJsonData -}}
+        {{ if and $payload.name $payload.age -}}
+        200
+        {{- else -}}
+        400
+        {{- end -}}
+      body: |-
+        {{ $payload := .RequestBodyJsonData -}}
+        {{ if and $payload.name $payload.age -}}
+        {{ if gt ( int $payload.age) 17 -}}
+        {{ kvStoreAdd "people" "/adults/-" .RequestBody -}}
+        stored '{{ .RequestBody }}'' as adult
+        {{- else -}}
+        {{ kvStoreAdd "people" "/childs/-" .RequestBody -}}
+        stored '{{ .RequestBody }}' as child
+        {{- end -}}
+        {{- end -}}
+  - id: "getPeople"
+    request:
+      method: "GET"
+      path: '/getPeople/{category}'
+    response:
+      statusCode: |-
+        {{ $category := .RequestPathParams.category -}}
+        {{ if or ( eq $category "childs") ( eq $category "adults") -}}
+        200
+        {{- else -}}
+        400
+        {{- end -}}
+      body: |-
+        {{ $category := .RequestPathParams.category -}}
+        {{ if or ( eq $category "childs") ( eq $category "adults") -}}
+        {{ kvStoreLookup "people" ( printf "$.%s" $category ) | toPrettyJson -}}
+        {{- end -}}

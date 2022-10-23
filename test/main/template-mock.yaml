@@ -11,6 +11,19 @@ endpoints:
       path: '/getkvstore/{key}'
     response:
       bodyFilename: "getkvstoreresponse.json"
+  - id: "getKVStoreInline"
+    request:
+      method: "GET"
+      path: '/getkvstoreInline/{key}'
+    response:
+      body: |-
+        {{ $key := .RequestPathParams.key -}}
+        {{ $value := kvStoreGet $key -}}
+        {
+            "message": "get kvstore successfully",
+            "key": {{ $key | quote }},
+            "value": {{ $value | toJson | quote }}
+        }
   - id: "addKVStore"
     request:
       method: "POST"
@@ -29,3 +42,13 @@ endpoints:
       path: '/lookupkvstore/{key}'
     response:
       bodyFilename: "lookupkvstoreresponse.json"
+  - id: "statusCode"
+    request:
+      method: "GET"
+      path: /statusCode/{statusCode}
+    response:
+      statusCode: "{{.RequestPathParams.statusCode }}"
+      body: |-
+        {{ .RequestBody -}}
+      headers: |
+        Header1: "{{ .RequestUrl }}"

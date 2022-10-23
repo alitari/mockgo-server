@@ -1,5 +1,5 @@
-mocks:
-- name: hello
+files:
+- name: hello-mock.yaml
   config: |
     endpoints:
     - request:
@@ -7,9 +7,7 @@ mocks:
       response:
         bodyFilename: "hello-response.json"
 
-responses:
-- name: hello
-  type: json
+- name: hello-response.json
   config: |
     {
       "hello": "World"
@@ -103,7 +101,6 @@ affinity: {}
 ## ref: https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/#priorityclass
 priorityClassName: null
 
-
 # Pod Topology Spread Constraints
 # ref https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
 topologySpreadConstraints: []
@@ -134,11 +131,9 @@ annotations: {}
 
 podLabels: {}
 
-
 # Cluster Domain configured on the kubelets
 # https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/
 k8sClusterDomain: cluster.local
-
 
 # Add labels to all the deployed resources
 commonLabels: {}
