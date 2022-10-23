@@ -283,3 +283,6 @@ curl -v http://localhost:8081/getPeople/adults
 curl -v http://localhost:8081/getPeople/childs
 ```
 
+## contribute
+
+Learn how to contribute [here](./contribute.md)
