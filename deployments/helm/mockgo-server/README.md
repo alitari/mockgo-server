@@ -8,7 +8,7 @@ helm repo add mockgo-server https://alitari.github.io/mockgo-server/
 
 ## configuration
 
-[TODO]
+see [`values.yaml`](./values.yaml)
 
 ## examples
 

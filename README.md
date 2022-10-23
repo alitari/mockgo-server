@@ -1,11 +1,61 @@
 # mockgo-server
 
-*mockgo-server* is a lightweight http server which can be used to mock http endpoints. *mockgo-server* is designed for horizontal scaling and feels at home in cloud environments like kubernetes. The main software design principles are:
+*mockgo-server* is a lightweight http server which can be used to mock http endpoints. *mockgo-server* is designed for horizontal scaling and feels at home in cloud environments like [kubernetes](https://kubernetes.io/). The main software design principles are:
 
 - **Simplicity** : easy configuration with human readable yaml files with reasonable defaults
 - **Scalability** : mockgo-server is designed for horizontal scaling. Therefore it can be used in environments with high http traffic ( e.g. for performance/load tests )
 - **Flexibility** : sometimes requirements for mocking requests goes beyond static responses. With templating mechanism and state management it is possible to implement particular logic for building responses.
 
+
+## install
+
+Kubernetes is the first class citizian for *mockgo-server*. So, if you have kubernetes cluster available, you can start right away with [helm](https://helm.sh/) charts:
+
+```bash
+helm repo add mockgo-server https://alitari.github.io/mockgo-server/
+helm upgrade mymock mockgo-server/mockgo-server --install
+```
+see [here](./deployments/helm/mockgo-server/README.md) for further helm configuration options.
+
+If you prefer installing on a/your workstation, define first the environment :
+
+```bash
+MOCKGO_RELEASE_VERSION="v0.0.3"
+MOCKGO_VARIANT="standalone" # or "grpc"
+MOCKGO_OS="linux" # or "windows"
+MOCKGO_ARCH="amd64" # or "arm64"
+MOCKGO_NAME=mockgo-${MOCKGO_VARIANT}-${MOCKGO_OS}-${MOCKGO_ARCH}
+```
+
+Now, you have the following options:
+
+### downloading binary excutable
+
+```bash
+wget https://github.com/alitari/mockgo-server/releases/download/${MOCKGO_RELEASE_VERSION}/${MOCKGO_NAME}.tgz
+tar xvf ${MOCKGO_NAME}.tgz
+# MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
+MOCK_DIR=$(pwd) ./bin/${MOCKGO_NAME} 
+```
+
+### building binary executable
+
+```bash
+git clone https://github.com/alitari/mockgo-server.git -b $MOCKGO_RELEASE_VERSION
+cd mockgo-server
+# go version must be >= 1.19
+go version
+./scripts/go-build-mockgo-${MOCKGO_VARIANT}.sh $MOCKGO_OS $MOCKGO_ARCH
+# MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
+MOCK_DIR=$(pwd) ./bin/${MOCKGO_NAME}
+```
+
+### run with docker
+
+```bash
+MOCK_DIR=$(pwd) # MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
+docker run -it -v ${MOCK_DIR}:/mocks -e MOCK_DIR=/mocks alitari/mockgo-${MOCKGO_VARIANT}:$MOCKGO_RELEASE_VERSION 
+```
 
 ## mockfiles and endpoints
 
@@ -97,18 +147,7 @@ The form of a http request can be described as a sequence of *pathsegments* whic
 | `RequestBody` | `         string`|
 | `RequestBodyJsonData` | ` map[string]interface{}`|
 
-The [Sprig library](http://masterminds.github.io/sprig/) for useful functions is available. In order to manage a state you can use a **key-value store** :
-| function name | signature | description |
-| ------------- | --------- | ----------- |
-| `kvStoreGet` | `func(key string) interface{}` | get the value stored under this key |
-| `kvStorePut` | `func(key string, value string) string` | store a value with this key |
-| `kvStoreAdd` | `func(key, path, value string) string` | modify a value with an [json patch](https://jsonpatch.com/) "add" operation |
-| `kvStoreRemove` | `func(key, path string) string` | modify a value with an [json patch](https://jsonpatch.com/) "remove" operation |
-| `kvStoreLookup` | `func(key, jsonPath string) interface{}` | get a value with a [json path](https://goessner.net/articles/JsonPath/) expression |
-
-### examples
-
-#### templating request attributes
+### example
 
 ```bash
 cat <<EOF > template-mock.yaml
@@ -132,82 +171,22 @@ curl -v http://localhost:8081/statusCode/200 -d "Alex"
 curl -v http://localhost:8081/statusCode/500 -d "An error"
 ```
 
-#### kvstore and sprig
+In order to use a state when creating responses, you have access to a **key-value store** in your template:
 
-Create a file ( e.g. `people-mock.yaml` with this content:
+| function name | signature | description |
+| ------------- | --------- | ----------- |
+| `kvStoreGet` | `func(key string) interface{}` | get the value stored under this key |
+| `kvStorePut` | `func(key string, value string) string` | store a value with this key |
+| `kvStoreAdd` | `func(key, path, value string) string` | modify a value with an [json patch](https://jsonpatch.com/) "add" operation |
+| `kvStoreRemove` | `func(key, path string) string` | modify a value with an [json patch](https://jsonpatch.com/) "remove" operation |
+| `kvStoreLookup` | `func(key, jsonPath string) interface{}` | get a value with a [json path](https://goessner.net/articles/JsonPath/) expression |
 
-```yaml
-endpoints:
-  - id: "addPeople"
-    request:
-      method: "PUT"
-      path: '/storePeople'
-    response:
-      statusCode: |-
-        {{ $payload := .RequestBodyJsonData -}}
-        {{ if and $payload.name $payload.age -}}
-        200
-        {{- else -}}
-        400
-        {{- end -}}
-      body: |-
-        {{ $payload := .RequestBodyJsonData -}}
-        {{ if and $payload.name $payload.age -}}
-        {{ if gt ( int $payload.age) 17 -}}
-        {{ kvStoreAdd "people" "/adults/-" .RequestBody -}}
-        stored '{{ .RequestBody }}'' as adult
-        {{- else -}}
-        {{ kvStoreAdd "people" "/childs/-" .RequestBody -}}
-        stored '{{ .RequestBody }}' as child
-        {{- end -}}
-        {{- end -}}
-  - id: "getPeople"
-    request:
-      method: "GET"
-      path: '/getPeople/{category}'
-    response:
-      statusCode: |-
-        {{ $category := .RequestPathParams.category -}}
-        {{ if or ( eq $category "childs") ( eq $category "adults") -}}
-        200
-        {{- else -}}
-        400
-        {{- end -}}
-      body: |-
-        {{ $category := .RequestPathParams.category -}}
-        {{ if or ( eq $category "childs") ( eq $category "adults") -}}
-        {{ kvStoreLookup "people" ( printf "$.%s" $category ) | toPrettyJson -}}
-        {{- end -}}
-```
+See extensive example, how to use it.
 
-```bash
-
-# per default mockgo-server looks in the current dir for files with names matching "*-mock.*"
-./bin/mockgo-standalone-linux-amd64
-
-# setup kvstore with api
-curl -v -u mockgo:password -H "Content-Type: application/json" -X PUT http://localhost:8081/__/kvstore/people -d '{ "adults": [], "childs": [] }'
-
-# payload must have right attributes, -> bad request
-curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Dani" }'
-
-# store some adults
-curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Alex", "age": 55 }'
-curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Dani", "age": 45 }'
-
-# store some childs
-curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Klara", "age": 16 }'
-
-# get adults
-curl -v http://localhost:8081/getPeople/adults
-
-# get childs
-curl -v http://localhost:8081/getPeople/childs
-```
 
 ## mockgo-server api
 
-The *mockgo-server* stores 2 kinds of state. The first one is the storage of incoming requests. The second state is the build-in *key-value store* which can be utilized for creating dynamic responses. The api is secured with basic auth and can be configured with the environment variables `API_USERNAME` and `API_PASWORD`.
+The *mockgo-server* stores 2 kinds of state. The first one is the storage of incoming requests. The second state is the build-in *key-value store* which can be utilized for creating dynamic responses. Both states can be checked and changed through an [REST](https://en.wikipedia.org/wiki/Representational_state_transfer) api. The api is secured with basic auth which can be configured with the environment variables `API_USERNAME` and `API_PASSWORD`.
 
 ### matching api
 
@@ -232,54 +211,75 @@ The request storage has a limited capacity which can be configured with `MATCHES
 | `POST` | `/kvstore/{key}/remove` | remove content to kvstore with a [json patch](https://jsonpatch.com/) "remove" operation. The json format of the request payload is `{ "path": json path }` |
 
 
+## An extensive example
 
+Create a file ( e.g. `people-mock.yaml`) with this content:
 
-## let's get started with...
-
-### downloading binary excutable
-
-```bash
-MOCKGO_RELEASE_VERSION="v0.0.3"
-MOCKGO_VARIANT="standalone" # or "grpc"
-MOCKGO_OS="linux" # or "windows"
-MOCKGO_ARCH="amd64" # or "arm64"
-MOCKGO_NAME=mockgo-${MOCKGO_VARIANT}-${MOCKGO_OS}-${MOCKGO_ARCH}
-wget https://github.com/alitari/mockgo-server/releases/download/${MOCKGO_RELEASE_VERSION}/${MOCKGO_NAME}.tgz
-tar xvf ${MOCKGO_NAME}.tgz
-# MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
-MOCK_DIR=$(pwd)/test/main ./bin/${MOCKGO_NAME} 
+```yaml
+endpoints:
+  - id: "addPeople"
+    request:
+      method: "PUT"
+      path: '/storePeople'
+    response:
+      statusCode: |-
+        {{ $payload := .RequestBodyJsonData -}}
+        {{ if and $payload.name $payload.age -}}
+          200
+        {{- else -}}
+          400
+        {{- end -}}
+      body: |-
+        {{ $payload := .RequestBodyJsonData -}}
+        {{ if and $payload.name $payload.age -}}
+          {{ if gt ( int $payload.age) 17 -}}
+            {{ kvStoreAdd "people" "/adults/-" .RequestBody -}}
+            stored '{{ .RequestBody }}'' as adult
+          {{- else -}}
+            {{ kvStoreAdd "people" "/childs/-" .RequestBody -}}
+            stored '{{ .RequestBody }}' as child
+          {{- end -}}
+        {{- end -}}
+  - id: "getPeople"
+    request:
+      method: "GET"
+      path: '/getPeople/{category}'
+    response:
+      statusCode: |-
+        {{ $category := .RequestPathParams.category -}}
+        {{ if or ( eq $category "childs") ( eq $category "adults") -}}
+          200
+        {{- else -}}
+          400
+        {{- end -}}
+      body: |-
+        {{ $category := .RequestPathParams.category -}}
+        {{ if or ( eq $category "childs") ( eq $category "adults") -}}
+          {{ kvStoreLookup "people" ( printf "$.%s" $category ) | toPrettyJson -}}
+        {{- end -}}
 ```
 
-### building binary executable
-
 ```bash
-git clone https://github.com/alitari/mockgo-server.git
-cd mockgo-server
-# go version must be >= 1.19
-go version
-MOCKGO_VARIANT="standalone" # or "grpc"
-MOCKGO_OS="linux" # or "windows"
-MOCKGO_ARCH="amd64" # or "arm64"
-MOCKGO_NAME=mockgo-${MOCKGO_VARIANT}-${MOCKGO_OS}-${MOCKGO_ARCH}
-./scripts/go-build-mockgo-${MOCKGO_VARIANT}.sh $MOCKGO_OS $MOCKGO_ARCH
-# MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
-MOCK_DIR=$(pwd)/test/main ./bin/${MOCKGO_NAME}
+# per default mockgo-server looks in the current dir for files with names matching "*-mock.*"
+./bin/mockgo-standalone-linux-amd64
+
+# setup kvstore with api
+curl -v -u mockgo:password -H "Content-Type: application/json" -X PUT http://localhost:8081/__/kvstore/people -d '{ "adults": [], "childs": [] }'
+
+# payload must have right attributes, -> bad request
+curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Dani" }'
+
+# store some adults
+curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Alex", "age": 55 }'
+curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Dani", "age": 45 }'
+
+# store some childs
+curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Klara", "age": 16 }'
+
+# get adults
+curl -v http://localhost:8081/getPeople/adults
+
+# get childs
+curl -v http://localhost:8081/getPeople/childs
 ```
-
-### with docker
-
-```bash
-MOCKGO_RELEASE_VERSION="v0.0.3"
-MOCKGO_VARIANT="standalone" # or "grpc"
-MOCK_DIR=$(pwd)/test/main # MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
-docker run -it -v ${MOCK_DIR}:/mocks -e MOCK_DIR=/mocks alitari/mockgo-${MOCKGO_VARIANT}:$MOCKGO_RELEASE_VERSION 
-```
-
-### on k8s with helm
-
-```bash
-helm repo add mockgo-server https://alitari.github.io/mockgo-server/
-helm upgrade mymock  mockgo-server/mockgo-server --install
-```
-see [here](./deployments/helm/mockgo-server/README.md) for further helm configuration options.
 
