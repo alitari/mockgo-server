@@ -9,7 +9,7 @@
 
 ## install
 
-Kubernetes is the first class citizian for *mockgo-server*. So, if you have kubernetes cluster available, you can start right away with [helm](https://helm.sh/) charts:
+Kubernetes is the first class environment for *mockgo-server*. So, if you have kubernetes cluster available, you can start right away with [helm](https://helm.sh/) charts:
 
 ```bash
 helm repo add mockgo-server https://alitari.github.io/mockgo-server/
@@ -20,7 +20,7 @@ see [here](./deployments/helm/mockgo-server/README.md) for further helm configur
 If you prefer installing on a/your workstation, define first the environment :
 
 ```bash
-MOCKGO_RELEASE_VERSION="v0.0.3"
+MOCKGO_RELEASE_VERSION="v0.0.4"
 MOCKGO_VARIANT="standalone" # or "grpc"
 MOCKGO_OS="linux" # or "windows"
 MOCKGO_ARCH="amd64" # or "arm64"
