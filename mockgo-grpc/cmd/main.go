@@ -40,7 +40,6 @@ type Configuration struct {
 	MockPort           int      `default:"8081" split_words:"true"`
 	MockDir            string   `default:"." split_words:"true"`
 	MockFilepattern    string   `default:"*-mock.*" split_words:"true"`
-	ResponseDir        string   `default:"." split_words:"true"`
 	ClusterHostnames   []string ` split_words:"true"`
 	MatchstorePort     int      `default:"50051" split_words:"true"`
 	MatchstoreCapacity int      `default:"1000" split_words:"true"`
@@ -69,32 +68,31 @@ func (c *Configuration) info() string {
 	return fmt.Sprintf(`
 
 API: 
-  Path prefix: '%s'
-  BasicAuth User: '%s'
-  BasicAuth Password: %s
-  LogLevel: '%s'
+  Path prefix: '%s' ("API_PATH_PREFIX")
+  BasicAuth User: '%s' ("API_USERNAME")
+  BasicAuth Password: %s ("API_PASSWORD")
+  LogLevel: '%s' ("LOGLEVEL_API")
 
 Mock Server:
-  Port: %v
-  Dir: '%s'
-  Filepattern: '%s'
-  Response Dir: '%s'
-  LogLevel: '%s'
+  Port: %v ("MOCK_PORT")
+  Dir: '%s' ("MOCK_DIR")
+  Filepattern: '%s' ("MOCK_FILEPATTERN")
+  LogLevel: '%s' ("LOGLEVEL_MOCK")
   
 Matchstore:
-  Port: %d
-  LogLevel: %s
-  Capacity: %d
+  Port: %d ("MATCHSTORE_PORT")
+  LogLevel: %s ("LOGLEVEL_MATCHSTORE")
+  Capacity: %d ("MATCHESTORE_CAPACITY")
 
 KVStore:
-  Port: %d
-  LogLevel: %s
+  Port: %d ("KVSTORE_PORT")
+  LogLevel: %s ("LOGLEVEL_KVSTORE")
 
 Cluster:
-  Hostnames: %v
+  Hostnames: %v ("CLUSTER_HOSTNAMES")
 `,
 		c.APIPathPrefix, c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
-		c.MockPort, c.MockDir, c.MockFilepattern, c.ResponseDir, logging.ParseLogLevel(c.LoglevelMock).String(),
+		c.MockPort, c.MockDir, c.MockFilepattern, logging.ParseLogLevel(c.LoglevelMock).String(),
 		c.MatchstorePort, logging.ParseLogLevel(c.LoglevelMatchstore).String(), c.MatchstoreCapacity,
 		c.KvstorePort, logging.ParseLogLevel(c.LoglevelKvstore).String(),
 		c.ClusterHostnames)
