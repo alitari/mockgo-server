@@ -48,19 +48,19 @@ func (c *Configuration) info() string {
 	return fmt.Sprintf(`
 
 API: 
-  Path prefix: '%s'
-  BasicAuth User: '%s'
-  BasicAuth Password: %s
-  LogLevel: '%s'
+  Path prefix: '%s' ("API_PATH_PREFIX")
+  BasicAuth User: '%s' ("API_USERNAME")
+  BasicAuth Password: %s ("API_PASSWORD")
+  LogLevel: '%s' ("LOGLEVEL_API")
 
 Mock Server:
-  Port: %v
-  Dir: '%s'
-  Filepattern: '%s'
-  LogLevel: '%s'
+  Port: %v ("MOCK_PORT")
+  Dir: '%s' ("MOCK_DIR")
+  Filepattern: '%s' ("MOCK_FILEPATTERN")
+  LogLevel: '%s' ("LOGLEVEL_MOCK")
   
 Matches:
-  Capacity: %d
+  Capacity: %d ("MATCHES_CAPACITY")
   `,
 		c.APIPathPrefix, c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
 		c.MockPort, c.MockDir, c.MockFilepattern, logging.ParseLogLevel(c.LoglevelMock).String(),
