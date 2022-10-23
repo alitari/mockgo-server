@@ -1,11 +1,11 @@
 apiVersion: v1
 entries:
   mockgo-server:
-  - apiVersion: v2
-    appVersion: 1.0.0
-    created: "2022-10-09T11:42:42.467836342+02:00"
+  - apiVersion: v1
+    appVersion: v0.0.1
+    created: "2022-10-23T11:30:37.22843247+02:00"
     description: A Helm chart for mockgo-server
-    digest: 608067f0b16eec57cab573706858122494e6668e52531fbd8b2ac78151531c10
+    digest: 513aa211c2435b909927624314642372ea9f8b53dbf720b568a0a5bf903aad56
     home: https://github.com/alitari/mockgo-server
     keywords:
     - mock
@@ -17,4 +17,4 @@ entries:
     urls:
     - https://alitari.github.io/mockgo-server/mockgo-server-0.0.1.tgz
     version: 0.0.1
-generated: "2022-10-09T11:42:42.467180614+02:00"
+generated: "2022-10-23T11:30:37.227789195+02:00"
