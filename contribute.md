@@ -21,7 +21,7 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 ## building testing 
 
-For building and testing you can use the commands which are defined in the [github actions for a pull request](.github/workflows/onpr.yml).
+For building and testing you can use the commands which are defined in the [github actions for a pull request](.github/workflows/workflow.yml).
 E.g. build a the mockgo-server grpc variant for linux amd64: `./scripts/go-build-mockgo-grpc.sh linux amd64`
 
 ## releasing
