@@ -2,6 +2,12 @@
 
 [![Build](https://github.com/alitari/mockgo-server/workflows/OnMaster/badge.svg?branch=master)](https://github.com/alitari/mockgo-server/actions?workflow=OnMaster&branch=master)
 [![Total Downloads](https://img.shields.io/github/downloads/alitari/mockgo-server/total.svg)](https://github.com/alitari/mockgo-server/releases)
+[![DockerHub Pulls](https://img.shields.io/docker/pulls/alitari/mockgo-standalone.svg)](https://hub.docker.com/r/alitari/mockgo-standalone)
+[![DockerHub Pulls](https://img.shields.io/docker/pulls/alitari/mockgo-grpc.svg)](https://hub.docker.com/r/alitari/mockgo-grpc)
+[![codebeat badge](https://codebeat.co/badges/48cb2798-51ac-4ae3-8d9d-c41087c43c13)](https://codebeat.co/projects/github-com-alitari-mockgo-server-master)
+[![codecov](https://codecov.io/gh/alitari/mockgo-server/branch/master/graph/badge.svg?token=WRJ9KFCJFI)](https://codecov.io/gh/alitari/mockgo-server)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6619/badge)](https://bestpractices.coreinfrastructure.org/projects/6619)
+
 
 *mockgo-server* is a lightweight http server which can be used to mock http endpoints. *mockgo-server* is designed for horizontal scaling and feels at home in cloud environments like [kubernetes](https://kubernetes.io/). The main software design principles are:
 
