@@ -1,5 +1,8 @@
 # mockgo-server
 
+[![Build](https://github.com/alitari/mockgo-server/workflows/OnMaster/badge.svg?branch=master)](https://github.com/alitari/mockgo-server/actions?workflow=OnMaster&branch=master)
+[![Total Downloads](https://img.shields.io/github/downloads/alitari/mockgo-server/total.svg)](https://github.com/alitari/mockgo-server/releases)
+
 *mockgo-server* is a lightweight http server which can be used to mock http endpoints. *mockgo-server* is designed for horizontal scaling and feels at home in cloud environments like [kubernetes](https://kubernetes.io/). The main software design principles are:
 
 - **Simplicity** : easy configuration with human readable yaml files with reasonable defaults
