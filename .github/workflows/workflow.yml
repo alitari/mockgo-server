@@ -1,4 +1,4 @@
-name: OnPR
+name: Workflow
 
 on:
   pull_request:

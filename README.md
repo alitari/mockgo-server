@@ -1,9 +1,14 @@
 # mockgo-server
 
-[![Build](https://github.com/alitari/mockgo-server/workflows/OnMaster/badge.svg?branch=master)](https://github.com/alitari/mockgo-server/actions?workflow=OnMaster&branch=master)
-[![Total Downloads](https://img.shields.io/github/downloads/alitari/mockgo-server/total.svg)](https://github.com/alitari/mockgo-server/releases)
-[![DockerHub Pulls](https://img.shields.io/docker/pulls/alitari/mockgo-standalone.svg)](https://hub.docker.com/r/alitari/mockgo-standalone)
-[![DockerHub Pulls](https://img.shields.io/docker/pulls/alitari/mockgo-grpc.svg)](https://hub.docker.com/r/alitari/mockgo-grpc)
+![Lines of code](https://img.shields.io/tokei/lines/github/alitari/mockgo-server)
+[![Build](https://github.com/alitari/mockgo-server/workflows/Workflow/badge.svg?branch=master)](https://github.com/alitari/mockgo-server/actions?workflow=Workflow&branch=master)
+[![Total Downloads](https://img.shields.io/github/downloads/alitari/mockgo-server/total.svg?label=release%20downloads)](https://github.com/alitari/mockgo-server/releases)
+
+[![DockerHub Pulls](https://img.shields.io/docker/pulls/alitari/mockgo-standalone.svg?label=docker%20pulls%20mockgo-standalone)](https://hub.docker.com/r/alitari/mockgo-standalone)
+[![DockerHub Pulls](https://img.shields.io/docker/pulls/alitari/mockgo-grpc.svg?label=docker%20pulls%20mockgo-grpc)](https://hub.docker.com/r/alitari/mockgo-grpc)
+![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/alitari/mockgo-standalone?label=image%20mockgo-standalone)
+![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/alitari/mockgo-grpc?label=image%20mockgo-grpc)
+
 [![codebeat badge](https://codebeat.co/badges/48cb2798-51ac-4ae3-8d9d-c41087c43c13)](https://codebeat.co/projects/github-com-alitari-mockgo-server-master)
 [![codecov](https://codecov.io/gh/alitari/mockgo-server/branch/master/graph/badge.svg?token=WRJ9KFCJFI)](https://codecov.io/gh/alitari/mockgo-server)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6619/badge)](https://bestpractices.coreinfrastructure.org/projects/6619)
