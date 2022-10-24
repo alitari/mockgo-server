@@ -43,6 +43,14 @@ jobs:
 
     - name: Test all
       run: ./scripts/go-test-all.sh
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        fail_ci_if_error: true
+        files: ./mockgo/cover.out ./grpc-kvstore/cover.out ./grpc-matchstore/cover.out ./mockgo-standalone/cover.out
+        flags: unittests
+        verbose: true
 
   docker-build:
     runs-on: ubuntu-latest
