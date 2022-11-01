@@ -65,9 +65,11 @@ jobs:
       with:
         install: true
 
-    - name: docker check
+    - name: docker build mockgo-standalone
       run: |
         docker version
+        sudo apt update -y
+        sudo apt-get install trivy
         ./scripts/docker-build-mockgo-standalone.sh latest
 
     - name: Upload mockgo-standalone trivy scan results to GitHub Security tab
