@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -8,7 +8,11 @@ then
     exit 1
 fi
 releaseTag=$1
+push="${2:-false}"
 
 docker build -f build/docker/mockgo-standalone.Dockerfile . -t alitari/mockgo-standalone:$releaseTag
-trivy image alitari/mockgo-standalone:$releaseTag --severity 'CRITICAL,HIGH' --exit-code 1
-docker push alitari/mockgo-standalone:$releaseTag
+trivy image alitari/mockgo-standalone:$releaseTag --format sarif --severity 'CRITICAL,HIGH' --exit-code 1 --output mockgo-standalone-trivy-results.sarif
+if [ "$push" == "true" ]
+then
+    docker push alitari/mockgo-standalone:$releaseTag
+fi
