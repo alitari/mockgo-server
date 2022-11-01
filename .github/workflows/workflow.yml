@@ -8,51 +8,51 @@ on:
 
 jobs:
 
-  golang-builds:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
+  # golang-builds:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.19
+  #   - name: Set up Go
+  #     uses: actions/setup-go@v3
+  #     with:
+  #       go-version: 1.19
 
-    - name: protobuf
-      run: |
-        sudo apt update -y
-        sudo apt install -y protobuf-compiler
-        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+  #   - name: protobuf
+  #     run: |
+  #       sudo apt update -y
+  #       sudo apt install -y protobuf-compiler
+  #       go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+  #       go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
-    - name: Build mockgo
-      run: |
-        ./scripts/go-build-mockgo-standalone.sh linux amd64
-        ./scripts/go-build-mockgo-standalone.sh linux arm64
-        ./scripts/go-build-mockgo-standalone.sh windows amd64
+  #   - name: Build mockgo
+  #     run: |
+  #       ./scripts/go-build-mockgo-standalone.sh linux amd64
+  #       ./scripts/go-build-mockgo-standalone.sh linux arm64
+  #       ./scripts/go-build-mockgo-standalone.sh windows amd64
 
-    - name: Build proto grpc kvstore
-      run: ./scripts/go-build-grpc-kvstore.sh
+  #   - name: Build proto grpc kvstore
+  #     run: ./scripts/go-build-grpc-kvstore.sh
 
-    - name: Build proto grpc matchstore
-      run: ./scripts/go-build-grpc-matchstore.sh
+  #   - name: Build proto grpc matchstore
+  #     run: ./scripts/go-build-grpc-matchstore.sh
 
-    - name: Build mockgo-grpc
-      run: |
-        ./scripts/go-build-mockgo-grpc.sh linux amd64
-        ./scripts/go-build-mockgo-grpc.sh linux arm64
-        ./scripts/go-build-mockgo-grpc.sh windows amd64
+  #   - name: Build mockgo-grpc
+  #     run: |
+  #       ./scripts/go-build-mockgo-grpc.sh linux amd64
+  #       ./scripts/go-build-mockgo-grpc.sh linux arm64
+  #       ./scripts/go-build-mockgo-grpc.sh windows amd64
 
-    - name: Test all
-      run: ./scripts/go-test-all.sh
+  #   - name: Test all
+  #     run: ./scripts/go-test-all.sh
     
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        fail_ci_if_error: true
-        files: ./mockgo/cover.out,./grpc-kvstore/cover.out,./grpc-matchstore/cover.out,./mockgo-standalone/cover.out
-        flags: unittests
-        verbose: true
+  #   - name: Upload coverage to Codecov
+  #     uses: codecov/codecov-action@v3
+  #     with:
+  #       fail_ci_if_error: true
+  #       files: ./mockgo/cover.out,./grpc-kvstore/cover.out,./grpc-matchstore/cover.out,./mockgo-standalone/cover.out
+  #       flags: unittests
+  #       verbose: true
 
   docker-build:
     runs-on: ubuntu-latest
@@ -65,127 +65,131 @@ jobs:
       with:
         install: true
 
-    - name: No docker push for pull request
-      if: github.ref != 'refs/heads/master'
+    - name: docker check
       run: |
-        echo "DOCKER_PUSH=false" >> $GITHUB_ENV
+        docker version
+
+    # - name: No docker push for pull request
+    #   if: github.ref != 'refs/heads/master'
+    #   run: |
+    #     echo "DOCKER_PUSH=false" >> $GITHUB_ENV
     
-    - name: Docker push for master
-      if: github.ref == 'refs/heads/master'
-      run: |
-        echo "DOCKER_PUSH=true" >> $GITHUB_ENV
+    # - name: Docker push for master
+    #   if: github.ref == 'refs/heads/master'
+    #   run: |
+    #     echo "DOCKER_PUSH=true" >> $GITHUB_ENV
 
-    - name: Login to Docker Hub
-      if: github.ref == 'refs/heads/master'
-      uses: docker/login-action@v2
-      with:
-        username: alitari
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    - name: Build mockgo-standalone
-      uses: docker/build-push-action@v3
-      with:
-        context: .
-        file: ./build/docker/mockgo-standalone.Dockerfile
-        push: ${{ env.DOCKER_PUSH }}
-        tags: alitari/mockgo-standalone:latest
-
-    - name: Build mockgo-grpc
-      uses: docker/build-push-action@v3
-      with:
-        context: .
-        file: ./build/docker/mockgo-grpc.Dockerfile
-        push: ${{ env.DOCKER_PUSH }}
-        tags: alitari/mockgo-grpc:latest
-
-    - name: Run Trivy for mockgo-standalone
-      uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
-      with:
-        image-ref: 'alitari/mockgo-standalone:latest'
-        format: 'template'
-        template: '@/contrib/sarif.tpl'
-        output: 'mockgo-standalone-trivy-results.sarif'
-        severity: 'CRITICAL,HIGH'
-
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: 'mockgo-standalone-trivy-results.sarif'
-        category: mockgo-standalone
-
-    - name: Run Trivy for mockgo-grpc
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: 'alitari/mockgo-grpc:latest'
-        format: 'template'
-        template: '@/contrib/sarif.tpl'
-        output: 'mockgo-grpc-trivy-results.sarif'
-        severity: 'CRITICAL,HIGH'
-
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: 'mockgo-grpc-trivy-results.sarif'
-        category: mockgo-grpc
-
-  acceptance-tests:
-    env:
-      TAVERNVER: "1.23.3"
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout sources
-      uses: actions/checkout@v3
-
-    - name: Start Minikube
-      id: minikube
-      uses: hiberbee/github-action-minikube@1.7.0
-      with:
-        addons: ingress
-
-    - name: Get Minikube IP
-      run: |
-        echo "MINIKUBE_IP=${{ steps.minikube.outputs.ip }}" >> $GITHUB_ENV
-
-    - name: Get cluster info
-      run: kubectl cluster-info
-
-    - name: Run Skaffold
-      uses: hiberbee/github-action-skaffold@1.22.0
-      with:
-        command: run
-
-    - name: Get Helm releases
-      run: helm list
-
-    - name: Show k8s resources
-      run: kubectl get pod,service,statefulset,configmap,secret,ingress
-
-    - name: Precheck environment
-      run: ./scripts/acceptance-test-precheck.sh
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.10.6
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip3 install tavern==$TAVERNVER pytest-html
-
-    - name: Run acceptance tests for mockgo-standalone
-      run: |
-        export MOCKGO_HOST=mockgo-standalone.${MINIKUBE_IP}.nip.io
-        py.test -vv --html=./reports/mockgo-standalone-tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
-
-    - name: Run acceptance tests for mockgo-grpc
-      run: |
-        export MOCKGO_HOST=mockgo-grpc.${MINIKUBE_IP}.nip.io
-        py.test -vv --html=./reports/mockgo-grpc-tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
-
-    # - name: Publish report 
-    #   uses: JamesIves/github-pages-deploy-action@v4
+    # - name: Login to Docker Hub
+    #   if: github.ref == 'refs/heads/master'
+    #   uses: docker/login-action@v2
     #   with:
-    #     folder: reports
+    #     username: alitari
+    #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    # - name: Build mockgo-standalone
+    #   uses: docker/build-push-action@v3
+    #   with:
+    #     context: .
+    #     file: ./build/docker/mockgo-standalone.Dockerfile
+    #     push: ${{ env.DOCKER_PUSH }}
+    #     tags: alitari/mockgo-standalone:latest
+
+    # - name: Build mockgo-grpc
+    #   uses: docker/build-push-action@v3
+    #   with:
+    #     context: .
+    #     file: ./build/docker/mockgo-grpc.Dockerfile
+    #     push: ${{ env.DOCKER_PUSH }}
+    #     tags: alitari/mockgo-grpc:latest
+
+    # - name: Run Trivy for mockgo-standalone
+    #   uses: aquasecurity/trivy-action@master
+    #   with:
+    #     image-ref: 'alitari/mockgo-standalone:latest'
+    #     format: 'template'
+    #     template: '@/contrib/sarif.tpl'
+    #     output: 'mockgo-standalone-trivy-results.sarif'
+    #     severity: 'CRITICAL,HIGH'
+
+    # - name: Upload Trivy scan results to GitHub Security tab
+    #   uses: github/codeql-action/upload-sarif@v2
+    #   with:
+    #     sarif_file: 'mockgo-standalone-trivy-results.sarif'
+    #     category: mockgo-standalone
+
+    # - name: Run Trivy for mockgo-grpc
+    #   uses: aquasecurity/trivy-action@master
+    #   with:
+    #     image-ref: 'alitari/mockgo-grpc:latest'
+    #     format: 'template'
+    #     template: '@/contrib/sarif.tpl'
+    #     output: 'mockgo-grpc-trivy-results.sarif'
+    #     severity: 'CRITICAL,HIGH'
+
+    # - name: Upload Trivy scan results to GitHub Security tab
+    #   uses: github/codeql-action/upload-sarif@v2
+    #   with:
+    #     sarif_file: 'mockgo-grpc-trivy-results.sarif'
+    #     category: mockgo-grpc
+
+  # acceptance-tests:
+  #   env:
+  #     TAVERNVER: "1.23.3"
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Checkout sources
+  #     uses: actions/checkout@v3
+
+  #   - name: Start Minikube
+  #     id: minikube
+  #     uses: hiberbee/github-action-minikube@1.7.0
+  #     with:
+  #       addons: ingress
+
+  #   - name: Get Minikube IP
+  #     run: |
+  #       echo "MINIKUBE_IP=${{ steps.minikube.outputs.ip }}" >> $GITHUB_ENV
+
+  #   - name: Get cluster info
+  #     run: kubectl cluster-info
+
+  #   - name: Run Skaffold
+  #     uses: hiberbee/github-action-skaffold@1.22.0
+  #     with:
+  #       command: run
+
+  #   - name: Get Helm releases
+  #     run: helm list
+
+  #   - name: Show k8s resources
+  #     run: kubectl get pod,service,statefulset,configmap,secret,ingress
+
+  #   - name: Precheck environment
+  #     run: ./scripts/acceptance-test-precheck.sh
+
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v4
+  #     with:
+  #       python-version: 3.10.6
+
+  #   - name: Install dependencies
+  #     run: |
+  #       python -m pip install --upgrade pip
+  #       pip3 install tavern==$TAVERNVER pytest-html
+
+  #   - name: Run acceptance tests for mockgo-standalone
+  #     run: |
+  #       export MOCKGO_HOST=mockgo-standalone.${MINIKUBE_IP}.nip.io
+  #       py.test -vv --html=./reports/mockgo-standalone-tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
+
+  #   - name: Run acceptance tests for mockgo-grpc
+  #     run: |
+  #       export MOCKGO_HOST=mockgo-grpc.${MINIKUBE_IP}.nip.io
+  #       py.test -vv --html=./reports/mockgo-grpc-tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
+
+  #   # - name: Publish report 
+  #   #   uses: JamesIves/github-pages-deploy-action@v4
+  #   #   with:
+  #   #     folder: reports
 
 
