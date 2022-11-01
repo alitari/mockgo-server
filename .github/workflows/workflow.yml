@@ -65,7 +65,7 @@ jobs:
       with:
         install: true
 
-    - name: docker build mockgo-standalone
+    - name: Set up trivy
       run: |
         docker version
         sudo apt-get install wget apt-transport-https gnupg lsb-release
@@ -73,7 +73,20 @@ jobs:
         echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
         sudo apt update -y
         sudo apt-get install trivy
-        ./scripts/docker-build-mockgo-standalone.sh latest
+
+    - name: No docker push for pull request
+      if: github.ref != 'refs/heads/master'
+      run: |
+        echo "DOCKER_PUSH=false" >> $GITHUB_ENV
+    
+    - name: Docker push for master
+      if: github.ref == 'refs/heads/master'
+      run: |
+        echo "DOCKER_PUSH=true" >> $GITHUB_ENV
+
+    - name: docker build mockgo-standalone
+      run: |
+        ./scripts/docker-build-mockgo-standalone.sh latest ${{ env.DOCKER_PUSH }}
 
     - name: Upload mockgo-standalone trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v2
@@ -82,15 +95,6 @@ jobs:
         category: mockgo-standalone
 
 
-    # - name: No docker push for pull request
-    #   if: github.ref != 'refs/heads/master'
-    #   run: |
-    #     echo "DOCKER_PUSH=false" >> $GITHUB_ENV
-    
-    # - name: Docker push for master
-    #   if: github.ref == 'refs/heads/master'
-    #   run: |
-    #     echo "DOCKER_PUSH=true" >> $GITHUB_ENV
 
     # - name: Login to Docker Hub
     #   if: github.ref == 'refs/heads/master'
