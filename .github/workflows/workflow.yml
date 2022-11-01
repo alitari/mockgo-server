@@ -65,15 +65,6 @@ jobs:
       with:
         install: true
 
-    - name: Set up trivy
-      run: |
-        docker version
-        sudo apt-get install wget apt-transport-https gnupg lsb-release
-        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-        echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-        sudo apt update -y
-        sudo apt-get install trivy
-
     - name: No docker push for pull request
       if: github.ref != 'refs/heads/master'
       run: |
@@ -98,7 +89,7 @@ jobs:
     - name: Upload mockgo-standalone trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v2
       with:
-        sarif_file: 'mockgo-standalone-trivy-results.sarif'
+        sarif_file: 'reports/mockgo-standalone-trivy-results.sarif'
         category: mockgo-standalone
 
     - name: docker build mockgo-grpc
@@ -108,7 +99,7 @@ jobs:
     - name: Upload mockgo-grpc trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v2
       with:
-        sarif_file: 'mockgo-grpc-trivy-results.sarif'
+        sarif_file: 'reports/mockgo-grpc-trivy-results.sarif'
         category: mockgo-grpc
 
 
