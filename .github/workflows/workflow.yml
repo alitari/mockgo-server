@@ -27,9 +27,9 @@ jobs:
 
     - name: Build mockgo standalone
       run: |
-        ./scripts/go-build-mockgo.sh linux amd64 standalone
-        ./scripts/go-build-mockgo.sh linux arm64 standalone
-        ./scripts/go-build-mockgo.sh windows amd64 standalone
+        ./scripts/go-build-mockgo.sh linux amd64 standalone norelease
+        ./scripts/go-build-mockgo.sh linux arm64 standalone norelease
+        ./scripts/go-build-mockgo.sh windows amd64 standalone norelease
 
     - name: Build proto grpc kvstore
       run: ./scripts/go-build-grpc-kvstore.sh
