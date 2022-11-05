@@ -59,12 +59,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set up docker
-      uses: docker/setup-buildx-action@v2
-      id: buildx
-      with:
-        install: true
-
     - name: No docker push for pull request
       if: github.ref != 'refs/heads/master'
       run: |
@@ -82,21 +76,26 @@ jobs:
         username: alitari
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Build mockgo-standalone
-      uses: docker/build-push-action@v3
-      with:
-        context: .
-        file: ./build/docker/mockgo-standalone.Dockerfile
-        push: ${{ env.DOCKER_PUSH }}
-        tags: alitari/mockgo-standalone:latest
+    - name: docker build mockgo-standalone
+      run: |
+        ./scripts/docker-build-mockgo.sh latest standalone ${{ env.DOCKER_PUSH }}
 
-    - name: Build mockgo-grpc
-      uses: docker/build-push-action@v3
+    - name: Upload mockgo-standalone trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
       with:
-        context: .
-        file: ./build/docker/mockgo-grpc.Dockerfile
-        push: ${{ env.DOCKER_PUSH }}
-        tags: alitari/mockgo-grpc:latest
+        sarif_file: 'reports/mockgo-standalone-trivy-results.sarif'
+        category: mockgo-standalone
+
+    - name: docker build mockgo-grpc
+      run: |
+        ./scripts/docker-build-mockgo.sh latest grpc ${{ env.DOCKER_PUSH }}
+
+    - name: Upload mockgo-grpc trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'reports/mockgo-grpc-trivy-results.sarif'
+        category: mockgo-grpc
+
 
   acceptance-tests:
     env:
@@ -152,10 +151,3 @@ jobs:
       run: |
         export MOCKGO_HOST=mockgo-grpc.${MINIKUBE_IP}.nip.io
         py.test -vv --html=./reports/mockgo-grpc-tavern.html --self-contained-html ./test/tavern/test.tavern.yaml
-
-    # - name: Publish report 
-    #   uses: JamesIves/github-pages-deploy-action@v4
-    #   with:
-    #     folder: reports
-
-
