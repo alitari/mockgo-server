@@ -6,10 +6,15 @@ build:
       context: .
       docker:
         dockerfile: build/docker/mockgo-standalone.Dockerfile
+        buildArgs:
+          RELEASE: testversion
+
     - image: dev.local/mockgo-grpc
       context: .
       docker:
         dockerfile: build/docker/mockgo-grpc.Dockerfile
+        buildArgs:
+          RELEASE: testversion
 
 deploy:
   helm:

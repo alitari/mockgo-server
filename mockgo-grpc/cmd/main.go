@@ -22,8 +22,11 @@ const banner = `
 |  \/  |___  __| |______ ___ 
 | |\/| / _ \/ _| / / _  / _ \
 |_|  |_\___/\__|_\_\__, \___/
-Cluster-grpc       |___/     
+Cluster-grpc       |___/  %s
 `
+
+const versionTag = "testversion"
+
 
 type RequestHandler interface {
 	AddRoutes(router *mux.Router)
@@ -99,7 +102,7 @@ Cluster:
 }
 
 func main() {
-	log.Print(banner)
+	log.Printf(banner,versionTag)
 	configuration := createConfiguration()
 	log.Print(configuration.info())
 	matchstore := createMatchstore(configuration)

@@ -1,11 +1,12 @@
 FROM golang:1.19.1 as builder
+ARG RELEASE
 WORKDIR /app
 COPY ./mockgo ./mockgo
 COPY ./mockgo-standalone ./mockgo-standalone
 RUN echo "go 1.19\n\nuse (\n	./mockgo\n	./mockgo-standalone\n)" > ./go.work
 RUN go mod download
-COPY scripts/go-build-mockgo-standalone.sh .
-RUN ./go-build-mockgo-standalone.sh linux amd64
+COPY scripts/go-build-mockgo.sh .
+RUN ./go-build-mockgo.sh linux amd64 standalone $RELEASE
 
 FROM alpine:3
 WORKDIR /app
