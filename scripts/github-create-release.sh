@@ -6,6 +6,7 @@ then
     exit 1
 fi
 releaseTag=$1
+gitsha=$(git rev-parse --short HEAD)
 
 docker login
 
@@ -17,18 +18,18 @@ PATH="$PATH:$(go env GOPATH)/bin"
 rm -f ./bin/*
 for target in amd64 arm64
 do
-    ./scripts/go-build-mockgo-standalone.sh linux $target
+    ./scripts/go-build-mockgo.sh linux $target standalone ${releaseTag}-${gitsha}
 done
-./scripts/go-build-mockgo-standalone.sh windows amd64
+./scripts/go-build-mockgo.sh windows amd64 standalone ${releaseTag}-${gitsha}
 
 ./scripts/go-build-grpc-matchstore.sh
 ./scripts/go-build-grpc-kvstore.sh
 
 for target in amd64 arm64
 do
-./scripts/go-build-mockgo-grpc.sh linux $target
+./scripts/go-build-mockgo.sh linux $target grpc ${releaseTag}-${gitsha}
 done
-./scripts/go-build-mockgo-grpc.sh windows amd64
+./scripts/go-build-mockgo.sh windows amd64 grpc ${releaseTag}-${gitsha}
 
 # tgz
 for file in ./bin/*
@@ -47,7 +48,6 @@ gh auth logout -h github.com
 
 # docker builds
 
-./scripts/docker-build-mockgo-standalone.sh $releaseTag
+./scripts/docker-build-mockgo.sh $releaseTag standalone true
 
-./scripts/docker-build-mockgo-grpc.sh $releaseTag
-
+./scripts/docker-build-mockgo.sh $releaseTag grpc true

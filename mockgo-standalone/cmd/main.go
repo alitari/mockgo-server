@@ -19,8 +19,10 @@ const banner = `
 |  \/  |___  __| |______ ___ 
 | |\/| / _ \/ _| / / _  / _ \
 |_|  |_\___/\__|_\_\__, \___/
-Standalone         |___/     
+Standalone         |___/  %s
 `
+
+const versionTag = "testversion"
 
 type RequestHandler interface {
 	AddRoutes(router *mux.Router)
@@ -68,7 +70,7 @@ Matches:
 }
 
 func main() {
-	log.Print(banner)
+	log.Printf(banner,versionTag)
 	configuration := createConfiguration()
 	log.Print(configuration.info())
 	matchStore := matches.NewInMemoryMatchstore(uint16(configuration.MatchesCapacity))
