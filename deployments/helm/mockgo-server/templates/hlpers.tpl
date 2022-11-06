@@ -58,6 +58,18 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Prometheus annotations
+*/}}
+{{- define "mockgoserver.prometheusAnnotations" -}}
+prometheus.io/path: "/__/metrics"
+prometheus.io/port: {{ .Values.containerPort | quote }}
+{{- if .Values.scraping }}
+prometheus.io/scrape: 'true'
+{{- end }}
+{{- end }}
+
+
+{{/*
 Return the mockgoserver cluster routes.
 */}}
 {{- define "mockgoserver.clusterHostnames" -}}
