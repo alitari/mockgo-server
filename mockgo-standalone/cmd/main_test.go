@@ -38,6 +38,27 @@ func TestMain_health(t *testing.T) {
 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/health", map[string][]string{}, "", http.StatusOK, nil)
 }
 
+func TestMain_metrics(t *testing.T) {
+	// 2 matches  1 mismatch
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/hello", map[string][]string{}, "", http.StatusOK, func(responseBody string, header map[string][]string) {
+		assert.Equal(t, "{\n    \"hello\": \"from Mockgo!\"\n}", responseBody)
+	})
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/hello", map[string][]string{}, "", http.StatusOK, func(responseBody string, header map[string][]string) {
+		assert.Equal(t, "{\n    \"hello\": \"from Mockgo!\"\n}", responseBody)
+	})
+
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/mismtach", map[string][]string{}, "", http.StatusNotFound, nil)
+
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/metrics", map[string][]string{}, "", http.StatusOK, func(responseBody string, header map[string][]string) {
+		assert.Contains(t, responseBody, "# HELP matches Number of matches of an endpoint")
+		assert.Contains(t, responseBody, "# TYPE matches counter")
+		assert.Contains(t, responseBody, "matches{endpoint=\"helloId\"} 2")
+		assert.Contains(t, responseBody, "# HELP mismatches Number of mismatches")
+		assert.Contains(t, responseBody, "# TYPE mismatches counter")
+		assert.Contains(t, responseBody, "mismatches 1")
+	})
+}
+
 func TestMain_templateFunctionsPutKVStore(t *testing.T) {
 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/setkvstore/maintest", nil, `{ "mainTest1": "mainTest1Value" }`, 200, func(responseBody string, header map[string][]string) {
 		expectedResponseBody := `{

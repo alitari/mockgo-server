@@ -20,6 +20,8 @@ import (
 	"github.com/Masterminds/sprig"
 	"github.com/alitari/mockgo/logging"
 	"github.com/alitari/mockgo/matches"
+	"github.com/prometheus/client_golang/prometheus"
+
 	"gopkg.in/yaml.v2"
 
 	"github.com/gorilla/mux"
@@ -58,8 +60,26 @@ func NewMockRequestHandler(mockDir, mockFilepattern string, matchstore matches.M
 		EpSearchNode:    &EpSearchNode{},
 		matchstore:      matchstore,
 	}
+	prometheus.MustRegister(matchesMetric)
+	prometheus.MustRegister(mismatchesMetric)
 	return mockRouter
 }
+
+var (
+	matchesMetric = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "matches",
+			Help: "Number of matches of an endpoint",
+		},
+		[]string{"endpoint"},
+	)
+	mismatchesMetric = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "mismatches",
+			Help: "Number of mismatches",
+		},
+	)
+)
 
 func (r *MockRequestHandler) LoadFiles(funcMap template.FuncMap) error {
 	r.EpSearchNode = &EpSearchNode{}
@@ -344,6 +364,7 @@ func (r *MockRequestHandler) addMatch(endPoint *MockEndpoint, request *http.Requ
 	actualRequest := &matches.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
 	match := &matches.Match{EndpointId: endPoint.Id, Timestamp: time.Now(), ActualRequest: actualRequest}
 	r.matchstore.AddMatch(endPoint.Id, match)
+	matchesMetric.With(prometheus.Labels{"endpoint": endPoint.Id}).Inc()
 	return match
 }
 
@@ -367,6 +388,7 @@ func (r *MockRequestHandler) addMismatch(sn *EpSearchNode, pathPos int, endpoint
 		Timestamp:       time.Now(),
 		ActualRequest:   actualRequest}
 	r.matchstore.AddMismatch(mismatch)
+	mismatchesMetric.Inc()
 }
 
 func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *MockEndpoint, match *matches.Match, requestPathParams map[string]string) {
