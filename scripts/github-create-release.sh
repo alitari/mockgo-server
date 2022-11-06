@@ -34,7 +34,10 @@ done
 # tgz
 for file in ./bin/*
 do
+    sha256sum ${file} > ${file}.sha256
     tar -cvzf ${file}.tgz ${file}
+    sha256sum --check ${file}.sha256
+    rm ${file}
 done
 
 # login in github
@@ -43,7 +46,7 @@ gh auth status
 gh config set prompt disabled
 
 # create release with tgz as assets
-gh release create $releaseTag ./bin/*.tgz
+gh release create $releaseTag ./bin/*.*
 gh auth logout -h github.com
 
 # docker builds
