@@ -39,6 +39,8 @@ cluster:
 image: alitari/mockgo-standalone:latest
 pullPolicy: IfNotPresent
 
+scraping: false
+
 terminationGracePeriodSeconds: 30
 
 healthcheck:

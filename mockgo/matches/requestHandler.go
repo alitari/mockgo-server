@@ -7,6 +7,8 @@ import (
 	"github.com/alitari/mockgo/util"
 
 	"github.com/gorilla/mux"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type MatchesRequestHandler struct {
@@ -44,6 +46,8 @@ func (r *MatchesRequestHandler) AddRoutes(router *mux.Router) {
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.handleDeleteMismatches))
 	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
 		HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
+
+	router.NewRoute().Name("health").Path(r.pathPrefix + "/metrics").Handler(promhttp.Handler())
 }
 
 func (r *MatchesRequestHandler) health(writer http.ResponseWriter, request *http.Request) {
@@ -100,5 +104,3 @@ func (r *MatchesRequestHandler) handleDeleteMismatches(writer http.ResponseWrite
 		writer.WriteHeader(http.StatusOK)
 	}
 }
-
-

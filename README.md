@@ -1,17 +1,11 @@
 # mockgo-server
 
-![Lines of code](https://img.shields.io/tokei/lines/github/alitari/mockgo-server)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6619/badge)](https://bestpractices.coreinfrastructure.org/projects/6619)
 [![Build](https://github.com/alitari/mockgo-server/workflows/Workflow/badge.svg?branch=master)](https://github.com/alitari/mockgo-server/actions?workflow=Workflow&branch=master)
-[![Total Downloads](https://img.shields.io/github/downloads/alitari/mockgo-server/total.svg?label=release%20downloads)](https://github.com/alitari/mockgo-server/releases)
-
-[![DockerHub Pulls](https://img.shields.io/docker/pulls/alitari/mockgo-standalone.svg?label=docker%20pulls%20mockgo-standalone)](https://hub.docker.com/r/alitari/mockgo-standalone)
-[![DockerHub Pulls](https://img.shields.io/docker/pulls/alitari/mockgo-grpc.svg?label=docker%20pulls%20mockgo-grpc)](https://hub.docker.com/r/alitari/mockgo-grpc)
+[![codecov](https://codecov.io/gh/alitari/mockgo-server/branch/master/graph/badge.svg?token=WRJ9KFCJFI)](https://codecov.io/gh/alitari/mockgo-server)
 ![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/alitari/mockgo-standalone?label=image%20mockgo-standalone)
 ![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/alitari/mockgo-grpc?label=image%20mockgo-grpc)
 
-[![codebeat badge](https://codebeat.co/badges/48cb2798-51ac-4ae3-8d9d-c41087c43c13)](https://codebeat.co/projects/github-com-alitari-mockgo-server-master)
-[![codecov](https://codecov.io/gh/alitari/mockgo-server/branch/master/graph/badge.svg?token=WRJ9KFCJFI)](https://codecov.io/gh/alitari/mockgo-server)
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6619/badge)](https://bestpractices.coreinfrastructure.org/projects/6619)
 
 
 *mockgo-server* is a lightweight http server which can be used to mock http endpoints. *mockgo-server* is designed for horizontal scaling and feels at home in cloud environments like [kubernetes](https://kubernetes.io/). The main features are:
@@ -20,6 +14,11 @@
 - **Scalability** : mockgo-server is designed for horizontal scaling. Therefore it can be used in environments with high http traffic ( e.g. for performance/load tests )
 - **Flexibility** : sometimes requirements for mocking requests goes beyond static responses. With templating mechanism and state management it is possible to implement particular logic for building responses.
 
+## variants
+
+*mockgo-server* currently comes in 2 variants:
+- `mockgo-standalone` : for non-cluster setups, use this when you don't need to scale, usually this variant is the starting point
+- `mockgo-grpc` : for cluster setups, use this when you have to deal with high incoming traffic. In order to share state between the cluster pods [grpc](https://grpc.io/) is used as protocol.
 
 ## install
 
@@ -296,6 +295,13 @@ curl -v http://localhost:8081/getPeople/adults
 # get childs
 curl -v http://localhost:8081/getPeople/childs
 ```
+
+## prometheus metrics
+
+The *mockgo-server* exposes besides of the standard go metrics the following application specific counters:
+
+- `matches{"endpoint":"<endpointId>"}`: Number of matches of an endpoint
+- `mismatches`: Number of requests which did not match to on endpoint
 
 ## contribute
 

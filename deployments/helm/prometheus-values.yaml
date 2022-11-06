@@ -1,0 +1,69 @@
+rbac:
+  create: true
+
+podSecurityPolicy:
+  enabled: false
+
+serviceAccounts:
+  alertmanager:
+    create: false
+  nodeExporter:
+    create: false
+  pushgateway:
+    create: false
+  server:
+    create: true
+    name:
+    annotations: {}
+
+alertmanager:
+  enabled: false
+
+configmapReload:
+  prometheus:
+    enabled: false
+  alertmanager:
+    enabled: false
+
+kubeStateMetrics:
+  enabled: false
+
+nodeExporter:
+  enabled: false
+
+server:
+  enabled: true
+
+  persistentVolume:
+    enabled: false
+
+  tcpSocketProbeEnabled: false
+  probeScheme: HTTP
+  readinessProbeInitialDelay: 10
+  readinessProbePeriodSeconds: 5
+  readinessProbeTimeout: 4
+  readinessProbeFailureThreshold: 3
+  readinessProbeSuccessThreshold: 1
+  livenessProbeInitialDelay: 10
+  livenessProbePeriodSeconds: 15
+  livenessProbeTimeout: 10
+  livenessProbeFailureThreshold: 3
+  livenessProbeSuccessThreshold: 1
+  startupProbe:
+    enabled: false
+    periodSeconds: 5
+    failureThreshold: 30
+    timeoutSeconds: 10
+
+  resources: 
+    limits:
+      cpu: 100m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 256Mi
+
+pushgateway:
+  enabled: false
+
+

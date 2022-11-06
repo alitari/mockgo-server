@@ -35,6 +35,10 @@ deploy:
           - deployments/helm/minikube-grpc-values.yaml
         setValueTemplates:
           ingress.host: "mockgo-grpc.{{.MINIKUBE_IP}}.nip.io"
+      - name: prometheus
+        remoteChart: prometheus-community/prometheus
+        valuesFiles:
+          - deployments/helm/prometheus-values.yaml
 profiles:
   - name: standalone
     patches:

@@ -3,6 +3,8 @@ pullPolicy: Never
 ingress:
   enabled: true
 
+scraping: true
+
 resources:
   requests:
     memory: "64Mi"
