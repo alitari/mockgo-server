@@ -5,6 +5,7 @@
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6619/badge)](https://bestpractices.coreinfrastructure.org/projects/6619)
 [![Build](https://github.com/alitari/mockgo-server/workflows/Workflow/badge.svg?branch=master)](https://github.com/alitari/mockgo-server/actions?workflow=Workflow&branch=master)
 [![codecov](https://codecov.io/gh/alitari/mockgo-server/branch/master/graph/badge.svg?token=WRJ9KFCJFI)](https://codecov.io/gh/alitari/mockgo-server)
+
 ![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/alitari/mockgo-standalone?label=image%20mockgo-standalone)
 ![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/alitari/mockgo-grpc?label=image%20mockgo-grpc)
 
