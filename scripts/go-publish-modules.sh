@@ -15,16 +15,18 @@ PATH="$PATH:$(go env GOPATH)/bin"
 
 # git checks
 branch=$(git rev-parse --abbrev-ref HEAD)
-# if [ "$branch" != "master" ]
-# then
-#     echo "you must be in 'master' branch, but you are in '$branch'!"
-#     exit 1
-# fi
-# gitstatus=$(git status --short)
-# if [[ "$gitstatus" != "" ]]; then
-#     echo "the workspace is dirty: $gitstatus !"
-#     exit 1
-# fi
+if [ "$branch" != "master" ]
+then
+    echo "you must be in 'master' branch, but you are in '$branch'!"
+    exit 1
+fi
+gitstatus=$(git status --short)
+if [[ "$gitstatus" != "" ]]; then
+    echo "the workspace is dirty: $gitstatus !"
+    exit 1
+fi
+
+
 
 
 # publish mockgo module 
@@ -61,7 +63,7 @@ git push origin $mockgostandalonetag
 GOPROXY=proxy.golang.org go list -m "github.com/alitari/mockgo-server/mockgo-standalone@$releaseTag"
 cd -
 
-grpc-kvstore
+# grpc-kvstore
 cd grpc-kvstore
 go mod edit -droprequire github.com/alitari/mockgo-server/mockgo
 go mod edit -dropreplace github.com/alitari/mockgo-server/mockgo
