@@ -52,3 +52,14 @@ endpoints:
         {{ .RequestBody -}}
       headers: |
         Header1: "{{ .RequestUrl }}"
+  - id: "queryParams"
+    request:
+      method: "GET"
+      path: /queryParams
+    response:
+      body: |-
+        {
+        {{ range $key, $value := .RequestQueryParams -}}
+        {{ $key | quote | indent 4 }} : {{ $value | quote }},
+        {{ end -}}
+        }

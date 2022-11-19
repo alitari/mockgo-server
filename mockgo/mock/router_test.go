@@ -21,7 +21,8 @@ type matchingTestCase struct {
 	name                    string
 	request                 *http.Request
 	expectedMatchEndpointId string
-	expectedRequestParams   map[string]string
+	expectedRequestPathParams   map[string]string
+	expectedRequestQueryParams   map[string]string
 }
 
 type mismatchingTestCase struct {
@@ -32,7 +33,8 @@ type mismatchingTestCase struct {
 
 type renderingTestCase struct {
 	name                       string
-	requestParams              map[string]string
+	requestPathParams              map[string]string
+	requestQueryParams              map[string]string
 	request                    *http.Request
 	response                   *MockResponse
 	expectedResponseStatusCode int
@@ -160,11 +162,11 @@ func TestMatchRequestToEndpoint_MatchPathParams(t *testing.T) {
 		{name: "single",
 			request:                 &http.Request{URL: &url.URL{Path: "/pathParams/bar/foo"}, Method: http.MethodGet},
 			expectedMatchEndpointId: "2",
-			expectedRequestParams:   map[string]string{"pathParam": "bar"}},
+			expectedRequestPathParams:   map[string]string{"pathParam": "bar"}},
 		{name: "multi",
 			request:                 &http.Request{URL: &url.URL{Path: "/multipathParams/val1/foo/val2"}, Method: http.MethodGet},
 			expectedMatchEndpointId: "1",
-			expectedRequestParams:   map[string]string{"pathParam1": "val1", "pathParam2": "val2"}},
+			expectedRequestPathParams:   map[string]string{"pathParam1": "val1", "pathParam2": "val2"}},
 	}
 	assertMatchRequestToEndpoint(t, mockRouter, testCases)
 }
@@ -237,12 +239,12 @@ func TestRenderResponse_Simple(t *testing.T) {
 		{name: "body from response file", response: &MockResponse{BodyFilename: "simple-response.json"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "{\n    \"greets\": \"Hello\"\n}"},
-		{name: "template RequestPathParams", response: &MockResponse{Body: "{{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "Hello"},
+		{name: "template RequestPathParams", response: &MockResponse{Body: "{{ .RequestPathParams.param1 }}"}, requestPathParams: map[string]string{"param1": "Hello"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       "Hello"},
-		{name: "template RequestParam statuscode", response: &MockResponse{StatusCode: "{{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "202"},
+		{name: "template RequestParam statuscode", response: &MockResponse{StatusCode: "{{ .RequestPathParams.param1 }}"}, requestPathParams: map[string]string{"param1": "202"},
 			expectedResponseStatusCode: 202},
-		{name: "template RequestParam headers", response: &MockResponse{Headers: "requestParam: {{ .RequestPathParams.param1 }}"}, requestParams: map[string]string{"param1": "param1HeaderValue"},
+		{name: "template RequestParam headers", response: &MockResponse{Headers: "requestParam: {{ .RequestPathParams.param1 }}"}, requestPathParams: map[string]string{"param1": "param1HeaderValue"},
 			expectedResponseStatusCode: 200,
 			expectedResponseHeader:     map[string]string{"requestParam": "param1HeaderValue"}},
 		{name: "template Request url",
@@ -255,7 +257,7 @@ func TestRenderResponse_Simple(t *testing.T) {
 		{name: "template response file all request params",
 			response:                   &MockResponse{BodyFilename: "request-template-response.json"},
 			request:                    createRequest("PUT", "https://coolhost.cooldomain.com/coolpath", "{ \"requestBodyKey\": \"requestBodyValue\" }", map[string][]string{"myheaderKey": {"myheaderValue"}}, nil),
-			requestParams:              map[string]string{"myparam1": "myvalue"},
+			requestPathParams:              map[string]string{"myparam1": "myvalue"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       expectedResponseResult},
 	}
@@ -282,7 +284,7 @@ func assertRenderingResponse(mockRouter *MockRequestHandler, testCases []*render
 			endpoint := &MockEndpoint{Id: testCase.name, Response: testCase.response}
 			err := mockRouter.initResponseTemplates(endpoint, nil)
 			assert.NoError(t, err, "testcase: '"+testCase.name+"': error in initResonseTemplates")
-			mockRouter.renderResponse(recorder, testCase.request, endpoint, &matches.Match{}, testCase.requestParams)
+			mockRouter.renderResponse(recorder, testCase.request, endpoint, &matches.Match{}, testCase.requestPathParams, testCase.requestQueryParams)
 
 			assert.Equal(t, testCase.expectedResponseStatusCode, recorder.Result().StatusCode, "testcase: '"+testCase.name+"': unexpected statuscode")
 
@@ -309,7 +311,7 @@ func assertMatchRequestToEndpoint(t *testing.T, mockRouter *MockRequestHandler, 
 			timeStamp := time.Now()
 			matchCountBefore, err := mockRouter.matchstore.GetMatchesCount(testCase.expectedMatchEndpointId)
 			assert.NoError(t, err)
-			ep, match, requestParams := mockRouter.matchRequestToEndpoint(testCase.request)
+			ep, match, requestPathParams, requestQueryParams := mockRouter.matchRequestToEndpoint(testCase.request)
 			matchCountAfter := matchCountBefore + 1
 			assert.NotNil(t, match, "expect a match")
 			assert.NotNil(t, ep, "for a match, we expect an endpoint")
@@ -331,9 +333,15 @@ func assertMatchRequestToEndpoint(t *testing.T, mockRouter *MockRequestHandler, 
 
 			assert.LessOrEqual(t, timeStamp, currentMatch.Timestamp)
 
-			if testCase.expectedRequestParams != nil {
-				for expectedParamName, expectedParamValue := range testCase.expectedRequestParams {
-					assert.Equal(t, requestParams[expectedParamName], expectedParamValue)
+			if testCase.expectedRequestPathParams != nil {
+				for expectedParamName, expectedParamValue := range testCase.expectedRequestPathParams {
+					assert.Equal(t, requestPathParams[expectedParamName], expectedParamValue)
+				}
+			}
+
+			if testCase.expectedRequestQueryParams != nil {
+				for expectedParamName, expectedParamValue := range testCase.expectedRequestQueryParams {
+					assert.Equal(t, requestQueryParams[expectedParamName], expectedParamValue)
 				}
 			}
 		})
@@ -346,7 +354,7 @@ func assertMismatchRequestToEndpoint(t *testing.T, mockRouter *MockRequestHandle
 			timeStamp := time.Now()
 			mismatchCountBefore, err := mockRouter.matchstore.GetMismatchesCount()
 			assert.NoError(t, err)
-			_, match, _ := mockRouter.matchRequestToEndpoint(testCase.request)
+			_, match, _, _ := mockRouter.matchRequestToEndpoint(testCase.request)
 			mismatchCountAfter := mismatchCountBefore + 1
 			assert.Nil(t, match, "expected not a match")
 			mismatchCount, err := mockRouter.matchstore.GetMismatchesCount()
