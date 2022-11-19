@@ -112,9 +112,10 @@ func main() {
 	if err := mockHandler.LoadFiles(nil); err != nil {
 		log.Fatalf("can't load mock files: %v", err)
 	}
+	if err := mockHandler.RegisterMetrics(); err != nil {
+		log.Fatalf("can't register metrics: %v", err)
+	}
 	startServing(configuration, matchHandler, kvStoreHandler, mockHandler)
-	// go startServe(configRouter)
-	// startServe(mockRouter)
 }
 
 func createConfiguration() *Configuration {

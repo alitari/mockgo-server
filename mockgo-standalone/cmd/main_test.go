@@ -168,6 +168,16 @@ func TestMain_templateFunctionsResponseCode(t *testing.T) {
 	})
 }
 
+func TestMain_templateFunctionsQueryParams(t *testing.T) {
+	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/queryParams?foo=bar&foo2=bar2", nil, "", 200, func(responseBody string, header map[string][]string) {
+		expectedResponseBody := `{
+    "foo" : "bar",
+    "foo2" : "bar2",
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	})
+}
+
 func TestMain_templateFunctionsPeople(t *testing.T) {
 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/people", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
 		`{ "adults": [], "childs": [] }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {

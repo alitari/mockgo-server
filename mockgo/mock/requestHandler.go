@@ -35,6 +35,7 @@ const headerKeyEndpointId = "endpoint-Id"
 
 type ResponseTemplateData struct {
 	RequestPathParams   map[string]string
+	RequestQueryParams  map[string]string
 	KVStore             map[string]interface{}
 	RequestUrl          string
 	RequestUser         string
@@ -60,8 +61,6 @@ func NewMockRequestHandler(mockDir, mockFilepattern string, matchstore matches.M
 		EpSearchNode:    &EpSearchNode{},
 		matchstore:      matchstore,
 	}
-	prometheus.MustRegister(matchesMetric)
-	prometheus.MustRegister(mismatchesMetric)
 	return mockRouter
 }
 
@@ -80,6 +79,16 @@ var (
 		},
 	)
 )
+
+func (r *MockRequestHandler) RegisterMetrics() error {
+	if err := prometheus.Register(matchesMetric); err != nil {
+		return err
+	}
+	if err := prometheus.Register(mismatchesMetric); err != nil {
+		return err
+	}
+	return nil
+}
 
 func (r *MockRequestHandler) LoadFiles(funcMap template.FuncMap) error {
 	r.EpSearchNode = &EpSearchNode{}
@@ -180,8 +189,9 @@ func (r *MockRequestHandler) AddRoutes(router *mux.Router) {
 	var endPoint *MockEndpoint
 	var match *matches.Match
 	var requestPathParam map[string]string
+	var queryParams map[string]string
 	route := router.MatcherFunc(func(request *http.Request, routematch *mux.RouteMatch) bool {
-		endPoint, match, requestPathParam = r.matchRequestToEndpoint(request)
+		endPoint, match, requestPathParam, queryParams = r.matchRequestToEndpoint(request)
 		return endPoint != nil
 	})
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -189,7 +199,7 @@ func (r *MockRequestHandler) AddRoutes(router *mux.Router) {
 		if r.logger.Level >= logging.Debug {
 			writer = logging.NewLoggingResponseWriter(writer, r.logger, 2)
 		}
-		r.renderResponse(writer, request, endPoint, match, requestPathParam)
+		r.renderResponse(writer, request, endPoint, match, requestPathParam, queryParams)
 		if r.logger.Level >= logging.Debug {
 			writer.(*logging.LoggingResponseWriter).Log()
 		}
@@ -230,8 +240,14 @@ func (r *MockRequestHandler) registerEndpoint(endpoint *MockEndpoint) {
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.Id, endpoint.Request.Path, endpoint.Request.Method))
 }
 
-func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*MockEndpoint, *matches.Match, map[string]string) {
+func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*MockEndpoint, *matches.Match, map[string]string, map[string]string) {
 	requestPathParams := map[string]string{}
+	queryParams := map[string]string{}
+
+	for k, v := range request.URL.Query() {
+		queryParams[k] = v[0]
+	}
+
 	sn := r.EpSearchNode
 	getPathSegment := func(segments []string, pos int) string {
 		if pos < len(segments) {
@@ -249,7 +265,7 @@ func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*Moc
 				break
 			} else {
 				r.addMismatch(sn, pos, "", request)
-				return nil, nil, requestPathParams
+				return nil, nil, requestPathParams, queryParams
 			}
 		} else {
 			if allMatch {
@@ -266,7 +282,7 @@ func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*Moc
 				if sn.SearchNodes["*"] == nil {
 					if sn.SearchNodes["**"] == nil {
 						r.addMismatch(sn, pos, "", request)
-						return nil, nil, requestPathParams
+						return nil, nil, requestPathParams, queryParams
 					} else {
 						allMatch = true
 						sn = sn.SearchNodes["**"]
@@ -286,14 +302,14 @@ func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*Moc
 	if sn != nil && sn.Endpoints != nil {
 		if sn.Endpoints[request.Method] != nil {
 			ep, match := r.matchEndPointsAttributes(sn.Endpoints[request.Method], request)
-			return ep, match, requestPathParams
+			return ep, match, requestPathParams, queryParams
 		} else {
 			r.addMismatch(nil, -1, fmt.Sprintf("no endpoint found with method '%s'", request.Method), request)
-			return nil, nil, requestPathParams
+			return nil, nil, requestPathParams, queryParams
 		}
 	}
 	r.addMismatch(sn, math.MaxInt, "", request)
-	return nil, nil, requestPathParams
+	return nil, nil, requestPathParams, queryParams
 }
 
 func (r *MockRequestHandler) matchEndPointsAttributes(endPoints []*MockEndpoint, request *http.Request) (*MockEndpoint, *matches.Match) {
@@ -391,9 +407,9 @@ func (r *MockRequestHandler) addMismatch(sn *EpSearchNode, pathPos int, endpoint
 	mismatchesMetric.Inc()
 }
 
-func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *MockEndpoint, match *matches.Match, requestPathParams map[string]string) {
+func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *MockEndpoint, match *matches.Match, requestPathParams, queryParams map[string]string) {
 	writer.Header().Add(headerKeyEndpointId, endpoint.Id)
-	responseTemplateData, err := r.createResponseTemplateData(request, requestPathParams)
+	responseTemplateData, err := r.createResponseTemplateData(request, requestPathParams, queryParams)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(writer, "Error rendering response: %v", err)
@@ -453,12 +469,13 @@ func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request 
 	match.ActualResponse = &matches.ActualResponse{StatusCode: responseStatus, Header: make(map[string][]string)}
 }
 
-func (r *MockRequestHandler) createResponseTemplateData(request *http.Request, requestPathParams map[string]string) (*ResponseTemplateData, error) {
+func (r *MockRequestHandler) createResponseTemplateData(request *http.Request, requestPathParams, queryParams map[string]string) (*ResponseTemplateData, error) {
 	data := &ResponseTemplateData{
-		RequestUrl:        request.URL.String(),
-		RequestPathParams: requestPathParams,
-		RequestPath:       request.URL.Path,
-		RequestHost:       request.URL.Host,
+		RequestUrl:         request.URL.String(),
+		RequestPathParams:  requestPathParams,
+		RequestQueryParams: queryParams,
+		RequestPath:        request.URL.Path,
+		RequestHost:        request.URL.Host,
 	}
 	if request.URL.User != nil {
 		data.RequestUser = request.URL.User.Username()
