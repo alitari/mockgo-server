@@ -1,4 +1,4 @@
-module github.com/alitari/mockgo-server/mockgo-grpc-matchstore
+module github.com/alitari/mockgo-server/grpc-matchstore
 
 go 1.19
 

@@ -1,4 +1,4 @@
-module github.com/alitari/mockgo-server/mockgo-grpc-kvstore
+module github.com/alitari/mockgo-server/grpc-kvstore
 
 go 1.19
 
