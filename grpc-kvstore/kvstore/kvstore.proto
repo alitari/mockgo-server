@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/alitari/mockgo-grpc-kvstore/kvstore";
+option go_package = "github.com/alitari/mockgo-server/mockgo-grpc-kvstore/kvstore";
 
 package kvstore;
 

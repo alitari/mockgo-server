@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig"
-	"github.com/alitari/mockgo/logging"
-	"github.com/alitari/mockgo/matches"
+	"github.com/alitari/mockgo-server/mockgo/logging"
+	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"gopkg.in/yaml.v2"

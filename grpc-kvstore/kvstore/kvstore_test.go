@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alitari/mockgo/logging"
-	"github.com/alitari/mockgo/util"
+	"github.com/alitari/mockgo-server/mockgo/logging"
+	"github.com/alitari/mockgo-server/mockgo/util"
 	"github.com/stretchr/testify/assert"
 )
 

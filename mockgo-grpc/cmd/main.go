@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"strings"
 
-	grpckvstore "github.com/alitari/mockgo-grpc-kvstore/kvstore"
-	"github.com/alitari/mockgo-grpc-matchstore/matchstore"
-	"github.com/alitari/mockgo/kvstore"
-	"github.com/alitari/mockgo/logging"
-	"github.com/alitari/mockgo/matches"
-	"github.com/alitari/mockgo/mock"
+	grpckvstore "github.com/alitari/mockgo-server/mockgo-grpc-kvstore/kvstore"
+	"github.com/alitari/mockgo-server/mockgo-grpc-matchstore/matchstore"
+	"github.com/alitari/mockgo-server/mockgo/kvstore"
+	"github.com/alitari/mockgo-server/mockgo/logging"
+	"github.com/alitari/mockgo-server/mockgo/matches"
+	"github.com/alitari/mockgo-server/mockgo/mock"
 	"github.com/gorilla/mux"
 	"github.com/kelseyhightower/envconfig"
 )

@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/alitari/mockgo-grpc-matchstore/matchstore";
+option go_package = "github.com/alitari/mockgo-server/mockgo-grpc-matchstore/matchstore";
 
 import "google/protobuf/timestamp.proto";
 

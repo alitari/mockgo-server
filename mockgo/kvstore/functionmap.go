@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/alitari/mockgo/logging"
+	"github.com/alitari/mockgo-server/mockgo/logging"
 )
 
 func KVStoreFuncMap(kvs *KVStoreJSON, logger *logging.LoggerUtil) template.FuncMap {

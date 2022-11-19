@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/alitari/mockgo/logging"
+	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
 )
