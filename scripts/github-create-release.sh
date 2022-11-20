@@ -146,7 +146,7 @@ echo "tagging mockgo-grpc module with '$mockgogrprctag' ..."
 git tag -a $mockgogrprctag -m "🔖 Tag mockgo-grpc module with $mockgogrprctag"
 git push origin $mockgogrprctag
 GOPROXY=proxy.golang.org go list -m "github.com/alitari/mockgo-server/mockgo-grpc@$releaseTag"
-cd -
+
 
 # create tgz and checksums
 for file in ./bin/*
