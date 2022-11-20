@@ -130,6 +130,7 @@ go mod edit -require "github.com/alitari/mockgo-server/grpc-matchstore@$releaseT
 go mod tidy
 go clean -testcache ./...
 go test ./...
+cd -
 
 # mockgo-grpc create executabels
 
