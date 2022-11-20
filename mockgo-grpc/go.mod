@@ -4,14 +4,14 @@ go 1.19
 
 replace github.com/alitari/mockgo-server/mockgo => ../mockgo
 
-replace github.com/alitari/mockgo-server/mockgo-grpc-kvstore => ../grpc-kvstore
+replace github.com/alitari/mockgo-server/grpc-kvstore => ../grpc-kvstore
 
-replace github.com/alitari/mockgo-server/mockgo-grpc-matchstore => ../grpc-matchstore
+replace github.com/alitari/mockgo-server/grpc-matchstore => ../grpc-matchstore
 
 require (
+	github.com/alitari/mockgo-server/grpc-kvstore v0.0.0-00010101000000-000000000000
+	github.com/alitari/mockgo-server/grpc-matchstore v0.0.0-00010101000000-000000000000
 	github.com/alitari/mockgo-server/mockgo v0.0.0-20221119125316-05b2118f80f8
-	github.com/alitari/mockgo-server/mockgo-grpc-kvstore v0.0.0-00010101000000-000000000000
-	github.com/alitari/mockgo-server/mockgo-grpc-matchstore v0.0.0-00010101000000-000000000000
 	github.com/gorilla/mux v1.8.0
 	github.com/kelseyhightower/envconfig v1.4.0
 )
