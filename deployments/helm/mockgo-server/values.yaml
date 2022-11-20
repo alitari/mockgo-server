@@ -1,3 +1,4 @@
+# files only valid if no existingConfigmap is defined
 files:
 - name: hello-mock.yaml
   config: |
@@ -12,6 +13,9 @@ files:
     {
       "hello": "World"
     }
+
+# read config from existing configmap, replaces thr files
+# existingConfigmap: myconfig
 
 matches:
   capacity: 1000
@@ -38,6 +42,11 @@ cluster:
 
 image: alitari/mockgo-standalone:latest
 pullPolicy: IfNotPresent
+
+# inject custom env variables
+# env:
+#   - name: MYSECRET
+#     value: 'very secret'
 
 scraping: false
 

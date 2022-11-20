@@ -1,3 +1,4 @@
+{{- if not .Values.existingConfigmap -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -6,4 +7,5 @@ data:
 {{- range .Values.files }}
 {{ .name | indent 2 }}: |-
 {{ .config | indent 4 }}
+{{- end }}
 {{- end }}

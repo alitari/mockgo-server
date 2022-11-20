@@ -58,8 +58,11 @@ spec:
       volumes:
       - name: config-volume
         configMap:
+        {{- if .Values.existingConfigmap }}
+          name: {{ .Values.existingConfigmap }}
+        {{- else }}
           name: {{ include "mockgoserver.fullname" . }}
-
+        {{- end }}
       serviceAccountName: {{ include "mockgoserver.serviceAccountName" . }}
 
       # Required to be able to HUP signal and apply config
@@ -101,6 +104,9 @@ spec:
           value: '*-mock.yaml'
         - name: MATCHES_CAPACITY
           value: {{ .Values.matches.capacity | quote }}
+        {{- if .Values.env }}
+        {{- toYaml .Values.env | nindent 8 }}
+        {{- end }}
         volumeMounts:
         - name: config-volume
           mountPath: /etc/mockgoserver-config
