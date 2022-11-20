@@ -146,7 +146,6 @@ echo "tagging mockgo-grpc module with '$mockgogrprctag' ..."
 git tag -a $mockgogrprctag -m "🔖 Tag mockgo-grpc module with $mockgogrprctag"
 git push origin $mockgogrprctag
 GOPROXY=proxy.golang.org go list -m "github.com/alitari/mockgo-server/mockgo-grpc@$releaseTag"
-cd -
 
 # create tgz and checksums
 for file in ./bin/*
@@ -171,3 +170,8 @@ gh auth logout -h github.com
 ./scripts/docker-build-mockgo.sh $releaseTag standalone true
 
 ./scripts/docker-build-mockgo.sh $releaseTag grpc true
+
+# commit and push release branch
+git add -A
+git commit -m "🔖 release-$releaseTag"
+git push --set-upstream origin "release-$releaseTag"
