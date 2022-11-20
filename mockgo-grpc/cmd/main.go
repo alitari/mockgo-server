@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	grpckvstore "github.com/alitari/mockgo-server/mockgo-grpc-kvstore/kvstore"
-	"github.com/alitari/mockgo-server/mockgo-grpc-matchstore/matchstore"
+	grpckvstore "github.com/alitari/mockgo-server/grpc-kvstore/kvstore"
+	"github.com/alitari/mockgo-server/grpc-matchstore/matchstore"
 	"github.com/alitari/mockgo-server/mockgo/kvstore"
 	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/matches"

@@ -64,6 +64,11 @@ do
 done
 ./scripts/go-build-mockgo.sh windows amd64 standalone ${releaseTag}-${gitsha}
 
+git add -A
+git commit -m "🔖 Setup mockgo-standalone dependencies for release-$releaseTag"
+git push --set-upstream origin "release-$releaseTag"
+
+
 # mockgo standalone publish module
 mockgostandalonetag="mockgo-standalone/$releaseTag"
 echo "tagging mockgo-standalone module with '$mockgostandalonetag' ..."
@@ -85,6 +90,10 @@ go clean -testcache ./...
 go test ./...
 cd -
 
+git add -A
+git commit -m "🔖 Setup grpc-kvstore dependencies for release-$releaseTag"
+git push --set-upstream origin "release-$releaseTag"
+
 # grpc-kvstore publish module
 grpckvstoretag="grpc-kvstore/$releaseTag"
 echo "tagging grpc-kvstore module with '$grpckvstoretag' ..."
@@ -105,6 +114,10 @@ go mod tidy
 go clean -testcache ./...
 go test ./...
 cd -
+
+git add -A
+git commit -m "🔖 Setup grpc-matchstore dependencies for release-$releaseTag"
+git push --set-upstream origin "release-$releaseTag"
 
 # grpc-matchstore publish module
 grpcmatchstoretag="grpc-matchstore/$releaseTag"
@@ -133,12 +146,15 @@ go test ./...
 cd -
 
 # mockgo-grpc create executabels
-
 for target in amd64 arm64
 do
 ./scripts/go-build-mockgo.sh linux $target grpc ${releaseTag}-${gitsha}
 done
 ./scripts/go-build-mockgo.sh windows amd64 grpc ${releaseTag}-${gitsha}
+
+git add -A
+git commit -m "🔖 Setup mockgo-grpc dependencies for release-$releaseTag"
+git push --set-upstream origin "release-$releaseTag"
 
 # mockgo-grpc publish modules
 mockgogrprctag="mockgo-grpc/$releaseTag"
@@ -170,8 +186,3 @@ gh auth logout -h github.com
 ./scripts/docker-build-mockgo.sh $releaseTag standalone true
 
 ./scripts/docker-build-mockgo.sh $releaseTag grpc true
-
-# commit and push release branch
-git add -A
-git commit -m "🔖 release-$releaseTag"
-git push --set-upstream origin "release-$releaseTag"
