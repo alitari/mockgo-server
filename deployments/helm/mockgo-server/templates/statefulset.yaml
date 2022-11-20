@@ -77,8 +77,11 @@ spec:
       volumes:
       - name: config-volume
         configMap:
+        {{- if .Values.existingConfigmap }}
+          name: {{ .Values.existingConfigmap }}
+        {{- else }}
           name: {{ include "mockgoserver.fullname" . }}
-
+        {{- end }}
       serviceAccountName: {{ include "mockgoserver.serviceAccountName" . }}
       shareProcessNamespace: true
       containers:
@@ -126,6 +129,9 @@ spec:
           value: {{ .Values.cluster.grpcPorts.matchstore | quote }}
         - name: KVSTORE_PORT
           value: {{ .Values.cluster.grpcPorts.kvstore | quote }}
+        {{- if .Values.env }}
+        {{- toYaml .Values.env | nindent 8 }}
+        {{- end }}
         volumeMounts:
         - name: config-volume
           mountPath: /etc/mockgoserver-config
