@@ -8,8 +8,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/alitari/mockgo/kvstore"
-	"github.com/alitari/mockgo/logging"
+	"github.com/alitari/mockgo-server/mockgo/kvstore"
+	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/google/uuid"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

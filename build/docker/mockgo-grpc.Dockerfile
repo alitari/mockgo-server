@@ -13,12 +13,12 @@ COPY ./mockgo ./mockgo
 
 # kvstore
 COPY ./grpc-kvstore ./grpc-kvstore
-COPY scripts/go-build-grpc-kvstore.sh .
-RUN ./go-build-grpc-kvstore.sh
+COPY scripts/protoc-grpc-kvstore.sh .
+RUN ./protoc-grpc-kvstore.sh
 # matchstore
 COPY ./grpc-matchstore ./grpc-matchstore
-COPY scripts/go-build-grpc-matchstore.sh .
-RUN ./go-build-grpc-matchstore.sh
+COPY scripts/protoc-grpc-matchstore.sh .
+RUN ./protoc-grpc-matchstore.sh
 
 # mockgo main
 COPY ./mockgo-grpc ./mockgo-grpc

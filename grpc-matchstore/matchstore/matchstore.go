@@ -7,8 +7,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/alitari/mockgo/logging"
-	"github.com/alitari/mockgo/matches"
+	"github.com/alitari/mockgo-server/mockgo/logging"
+	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/google/uuid"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

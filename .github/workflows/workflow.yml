@@ -32,10 +32,10 @@ jobs:
         ./scripts/go-build-mockgo.sh windows amd64 standalone norelease
 
     - name: Build proto grpc kvstore
-      run: ./scripts/go-build-grpc-kvstore.sh
+      run: ./scripts/protoc-grpc-kvstore.sh
 
     - name: Build proto grpc matchstore
-      run: ./scripts/go-build-grpc-matchstore.sh
+      run: ./scripts/protoc-grpc-matchstore.sh
 
     - name: Build mockgo-grpc
       run: |

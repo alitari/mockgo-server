@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/alitari/mockgo/kvstore"
-	"github.com/alitari/mockgo/logging"
-	"github.com/alitari/mockgo/matches"
-	"github.com/alitari/mockgo/mock"
+	"github.com/alitari/mockgo-server/mockgo/kvstore"
+	"github.com/alitari/mockgo-server/mockgo/logging"
+	"github.com/alitari/mockgo-server/mockgo/matches"
+	"github.com/alitari/mockgo-server/mockgo/mock"
 	"github.com/gorilla/mux"
 	"github.com/kelseyhightower/envconfig"
 )

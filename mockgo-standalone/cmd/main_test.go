@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alitari/mockgo/util"
+	"github.com/alitari/mockgo-server/mockgo/util"
 	"github.com/go-http-utils/headers"
 	"github.com/stretchr/testify/assert"
 )
