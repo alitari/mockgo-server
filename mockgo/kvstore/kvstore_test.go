@@ -1,8 +1,11 @@
 package kvstore
 
 import (
+	"bytes"
+	"fmt"
 	"math/rand"
 	"testing"
+	"text/template"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -40,6 +43,16 @@ func TestKVStore_PutGetJson(t *testing.T) {
 	assert.Equal(t, `{"store1":"storeval11","store2":"storeval11"}`, storeJson)
 }
 
+func TestKVStore_PutGetJsonError(t *testing.T) {
+	kvstore := createInMemoryStore()
+	key := randString(10)
+	storeVal := make(chan int)
+	err := kvstore.Put(key, storeVal)
+	assert.NoError(t, err)
+	_, err = kvstore.GetAsJson(key)
+	assert.ErrorContains(t, err, "json: unsupported type: chan int")
+}
+
 func TestKVStore_PutJsonGet(t *testing.T) {
 	kvstore := createInMemoryStore()
 	key := randString(10)
@@ -52,6 +65,13 @@ func TestKVStore_PutJsonGet(t *testing.T) {
 	val, err := kvstore.Get(key)
 	assert.NoError(t, err)
 	assert.Equal(t, storeVal, val)
+}
+
+func TestKVStore_PutJsonGet_Error(t *testing.T) {
+	kvstore := createInMemoryStore()
+	key := randString(10)
+	err := kvstore.PutAsJson(key, `{ invalid": json}`)
+	assert.ErrorContains(t, err, "invalid character 'i' looking for beginning of object key string")
 }
 
 const bookstore = `
@@ -185,6 +205,10 @@ func TestKVStore_PatchAdd(t *testing.T) {
 	storeJson, err = kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42",{"key43":"val43"},"key44"]}`, storeJson)
+
+	err = kvstore.PatchAdd(key, "invalidPath", "invalid")
+	assert.ErrorContains(t, err, "add operation does not apply: doc is missing path: \"invalidPath\": missing value")
+
 }
 
 func TestKVStore_PatchRemove(t *testing.T) {
@@ -219,6 +243,43 @@ func TestKVStore_PatchReplace(t *testing.T) {
 	storeJson, err = kvstore.GetAsJson(key)
 	assert.NoError(t, err)
 	assert.Equal(t, `{"store1":"replacedvalue","store2":"val2"}`, storeJson)
+}
+
+func TestKVStore_TemplateFuncMap(t *testing.T) {
+	kvstore := createInMemoryStore()
+	key := randString(10)
+	tpltCode := fmt.Sprintf(`{{ $kvs := kvStoreGet "%s" }}{{ printf "%%v" $kvs }}
+{{ $kvs2 := kvStoreJsonPath "%s" "$" }}{{ printf "%%s" $kvs2 }}
+{{ kvStoreRemove "%s" "/store1" -}}
+{{ $kvs := kvStoreGet "%s" }}{{ printf "%%v" $kvs }}
+{{ kvStoreAdd "%s" "/store3" "val3" -}}
+{{ $kvs := kvStoreGet "%s" }}{{ printf "%%v" $kvs }}
+{{ kvStorePut "%s" "allnew" -}}
+{{ $kvs := kvStoreGet "%s" }}{{ printf "%%v" $kvs }}
+{{ $kvs := kvStoreGet "notexisting" }}{{ printf "%%v" $kvs }}
+{{ kvStoreAdd "%s" "wrongpath" "val3" }}
+{{ kvStoreRemove "%s" "wrongPath" }}
+{{ kvStoreJsonPath "%s" "wrongPath" }}
+`, key, key, key, key, key, key, key, key, key, key, key)
+	storeVal := map[string]interface{}{"store1": "val1", "store2": "val2"}
+	err := kvstore.Put(key, &storeVal)
+	assert.NoError(t, err)
+	templ, err := template.New("Test_TemplateFuncMap").Funcs(kvstore.TemplateFuncMap()).Parse(tpltCode)
+	assert.NoError(t, err)
+	var result bytes.Buffer
+	err = templ.Execute(&result, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, `&map[store1:val1 store2:val2]
+&map[store1:val1 store2:val2]
+map[store2:val2]
+map[store2:val2 store3:val3]
+allnew
+<nil>
+json: cannot unmarshal string into Go value of type jsonpatch.partialDoc
+json: cannot unmarshal string into Go value of type jsonpatch.partialDoc
+should start with '$'
+`, result.String())
+
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
