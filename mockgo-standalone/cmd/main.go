@@ -70,20 +70,35 @@ Matches:
 }
 
 func main() {
-	log.Printf(banner,versionTag)
+	router, port, err := setupRouter()
+	if err != nil {
+		log.Fatalf("can't setup router : %v", err)
+	}
+	server := &http.Server{Addr: ":" + strconv.Itoa(port), Handler: router}
+	log.Printf("serving on '%s' ...", server.Addr)
+
+	err = server.ListenAndServe()
+	if err != nil {
+		log.Fatalf("can't serve : %v", err)
+	}
+}
+
+func setupRouter() (*mux.Router, int, error) {
+	log.Printf(banner, versionTag)
 	configuration := createConfiguration()
 	log.Print(configuration.info())
 	matchStore := matches.NewInMemoryMatchstore(uint16(configuration.MatchesCapacity))
 	matchHandler := createMatchHandler(configuration, matchStore)
-	kvStoreHandler, kvs, logger := createKVStoreHandler(configuration)
+	kvStoreHandler, kvs, _ := createKVStoreHandler(configuration)
 	mockHandler := createMockHandler(configuration, matchStore)
-	if err := mockHandler.LoadFiles(kvstore.KVStoreFuncMap(kvs, logger)); err != nil {
-		log.Fatalf("can't load mock files: %v", err)
+	// kvstore.KVStoreFuncMap(kvs, logger)
+	if err := mockHandler.LoadFiles(kvs.TemplateFuncMap()); err != nil {
+		return nil, -1, err
 	}
 	if err := mockHandler.RegisterMetrics(); err != nil {
-		log.Fatalf("can't register metrics: %v", err)
+		return nil, -1, err
 	}
-	startServing(configuration, matchHandler, kvStoreHandler, mockHandler)
+	return createRouter(matchHandler, kvStoreHandler, mockHandler), configuration.MockPort, nil
 }
 
 func createConfiguration() *Configuration {
@@ -112,17 +127,11 @@ func createMockHandler(configuration *Configuration, matchstore matches.Matchsto
 	return mockHandler
 }
 
-func startServing(configuration *Configuration, requestHandlers ...RequestHandler) error {
+func createRouter(requestHandlers ...RequestHandler) *mux.Router {
 	router := mux.NewRouter()
 	for _, handler := range requestHandlers {
 		handler.AddRoutes(router)
 	}
-	server := &http.Server{Addr: ":" + strconv.Itoa(configuration.MockPort), Handler: router}
-	log.Printf("Serving on '%s'", server.Addr)
-
-	err := server.ListenAndServe()
-	if err != nil {
-		return err
-	}
-	return nil
+	return router
 }
+

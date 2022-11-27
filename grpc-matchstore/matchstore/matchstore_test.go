@@ -11,7 +11,7 @@ import (
 
 	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/matches"
-	"github.com/alitari/mockgo-server/mockgo/util"
+	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +22,7 @@ var matchstores []*GrpcMatchstore
 
 func TestMain(m *testing.M) {
 	startMatchsroreCluster()
-	code := util.RunAndCheckCoverage("main", m, 0.25)
+	code := testutil.RunAndCheckCoverage("main", m, 0.25)
 	stopCluster()
 	os.Exit(code)
 }

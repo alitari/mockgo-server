@@ -1,17 +1,12 @@
 package matches
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"testing"
-	"time"
 
 	"github.com/alitari/mockgo-server/mockgo/logging"
-	"github.com/alitari/mockgo-server/mockgo/util"
-	"github.com/go-http-utils/headers"
+	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
@@ -19,49 +14,37 @@ import (
 const (
 	username = "mockgo"
 	password = "password"
-	port     = 9999
 )
-
-var urlPrefix = fmt.Sprintf("http://localhost:%d", port)
-var httpClient = http.Client{Timeout: time.Duration(1) * time.Second}
 
 var matchesRequestHandler *MatchesRequestHandler
 
 func TestMain(m *testing.M) {
-	go startServing()
-	time.Sleep(200 * time.Millisecond)
-	code := util.RunAndCheckCoverage("matchesRequestHandlerTest", m, 0.40)
-	os.Exit(code)
-}
-
-func startServing() {
 	logger := logging.NewLoggerUtil(logging.Debug)
 	matchesRequestHandler = NewMatchesRequestHandler("", username, password, NewInMemoryMatchstore(uint16(100)), logger)
 	router := mux.NewRouter()
 	matchesRequestHandler.AddRoutes(router)
-	server := &http.Server{Addr: ":" + strconv.Itoa(port), Handler: router}
-	log.Printf("Serving on '%s'", server.Addr)
-
-	err := server.ListenAndServe()
-	if err != nil {
-		log.Fatalf("Can't serve: %v", err)
-	}
+	testutil.StartServing(router)
+	code := testutil.RunAndCheckCoverage("matchesRequestHandlerTest", m, 0.40)
+	testutil.StopServing()
+	os.Exit(code)
 }
 
 func TestMatchesRequestHandler_health(t *testing.T) {
-	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/health", map[string][]string{}, "", http.StatusOK, nil)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
+		testutil.CreateRequest(t, http.MethodGet, "/health", testutil.CreateHeader(), ""), http.StatusOK))
 }
 
 func TestMatchesRequestHandler_getMatches(t *testing.T) {
 	endpointId := "myEndpointId"
 	err := matchesRequestHandler.matchStore.AddMatch(endpointId, createMatch(endpointId))
 	assert.NoError(t, err)
-	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/matches/"+endpointId,
-		map[string][]string{headers.Authorization: {util.BasicAuth(username, password)}, headers.Accept: {"application/json"}},
-		"", http.StatusOK,
-		func(responseBody string, header map[string][]string) {
-			assert.Equal(t, `[{"endpointId":"myEndpointId","timestamp":"2009-11-17T20:34:58.651387237Z","actualRequest":{"method":"GET","url":"./http://myhost","header":null,"host":""},"actualResponse":null}]`, responseBody)
-		})
+	request := testutil.CreateRequest(t, http.MethodGet, "/matches/"+endpointId,
+		testutil.CreateHeader().WithAuth(username, password).WithJsonAccept(), "")
+	testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, `[{"endpointId":"myEndpointId","timestamp":"2009-11-17T20:34:58.651387237Z","actualRequest":{"method":"GET","url":"./http://myhost","header":null,"host":""},"actualResponse":null}]`, responseBody)
+	})
+
 }
 
 func TestMatchesRequestHandler_getMismatches(t *testing.T) {

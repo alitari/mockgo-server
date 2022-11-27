@@ -6,7 +6,6 @@ replace github.com/alitari/mockgo-server/mockgo => ../mockgo
 
 require (
 	github.com/alitari/mockgo-server/mockgo v0.0.0-20221119125316-05b2118f80f8
-	github.com/go-http-utils/headers v0.0.0-20181008091004-fed159eddc2a
 	github.com/gorilla/mux v1.8.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/stretchr/testify v1.8.1
@@ -20,6 +19,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v0.5.2 // indirect
+	github.com/go-http-utils/headers v0.0.0-20181008091004-fed159eddc2a // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/huandu/xstrings v1.3.3 // indirect
