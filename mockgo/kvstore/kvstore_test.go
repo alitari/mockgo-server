@@ -245,6 +245,21 @@ func TestKVStore_PatchReplace(t *testing.T) {
 	assert.Equal(t, `{"store1":"replacedvalue","store2":"val2"}`, storeJson)
 }
 
+func TestKVStore_patch_invalidJsonError(t *testing.T) {
+	kvstore := createInMemoryStore()
+	key := randString(10)
+	err := kvstore.patch(key, `{ invalid json`)
+	assert.ErrorContains(t, err, "invalid character 'i' looking for beginning of object key string")
+}
+
+func TestKVStore_patch_invalidPatchError(t *testing.T) {
+	kvstore := createInMemoryStore()
+	key := randString(10)
+	kvstore.Put(key,`{ "foo":"bar" }`)
+	err := kvstore.patch(key, `[{"op":"add","path":"/foo/no","value": "val"}]`)
+	assert.ErrorContains(t, err, "json: cannot unmarshal string into Go value of type jsonpatch.partialDoc")
+}
+
 func TestKVStore_TemplateFuncMap(t *testing.T) {
 	kvstore := createInMemoryStore()
 	key := randString(10)

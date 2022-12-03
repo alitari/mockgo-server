@@ -31,14 +31,14 @@ func TestMain(m *testing.M) {
 
 func TestMatchesRequestHandler_health(t *testing.T) {
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
-		testutil.CreateRequest(t, http.MethodGet, "/health", testutil.CreateHeader(), ""), http.StatusOK))
+		testutil.CreateOutgoingRequest(t, http.MethodGet, "/health", testutil.CreateHeader(), ""), http.StatusOK))
 }
 
 func TestMatchesRequestHandler_getMatches(t *testing.T) {
 	endpointId := "myEndpointId"
 	err := matchesRequestHandler.matchStore.AddMatch(endpointId, createMatch(endpointId))
 	assert.NoError(t, err)
-	request := testutil.CreateRequest(t, http.MethodGet, "/matches/"+endpointId,
+	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/matches/"+endpointId,
 		testutil.CreateHeader().WithAuth(username, password).WithJsonAccept(), "")
 	testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)

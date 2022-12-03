@@ -26,18 +26,18 @@ func TestMain(m *testing.M) {
 		log.Fatalf("can't setup router : %v", err)
 	}
 	testutil.StartServing(router)
-	code := testutil.RunAndCheckCoverage("requestHandlerTest", m, 0.65)
+	code := testutil.RunAndCheckCoverage("main_test", m, 0.60)
 	testutil.StopServing()
 	os.Exit(code)
 }
 
 func TestMain_health(t *testing.T) {
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
-		testutil.CreateRequest(t, http.MethodGet, "/__/health", testutil.CreateHeader(), ""), http.StatusOK))
+		testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/health", testutil.CreateHeader(), ""), http.StatusOK))
 }
 
 func TestMain_metrics(t *testing.T) {
-	matchRequest := testutil.CreateRequest(t, http.MethodGet, "/hello", testutil.CreateHeader(), "")
+	matchRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/hello", testutil.CreateHeader(), "")
 	assertFunc := func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.Equal(t, "{\n    \"hello\": \"from Mockgo!\"\n}", responseBody)
@@ -45,10 +45,10 @@ func TestMain_metrics(t *testing.T) {
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, matchRequest, assertFunc))
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, matchRequest, assertFunc))
 
-	mismatchRequest := testutil.CreateRequest(t, http.MethodGet, "/mismatch", testutil.CreateHeader(), "")
+	mismatchRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/mismatch", testutil.CreateHeader(), "")
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, mismatchRequest, http.StatusNotFound))
 
-	metricsRequest := testutil.CreateRequest(t, http.MethodGet, "/__/metrics", testutil.CreateHeader(), "")
+	metricsRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/metrics", testutil.CreateHeader(), "")
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, metricsRequest, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.Contains(t, responseBody, "# HELP matches Number of matches of an endpoint")
