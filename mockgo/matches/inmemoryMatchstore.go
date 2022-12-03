@@ -19,21 +19,6 @@ func NewInMemoryMatchstore(size uint16) *InMemoryMatchstore {
 	return inMemoryMatchstore
 }
 
-func (s *InMemoryMatchstore) GetAll() (map[string][]*Match, []*Mismatch, map[string]uint64, uint64) {
-	matchesResult := map[string][]*Match{}
-	for endpoint, matchList := range s.matches {
-		for match := matchList.Front(); match != nil; match = match.Next() {
-			matchesResult[endpoint] = append(matchesResult[endpoint], match.Value.(*Match))
-		}
-	}
-
-	mismatchesResult := []*Mismatch{}
-	for mismatch := s.mismatches.Front(); mismatch != nil; mismatch = mismatch.Next() {
-		mismatchesResult = append(mismatchesResult, mismatch.Value.(*Mismatch))
-	}
-	return matchesResult, mismatchesResult, s.matchesCount, s.mismatchesCount
-}
-
 func (s *InMemoryMatchstore) GetMatches(endpointId string) ([]*Match, error) {
 	matchesResult := []*Match{}
 	matchesList := s.matches[endpointId]
