@@ -2,7 +2,6 @@ package matches
 
 import (
 	"container/list"
-	"fmt"
 )
 
 type InMemoryMatchstore struct {
@@ -28,10 +27,6 @@ func (s *InMemoryMatchstore) GetMatches(endpointId string) ([]*Match, error) {
 		}
 	}
 	return matchesResult, nil
-}
-
-func (s *InMemoryMatchstore) Transfer() error {
-	return fmt.Errorf("transfer not supported")
 }
 
 func (s *InMemoryMatchstore) GetMatchesCount(endpointId string) (uint64, error) {

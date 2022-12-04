@@ -34,6 +34,14 @@ func createMatchForRequest(endpointId string, request *http.Request) *Match {
 	return match
 }
 
+func createMismnatches(count int) []*Mismatch {
+	var mismatches []*Mismatch
+	for i := 0; i < count; i++ {
+		mismatches = append(mismatches, createMismatch())
+	}
+	return mismatches
+}
+
 func createMismatch() *Mismatch {
 	request := &http.Request{Method: http.MethodGet, URL: &url.URL{Path: "http://myhost"}}
 	return createMismatchForRequest(request)
@@ -52,11 +60,25 @@ func TestInMemoryMatchstore_GetMatchesInit(t *testing.T) {
 	assert.Equal(t, []*Match{}, matches)
 }
 
+func TestInMemoryMatchstore_GetMisMatchesInit(t *testing.T) {
+	matchstore := NewInMemoryMatchstore(5)
+	mismatches, err := matchstore.GetMismatches()
+	assert.NoError(t, err)
+	assert.Equal(t, []*Mismatch{}, mismatches)
+}
+
 func TestInMemoryMatchstore_GetMatchesCountInit(t *testing.T) {
 	matchstore := NewInMemoryMatchstore(5)
 	matchesCount, err := matchstore.GetMatchesCount(endpointId1)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0), matchesCount)
+}
+
+func TestInMemoryMatchstore_GetMismatchesCountInit(t *testing.T) {
+	matchstore := NewInMemoryMatchstore(5)
+	mismatchesCount, err := matchstore.GetMismatchesCount()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), mismatchesCount)
 }
 
 func TestInMemoryMatchstore_GetMatches(t *testing.T) {
@@ -71,6 +93,17 @@ func TestInMemoryMatchstore_GetMatches(t *testing.T) {
 	assert.Equal(t, matches1, matches)
 }
 
+func TestInMemoryMatchstore_GetMismatches(t *testing.T) {
+	matchstore := NewInMemoryMatchstore(5)
+	mismatches2 := createMismnatches(2)
+	for _, mismatch := range mismatches2 {
+		matchstore.mismatches.PushBack(mismatch)
+	}
+	mismatches, err := matchstore.GetMismatches()
+	assert.NoError(t, err)
+	assert.Equal(t, mismatches2, mismatches)
+}
+
 func TestInMemoryMatchstore_GetMatchesCount(t *testing.T) {
 	matchstore := NewInMemoryMatchstore(5)
 	count := rand.Uint64()
@@ -78,6 +111,15 @@ func TestInMemoryMatchstore_GetMatchesCount(t *testing.T) {
 	matchesCount, err := matchstore.GetMatchesCount(endpointId1)
 	assert.NoError(t, err)
 	assert.Equal(t, count, matchesCount)
+}
+
+func TestInMemoryMatchstore_GetMismatchesCount(t *testing.T) {
+	matchstore := NewInMemoryMatchstore(5)
+	count := rand.Uint64()
+	matchstore.mismatchesCount = count
+	mismatchesCount, err := matchstore.GetMismatchesCount()
+	assert.NoError(t, err)
+	assert.Equal(t, count, mismatchesCount)
 }
 
 func TestInMemoryMatchstore_AddMatch(t *testing.T) {
@@ -123,4 +165,18 @@ func TestInMemoryMatchstore_DeleteMatches(t *testing.T) {
 	assert.Equal(t, uint64(0), matchstore.matchesCount[endpointId1])
 	assert.Equal(t, 2, matchstore.matches[endpointId2].Len())
 	assert.Equal(t, uint64(2), matchstore.matchesCount[endpointId2])
+}
+
+func TestInMemoryMatchstore_DeleteMismatches(t *testing.T) {
+	matchstore := NewInMemoryMatchstore(5)
+	matchstore.mismatches = list.New()
+	mismatches1 := createMismnatches(2)
+	for _, mismatch := range mismatches1 {
+		matchstore.mismatches.PushBack(mismatch)
+		matchstore.mismatchesCount++
+	}
+	err := matchstore.DeleteMismatches()
+	assert.NoError(t, err)
+	assert.Equal(t, 0, matchstore.mismatches.Len())
+	assert.Equal(t, uint64(0), matchstore.mismatchesCount)
 }
