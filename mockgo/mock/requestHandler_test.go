@@ -41,6 +41,10 @@ func TestMain(m *testing.M) {
 
 func TestMockRequestHandler_serving_matches(t *testing.T) {
 	testCases := []*mockTestCase{
+		{name: "match first", method: http.MethodGet, path: "/first",
+			expectedStatusCode:     http.StatusNoContent,
+			expectedResponseHeader: map[string]string{"Endpoint-Id": "1"},
+		},
 		{name: "no match wrong path", method: http.MethodGet, path: "/minimalwrong",
 			expectedStatusCode:     http.StatusNotFound,
 			expectedResponseHeader: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
@@ -205,6 +209,19 @@ func TestMockRequestHandler_serving_matches(t *testing.T) {
 			expectedStatusCode:     http.StatusNoContent,
 			expectedResponseHeader: map[string]string{"Endpoint-Id": "regexpmock3"},
 			expectedResponseBody:   ""},
+		{name: "match responsetemplates", method: http.MethodGet, path: "/responsetemplates/foo?query1=queryvalue1&query2=queryvalue2",
+			body:                   `{ "mybody": "is cool!" }`,
+			header:                 testutil.CreateHeader().WithKeyValue("headerKey", "headerValue"),
+			expectedStatusCode:     http.StatusOK,
+			expectedResponseHeader: map[string]string{"Endpoint-Id": "response-templates"},
+			expectedResponseBody: `RequestPathParams=map[pathparam1:foo]
+RequestQueryParams=map[query1:queryvalue1 query2:queryvalue2]
+RequestUrl=/responsetemplates/foo?query1=queryvalue1&query2=queryvalue2
+RequestUser=
+RequestPath=/responsetemplates/foo
+RequestHost=
+RequestBody={ "mybody": "is cool!" }
+RequestBodyJsonData=map[mybody:is cool!]`},
 	}
 	assertTestcases(t, testCases)
 }

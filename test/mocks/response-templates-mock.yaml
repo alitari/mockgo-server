@@ -1,0 +1,16 @@
+endpoints:
+  - id: "response-templates"
+    request:
+      method: "GET"
+      path: "/responsetemplates/{pathparam1}"
+    response:
+      body: |-
+        RequestPathParams={{ .RequestPathParams }}
+        RequestQueryParams={{ .RequestQueryParams }}
+        RequestUrl={{ .RequestUrl }}
+        RequestUser={{ .RequestUser }}
+        RequestPath={{ .RequestPath }}
+        RequestHost={{ .RequestHost }}
+        RequestBody={{ .RequestBody }}
+        RequestBodyJsonData={{ .RequestBodyJsonData }}
+      statusCode: 200

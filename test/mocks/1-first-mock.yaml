@@ -1,0 +1,5 @@
+endpoints:
+  - request:
+      path: "/first"
+    response:
+      statusCode: 204
