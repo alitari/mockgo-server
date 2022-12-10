@@ -207,9 +207,6 @@ func (r *MockRequestHandler) AddRoutes(router *mux.Router) {
 }
 
 func (r *MockRequestHandler) registerEndpoint(endpoint *MockEndpoint) {
-	if endpoint.Request.Path == "" {
-		endpoint.Request.Path = "/"
-	}
 	if endpoint.Request.Method == "" {
 		endpoint.Request.Method = "GET"
 	}
