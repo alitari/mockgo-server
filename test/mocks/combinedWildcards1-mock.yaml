@@ -1,5 +1,6 @@
 endpoints:
-  - request:
+  - id: combinedwildcards1
+    request:
       path: "/combinedwildcards1/**/foo/*"
     response:
       statusCode: 204

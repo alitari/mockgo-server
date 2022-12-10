@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,11 +17,11 @@ import (
 )
 
 type matchingTestCase struct {
-	name                    string
-	request                 *http.Request
-	expectedMatchEndpointId string
-	expectedRequestPathParams   map[string]string
-	expectedRequestQueryParams   map[string]string
+	name                       string
+	request                    *http.Request
+	expectedMatchEndpointId    string
+	expectedRequestPathParams  map[string]string
+	expectedRequestQueryParams map[string]string
 }
 
 type mismatchingTestCase struct {
@@ -33,8 +32,8 @@ type mismatchingTestCase struct {
 
 type renderingTestCase struct {
 	name                       string
-	requestPathParams              map[string]string
-	requestQueryParams              map[string]string
+	requestPathParams          map[string]string
+	requestQueryParams         map[string]string
 	request                    *http.Request
 	response                   *MockResponse
 	expectedResponseStatusCode int
@@ -42,180 +41,180 @@ type renderingTestCase struct {
 	expectedResponseHeader     map[string]string
 }
 
-func TestMain(m *testing.M) {
-	os.Exit(runAndCheckCoverage("mockrouter", m, 0.65))
-}
+// func TestMain(m *testing.M) {
+// 	os.Exit(runAndCheckCoverage("mockrouter", m, 0.65))
+// }
 
-func TestMatchRequestToEndpoint_MatchMinmaxMocks(t *testing.T) {
-	mockRouter := createMockRouter(t, "minmaxmocks", false, false)
-	testCases := []*matchingTestCase{
-		{name: "minimal ", request: createRequest(http.MethodGet, "https://somehost:110/minimal", "", nil, nil), expectedMatchEndpointId: "minimal"},
-		{name: "minimal more attributes",
-			request: createRequest(http.MethodGet, "http://doesntcare:7777/minimal", "",
-				map[string][]string{"Accept": {"Something"}, "Authorization": {"Basic"}}, nil),
-			expectedMatchEndpointId: "minimal"},
+// func TestMatchRequestToEndpoint_MatchMinmaxMocks(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "minmaxmocks", false, false)
+// 	testCases := []*matchingTestCase{
+// 		{name: "minimal ", request: createRequest(http.MethodGet, "https://somehost:110/minimal", "", nil, nil), expectedMatchEndpointId: "minimal"},
+// 		{name: "minimal more attributes",
+// 			request: createRequest(http.MethodGet, "http://doesntcare:7777/minimal", "",
+// 				map[string][]string{"Accept": {"Something"}, "Authorization": {"Basic"}}, nil),
+// 			expectedMatchEndpointId: "minimal"},
 
-		{name: "maximal",
-			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&secondQueryParam=value2",
-				"{\n  \"mybody\": \"is max\"\n}\n",
-				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}}, nil),
-			expectedMatchEndpointId: "maximal"},
-		{name: "maximal header and query superset",
-			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&secondQueryParam=value2&thirdQueryParam=value3",
-				"{\n  \"mybody\": \"is max\"\n}\n",
-				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}, "Anotherheader": {"anotherheaderValue"}}, nil),
-			expectedMatchEndpointId: "maximal"},
-	}
-	assertMatchRequestToEndpoint(t, mockRouter, testCases)
-}
+// 		{name: "maximal",
+// 			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&secondQueryParam=value2",
+// 				"{\n  \"mybody\": \"is max\"\n}\n",
+// 				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}}, nil),
+// 			expectedMatchEndpointId: "maximal"},
+// 		{name: "maximal header and query superset",
+// 			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&secondQueryParam=value2&thirdQueryParam=value3",
+// 				"{\n  \"mybody\": \"is max\"\n}\n",
+// 				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}, "Anotherheader": {"anotherheaderValue"}}, nil),
+// 			expectedMatchEndpointId: "maximal"},
+// 	}
+// 	assertMatchRequestToEndpoint(t, mockRouter, testCases)
+// }
 
-func TestMatchRequestToEndpoint_MismatchMinmaxMocks(t *testing.T) {
-	mockRouter := createMockRouter(t, "minmaxmocks", false, false)
-	testCases := []*mismatchingTestCase{
-		{name: "wrong path name", request: &http.Request{URL: &url.URL{Path: "/minimals"}, Method: http.MethodGet},
-			expectedMismatchDetails: "path '/minimals' not matched, subpath which matched: ''"},
-		{name: "wrong path length too long", request: &http.Request{URL: &url.URL{Path: "/minimal/foo"}, Method: http.MethodGet},
-			expectedMismatchDetails: "path '/minimal/foo' not matched, subpath which matched: 'minimal'"},
-		{name: "wrong path length too short", request: &http.Request{URL: &url.URL{Path: "/"}, Method: http.MethodGet},
-			expectedMismatchDetails: "path '/' not matched, subpath which matched: '/'"},
-		{name: "wrong method", request: &http.Request{URL: &url.URL{Path: "/minimal"}, Method: "POST"},
-			expectedMismatchDetails: "path '/minimal' matched, but no endpoint found with method 'POST'"},
-		{name: "wrong query params",
-			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&thirdQueryParam=value3", "",
-				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}, "Anotherheader": {"anotherheaderValue"}}, nil),
-			expectedMismatchDetails: "path '/maximal' matched, but , endpointId 'maximal' not matched because of wanted query params: map[firstQueryParam:value1 secondQueryParam:value2]"},
-		{name: "wrong header value",
-			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&secondQueryParam=value2", "",
-				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValueWrong"}, "Anotherheader": {"anotherheaderValue"}}, nil),
-			expectedMismatchDetails: "path '/maximal' matched, but , endpointId 'maximal' not matched because of wanted header: map[Content-Type:application/json Myheader:myheaderValue]"},
-		{name: "wrong body",
-			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&secondQueryParam=value2", "",
-				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}, "Anotherheader": {"anotherheaderValue"}}, nil),
-			expectedMismatchDetails: "path '/maximal' matched, but , endpointId 'maximal' not matched because of wanted body: '{\n  \"mybody\": \"is max\"\n}\n'"},
-	}
+// func TestMatchRequestToEndpoint_MismatchMinmaxMocks(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "minmaxmocks", false, false)
+// 	testCases := []*mismatchingTestCase{
+// 		{name: "wrong path name", request: &http.Request{URL: &url.URL{Path: "/minimals"}, Method: http.MethodGet},
+// 			expectedMismatchDetails: "path '/minimals' not matched, subpath which matched: ''"},
+// 		{name: "wrong path length too long", request: &http.Request{URL: &url.URL{Path: "/minimal/foo"}, Method: http.MethodGet},
+// 			expectedMismatchDetails: "path '/minimal/foo' not matched, subpath which matched: 'minimal'"},
+// 		{name: "wrong path length too short", request: &http.Request{URL: &url.URL{Path: "/"}, Method: http.MethodGet},
+// 			expectedMismatchDetails: "path '/' not matched, subpath which matched: '/'"},
+// 		{name: "wrong method", request: &http.Request{URL: &url.URL{Path: "/minimal"}, Method: "POST"},
+// 			expectedMismatchDetails: "path '/minimal' matched, but no endpoint found with method 'POST'"},
+// 		{name: "wrong query params",
+// 			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&thirdQueryParam=value3", "",
+// 				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}, "Anotherheader": {"anotherheaderValue"}}, nil),
+// 			expectedMismatchDetails: "path '/maximal' matched, but , endpointId 'maximal' not matched because of wanted query params: map[firstQueryParam:value1 secondQueryParam:value2]"},
+// 		{name: "wrong header value",
+// 			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&secondQueryParam=value2", "",
+// 				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValueWrong"}, "Anotherheader": {"anotherheaderValue"}}, nil),
+// 			expectedMismatchDetails: "path '/maximal' matched, but , endpointId 'maximal' not matched because of wanted header: map[Content-Type:application/json Myheader:myheaderValue]"},
+// 		{name: "wrong body",
+// 			request: createRequest(http.MethodPost, "https://alexkrieg.com/maximal?firstQueryParam=value1&secondQueryParam=value2", "",
+// 				map[string][]string{"Content-Type": {"application/json"}, "Myheader": {"myheaderValue"}, "Anotherheader": {"anotherheaderValue"}}, nil),
+// 			expectedMismatchDetails: "path '/maximal' matched, but , endpointId 'maximal' not matched because of wanted body: '{\n  \"mybody\": \"is max\"\n}\n'"},
+// 	}
 
-	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
+// 	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
 
-}
+// }
 
-func TestMatchRequestToEndpoint_MatchWildcards(t *testing.T) {
-	mockRouter := createMockRouter(t, "wildcardmocks", false, false)
+// func TestMatchRequestToEndpoint_MatchWildcards(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "wildcardmocks", false, false)
 
-	testCases := []*matchingTestCase{
-		{name: "Single wildcard 1 ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "single"},
-		{name: "Single wildcard 2", request: &http.Request{URL: &url.URL{Path: "/wildcard/foo/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "single"},
-		// {name: "Single wildcard No match, first path segment", request: &http.Request{URL: &url.URL{Path: "/wildcards/bar/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: ""},
-		// {name: "Single wildcard No match, path too long ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo/toolong"}, Method: http.MethodGet}, expectedMatchEndpointId: ""},
-		// {name: "Single wildcard No match, path too short ", request: &http.Request{URL: &url.URL{Path: "/bar/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: ""},
-		{name: "Multi wildcard", request: &http.Request{URL: &url.URL{Path: "/multiwildcard/bar/foo/bar"}, Method: http.MethodGet}, expectedMatchEndpointId: "multi"},
-	}
+// 	testCases := []*matchingTestCase{
+// 		{name: "Single wildcard 1 ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "single"},
+// 		{name: "Single wildcard 2", request: &http.Request{URL: &url.URL{Path: "/wildcard/foo/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "single"},
+// 		// {name: "Single wildcard No match, first path segment", request: &http.Request{URL: &url.URL{Path: "/wildcards/bar/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: ""},
+// 		// {name: "Single wildcard No match, path too long ", request: &http.Request{URL: &url.URL{Path: "/wildcard/bar/foo/toolong"}, Method: http.MethodGet}, expectedMatchEndpointId: ""},
+// 		// {name: "Single wildcard No match, path too short ", request: &http.Request{URL: &url.URL{Path: "/bar/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: ""},
+// 		{name: "Multi wildcard", request: &http.Request{URL: &url.URL{Path: "/multiwildcard/bar/foo/bar"}, Method: http.MethodGet}, expectedMatchEndpointId: "multi"},
+// 	}
 
-	assertMatchRequestToEndpoint(t, mockRouter, testCases)
-}
+// 	assertMatchRequestToEndpoint(t, mockRouter, testCases)
+// }
 
-func TestMatchRequestToEndpoint_MismatchWildcards(t *testing.T) {
-	mockRouter := createMockRouter(t, "wildcardmocks", false, false)
-	testCases := []*mismatchingTestCase{
-		{name: "first path segment", request: createRequest(http.MethodGet, "http://somehost/wildcards/bar/foo", "", nil, nil),
-			expectedMismatchDetails: "path '/wildcards/bar/foo' not matched, subpath which matched: ''"},
-		{name: "path too long", request: createRequest(http.MethodGet, "http://somehost/wildcard/bar/foo/toolong", "", nil, nil),
-			expectedMismatchDetails: "path '/wildcard/bar/foo/toolong' not matched, subpath which matched: 'wildcard/bar/foo'"},
-		{name: "path too short", request: createRequest(http.MethodGet, "http://somehost/bar/foo", "", nil, nil),
-			expectedMismatchDetails: "path '/bar/foo' not matched, subpath which matched: ''"},
-	}
-	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
-}
+// func TestMatchRequestToEndpoint_MismatchWildcards(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "wildcardmocks", false, false)
+// 	testCases := []*mismatchingTestCase{
+// 		{name: "first path segment", request: createRequest(http.MethodGet, "http://somehost/wildcards/bar/foo", "", nil, nil),
+// 			expectedMismatchDetails: "path '/wildcards/bar/foo' not matched, subpath which matched: ''"},
+// 		{name: "path too long", request: createRequest(http.MethodGet, "http://somehost/wildcard/bar/foo/toolong", "", nil, nil),
+// 			expectedMismatchDetails: "path '/wildcard/bar/foo/toolong' not matched, subpath which matched: 'wildcard/bar/foo'"},
+// 		{name: "path too short", request: createRequest(http.MethodGet, "http://somehost/bar/foo", "", nil, nil),
+// 			expectedMismatchDetails: "path '/bar/foo' not matched, subpath which matched: ''"},
+// 	}
+// 	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
+// }
 
-func TestMatchRequestToEndpoint_MatchAllMatchWildcardmocks(t *testing.T) {
-	mockRouter := createMockRouter(t, "allMatchWildcardMocks", false, false)
-	testCases := []*matchingTestCase{
-		{name: "the end 1", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/bar"}, Method: http.MethodGet}, expectedMatchEndpointId: "1"},
-		{name: "the end 2", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "1"},
-		{name: "path longer ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/foo/bar"}, Method: http.MethodGet}, expectedMatchEndpointId: "1"},
-		{name: "in the middle 1", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "2"},
-		{name: "in the middle 2", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/ext/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "2"},
-		{name: "in the middle 3", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/ext/rem/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "2"},
-		{name: "combined wildcards single segment ", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/foo/ext"}, Method: http.MethodGet}, expectedMatchEndpointId: "3"},
-		{name: "combined wildcards multiple segment", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/a/b/c/foo/d"}, Method: http.MethodGet}, expectedMatchEndpointId: "3"},
-	}
-	assertMatchRequestToEndpoint(t, mockRouter, testCases)
-}
+// func TestMatchRequestToEndpoint_MatchAllMatchWildcardmocks(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "allMatchWildcardMocks", false, false)
+// 	testCases := []*matchingTestCase{
+// 		{name: "the end 1", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/bar"}, Method: http.MethodGet}, expectedMatchEndpointId: "1"},
+// 		{name: "the end 2", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "1"},
+// 		{name: "path longer ", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnd/foo/bar"}, Method: http.MethodGet}, expectedMatchEndpointId: "1"},
+// 		{name: "in the middle 1", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "2"},
+// 		{name: "in the middle 2", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/ext/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "2"},
+// 		{name: "in the middle 3", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/ext/rem/foo"}, Method: http.MethodGet}, expectedMatchEndpointId: "2"},
+// 		{name: "combined wildcards single segment ", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/foo/ext"}, Method: http.MethodGet}, expectedMatchEndpointId: "3"},
+// 		{name: "combined wildcards multiple segment", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/a/b/c/foo/d"}, Method: http.MethodGet}, expectedMatchEndpointId: "3"},
+// 	}
+// 	assertMatchRequestToEndpoint(t, mockRouter, testCases)
+// }
 
-func TestMatchRequestToEndpoint_MismatchAllMatchWildcardmocks(t *testing.T) {
-	mockRouter := createMockRouter(t, "allMatchWildcardMocks", false, false)
-	testCases := []*mismatchingTestCase{
-		{name: "first path segment", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnds/foo"}, Method: http.MethodGet},
-			expectedMismatchDetails: "path '/allmatchwildcardAtTheEnds/foo' not matched, subpath which matched: ''"},
-		{name: "path shorter", request: &http.Request{URL: &url.URL{Path: "/"}, Method: http.MethodGet},
-			expectedMismatchDetails: "path '/' not matched, subpath which matched: '/'"},
-		{name: "allmatchwildcardInTheMiddle endsegments wrong", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/foo/foo"}, Method: http.MethodGet},
-			expectedMismatchDetails: "path '/allmatchwildcardInTheMiddle/bar/foo/foo' not matched, subpath which matched: 'allmatchwildcardInTheMiddle/bar/foo'"},
-		{name: "combined wildcards last segment missing", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/a/b/c/foo"}, Method: http.MethodGet},
-			expectedMismatchDetails: "path '/combinedwildcards1/bar/a/b/c/foo' not matched, subpath which matched: '/combinedwildcards1/bar/a/b/c/foo'"},
-	}
-	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
-}
+// func TestMatchRequestToEndpoint_MismatchAllMatchWildcardmocks(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "allMatchWildcardMocks", false, false)
+// 	testCases := []*mismatchingTestCase{
+// 		{name: "first path segment", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardAtTheEnds/foo"}, Method: http.MethodGet},
+// 			expectedMismatchDetails: "path '/allmatchwildcardAtTheEnds/foo' not matched, subpath which matched: ''"},
+// 		{name: "path shorter", request: &http.Request{URL: &url.URL{Path: "/"}, Method: http.MethodGet},
+// 			expectedMismatchDetails: "path '/' not matched, subpath which matched: '/'"},
+// 		{name: "allmatchwildcardInTheMiddle endsegments wrong", request: &http.Request{URL: &url.URL{Path: "/allmatchwildcardInTheMiddle/bar/foo/foo"}, Method: http.MethodGet},
+// 			expectedMismatchDetails: "path '/allmatchwildcardInTheMiddle/bar/foo/foo' not matched, subpath which matched: 'allmatchwildcardInTheMiddle/bar/foo'"},
+// 		{name: "combined wildcards last segment missing", request: &http.Request{URL: &url.URL{Path: "/combinedwildcards1/bar/a/b/c/foo"}, Method: http.MethodGet},
+// 			expectedMismatchDetails: "path '/combinedwildcards1/bar/a/b/c/foo' not matched, subpath which matched: '/combinedwildcards1/bar/a/b/c/foo'"},
+// 	}
+// 	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
+// }
 
-func TestMatchRequestToEndpoint_MatchPathParams(t *testing.T) {
-	mockRouter := createMockRouter(t, "pathParamsMocks", false, false)
-	testCases := []*matchingTestCase{
-		{name: "single",
-			request:                 &http.Request{URL: &url.URL{Path: "/pathParams/bar/foo"}, Method: http.MethodGet},
-			expectedMatchEndpointId: "2",
-			expectedRequestPathParams:   map[string]string{"pathParam": "bar"}},
-		{name: "multi",
-			request:                 &http.Request{URL: &url.URL{Path: "/multipathParams/val1/foo/val2"}, Method: http.MethodGet},
-			expectedMatchEndpointId: "1",
-			expectedRequestPathParams:   map[string]string{"pathParam1": "val1", "pathParam2": "val2"}},
-	}
-	assertMatchRequestToEndpoint(t, mockRouter, testCases)
-}
+// func TestMatchRequestToEndpoint_MatchPathParams(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "pathParamsMocks", false, false)
+// 	testCases := []*matchingTestCase{
+// 		{name: "single",
+// 			request:                   &http.Request{URL: &url.URL{Path: "/pathParams/bar/foo"}, Method: http.MethodGet},
+// 			expectedMatchEndpointId:   "2",
+// 			expectedRequestPathParams: map[string]string{"pathParam": "bar"}},
+// 		{name: "multi",
+// 			request:                   &http.Request{URL: &url.URL{Path: "/multipathParams/val1/foo/val2"}, Method: http.MethodGet},
+// 			expectedMatchEndpointId:   "1",
+// 			expectedRequestPathParams: map[string]string{"pathParam1": "val1", "pathParam2": "val2"}},
+// 	}
+// 	assertMatchRequestToEndpoint(t, mockRouter, testCases)
+// }
 
-func TestMatchRequestToEndpoint_MismatchPathParams(t *testing.T) {
-	mockRouter := createMockRouter(t, "pathParamsMocks", false, false)
-	testCases := []*mismatchingTestCase{
-		{name: "last segment",
-			request:                 &http.Request{URL: &url.URL{Path: "/pathParams/bar/foos"}, Method: http.MethodGet},
-			expectedMismatchDetails: "path '/pathParams/bar/foos' not matched, subpath which matched: 'pathParams/bar'"},
-	}
-	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
-}
+// func TestMatchRequestToEndpoint_MismatchPathParams(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "pathParamsMocks", false, false)
+// 	testCases := []*mismatchingTestCase{
+// 		{name: "last segment",
+// 			request:                 &http.Request{URL: &url.URL{Path: "/pathParams/bar/foos"}, Method: http.MethodGet},
+// 			expectedMismatchDetails: "path '/pathParams/bar/foos' not matched, subpath which matched: 'pathParams/bar'"},
+// 	}
+// 	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
+// }
 
-func TestMatchRequestToEndpoint_Prio(t *testing.T) {
-	mockRouter := createMockRouter(t, "prioMocks", false, false)
-	testCases := []*matchingTestCase{
-		{name: "simple prio",
-			request:                 &http.Request{URL: &url.URL{Path: "/prio"}, Method: http.MethodGet},
-			expectedMatchEndpointId: "mustwin"},
-	}
-	assertMatchRequestToEndpoint(t, mockRouter, testCases)
-}
+// func TestMatchRequestToEndpoint_Prio(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "prioMocks", false, false)
+// 	testCases := []*matchingTestCase{
+// 		{name: "simple prio",
+// 			request:                 &http.Request{URL: &url.URL{Path: "/prio"}, Method: http.MethodGet},
+// 			expectedMatchEndpointId: "mustwin"},
+// 	}
+// 	assertMatchRequestToEndpoint(t, mockRouter, testCases)
+// }
 
-func TestMatchRequestToEndpoint_MatchBodyRegexp(t *testing.T) {
-	mockRouter := createMockRouter(t, "regexpmocks", false, false)
-	testCases := []*matchingTestCase{
-		{name: "regexp 1",
-			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp1", "{ alex }", nil, nil),
-			expectedMatchEndpointId: "1"},
-		{name: "regexp 2",
-			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp2", "{\n alex \n}", nil, nil),
-			expectedMatchEndpointId: "2"},
-		{name: "regexp 3",
-			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp3", `{ "email": "foo@bar.com" }`, nil, nil),
-			expectedMatchEndpointId: "3"},
-	}
-	assertMatchRequestToEndpoint(t, mockRouter, testCases)
-}
+// func TestMatchRequestToEndpoint_MatchBodyRegexp(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "regexpmocks", false, false)
+// 	testCases := []*matchingTestCase{
+// 		{name: "regexp 1",
+// 			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp1", "{ alex }", nil, nil),
+// 			expectedMatchEndpointId: "1"},
+// 		{name: "regexp 2",
+// 			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp2", "{\n alex \n}", nil, nil),
+// 			expectedMatchEndpointId: "2"},
+// 		{name: "regexp 3",
+// 			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp3", `{ "email": "foo@bar.com" }`, nil, nil),
+// 			expectedMatchEndpointId: "3"},
+// 	}
+// 	assertMatchRequestToEndpoint(t, mockRouter, testCases)
+// }
 
-func TestMatchRequestToEndpoint_MismatchBodyRegexp(t *testing.T) {
-	mockRouter := createMockRouter(t, "regexpmocks", false, false)
-	testCases := []*mismatchingTestCase{
-		{name: "regexp 1",
-			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp1", "{ alex ", nil, nil),
-			expectedMismatchDetails: "path '/regexp1' matched, but , endpointId '1' not matched because of wanted body: '^{.*}$'"},
-	}
-	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
-}
+// func TestMatchRequestToEndpoint_MismatchBodyRegexp(t *testing.T) {
+// 	mockRouter := createMockRouter(t, "regexpmocks", false, false)
+// 	testCases := []*mismatchingTestCase{
+// 		{name: "regexp 1",
+// 			request:                 createRequest(http.MethodPost, "https://mymock.com/regexp1", "{ alex ", nil, nil),
+// 			expectedMismatchDetails: "path '/regexp1' matched, but , endpointId '1' not matched because of wanted body: '^{.*}$'"},
+// 	}
+// 	assertMismatchRequestToEndpoint(t, mockRouter, testCases)
+// }
 
 func TestRenderResponse_Simple(t *testing.T) {
 	mockRouter := createMockRouter(t, "responseRendering", false, false)
@@ -257,7 +256,7 @@ func TestRenderResponse_Simple(t *testing.T) {
 		{name: "template response file all request params",
 			response:                   &MockResponse{BodyFilename: "request-template-response.json"},
 			request:                    createRequest("PUT", "https://coolhost.cooldomain.com/coolpath", "{ \"requestBodyKey\": \"requestBodyValue\" }", map[string][]string{"myheaderKey": {"myheaderValue"}}, nil),
-			requestPathParams:              map[string]string{"myparam1": "myvalue"},
+			requestPathParams:          map[string]string{"myparam1": "myvalue"},
 			expectedResponseStatusCode: 200,
 			expectedResponseBody:       expectedResponseResult},
 	}

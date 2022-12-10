@@ -37,6 +37,11 @@ func (h Header) WithAuth(username, password string) Header {
 	return h
 }
 
+func (h Header) WithKeyValue(key, value string) Header {
+	h.entries[key] = []string{value}
+	return h
+}
+
 func (h Header) WithJsonContentType() Header {
 	h.entries[headers.ContentType] = []string{"application/json"}
 	return h
