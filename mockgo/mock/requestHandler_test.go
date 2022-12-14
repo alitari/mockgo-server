@@ -10,6 +10,7 @@ import (
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,7 +32,11 @@ func TestMain(m *testing.M) {
 	if err := mockRequestHandler.LoadFiles(nil); err != nil {
 		log.Fatal(err)
 	}
+	if err := mockRequestHandler.RegisterMetrics(); err != nil {
+		log.Fatal(err)
+	}
 	mockRequestHandler.AddRoutes(router)
+	router.NewRoute().Name("metrics").Path("/__/metrics").Handler(promhttp.Handler())
 
 	testutil.StartServing(router)
 	code := testutil.RunAndCheckCoverage("requestHandlerTest", m, 0.49)
@@ -224,6 +229,25 @@ RequestBody={ "mybody": "is cool!" }
 RequestBodyJsonData=map[mybody:is cool!]`},
 	}
 	assertTestcases(t, testCases)
+}
+
+func TestMockRequestHandler_serving_metrics(t *testing.T) {
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
+		testutil.CreateOutgoingRequest(t, http.MethodGet, "/minimal", testutil.CreateHeader(), ""), http.StatusNoContent))
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
+		testutil.CreateOutgoingRequest(t, http.MethodGet, "/minimalwrong", testutil.CreateHeader(), ""), http.StatusNotFound))
+
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t,
+		testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/metrics", testutil.CreateHeader(), ""),
+		func(response *http.Response, responseBody string) {
+			assert.Equal(t, http.StatusOK, response.StatusCode, "response status must be OK")
+			assert.Contains(t, responseBody, `# HELP matches Number of matches of an endpoint`)
+			assert.Contains(t, responseBody, `# TYPE matches counter`)
+			assert.Contains(t, responseBody, `matches{endpoint="minimal"}`)
+			assert.Contains(t, responseBody, `# HELP mismatches Number of mismatches`)
+			assert.Contains(t, responseBody, `# TYPE mismatches counter`)
+			assert.Contains(t, responseBody, `mismatches`)
+		}))
 }
 
 func assertTestcases(t *testing.T, mockTestCases []*mockTestCase) {
