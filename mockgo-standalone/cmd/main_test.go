@@ -53,10 +53,10 @@ func TestMain_metrics(t *testing.T) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.Contains(t, responseBody, "# HELP matches Number of matches of an endpoint")
 		assert.Contains(t, responseBody, "# TYPE matches counter")
-		assert.Contains(t, responseBody, "matches{endpoint=\"helloId\"} 2")
+		assert.Contains(t, responseBody, "matches{endpoint=\"helloId\"}")
 		assert.Contains(t, responseBody, "# HELP mismatches Number of mismatches")
 		assert.Contains(t, responseBody, "# TYPE mismatches counter")
-		assert.Contains(t, responseBody, "mismatches 1")
+		assert.Contains(t, responseBody, "mismatches")
 	}))
 }
 

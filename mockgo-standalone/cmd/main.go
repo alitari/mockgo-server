@@ -133,7 +133,7 @@ func createRouter(requestHandlers ...RequestHandler) *mux.Router {
 	for _, handler := range requestHandlers {
 		handler.AddRoutes(router)
 	}
-	router.NewRoute().Name("metrics").Path("__/metrics").Handler(promhttp.Handler())
+	router.NewRoute().Name("metrics").Path("/__/metrics").Handler(promhttp.Handler())
 	return router
 }
 
