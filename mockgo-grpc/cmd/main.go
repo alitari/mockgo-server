@@ -15,6 +15,7 @@ import (
 	"github.com/alitari/mockgo-server/mockgo/mock"
 	"github.com/gorilla/mux"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const banner = `
@@ -182,6 +183,7 @@ func startServing(configuration *Configuration, requestHandlers ...RequestHandle
 	for _, handler := range requestHandlers {
 		handler.AddRoutes(router)
 	}
+	router.NewRoute().Name("metrics").Path("__/metrics").Handler(promhttp.Handler())
 	server := &http.Server{Addr: ":" + strconv.Itoa(configuration.MockPort), Handler: router}
 	log.Printf("Serving on '%s'", server.Addr)
 

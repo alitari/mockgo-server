@@ -12,6 +12,7 @@ import (
 	"github.com/alitari/mockgo-server/mockgo/mock"
 	"github.com/gorilla/mux"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const banner = `
@@ -132,6 +133,7 @@ func createRouter(requestHandlers ...RequestHandler) *mux.Router {
 	for _, handler := range requestHandlers {
 		handler.AddRoutes(router)
 	}
+	router.NewRoute().Name("metrics").Path("__/metrics").Handler(promhttp.Handler())
 	return router
 }
 
