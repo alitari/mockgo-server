@@ -8,7 +8,6 @@ endpoints:
         RequestPathParams={{ .RequestPathParams }}
         RequestQueryParams={{ .RequestQueryParams }}
         RequestUrl={{ .RequestUrl }}
-        RequestUser={{ .RequestUser }}
         RequestPath={{ .RequestPath }}
         RequestHost={{ .RequestHost }}
         RequestBody={{ .RequestBody }}

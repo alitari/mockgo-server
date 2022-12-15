@@ -285,7 +285,6 @@ func TestMockRequestHandler_serving_matches(t *testing.T) {
 			expectedResponseBody: `RequestPathParams=map[pathparam1:foo]
 RequestQueryParams=map[query1:queryvalue1 query2:queryvalue2]
 RequestUrl=/responsetemplates/foo?query1=queryvalue1&query2=queryvalue2
-RequestUser=
 RequestPath=/responsetemplates/foo
 RequestHost=
 RequestBody={ "mybody": "is cool!" }

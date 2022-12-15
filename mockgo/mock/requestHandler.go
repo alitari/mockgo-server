@@ -37,7 +37,6 @@ type ResponseTemplateData struct {
 	RequestQueryParams  map[string]string
 	KVStore             map[string]interface{}
 	RequestUrl          string
-	RequestUser         string
 	RequestPath         string
 	RequestHost         string
 	RequestBody         string
@@ -472,9 +471,6 @@ func (r *MockRequestHandler) createResponseTemplateData(request *http.Request, r
 		RequestQueryParams: queryParams,
 		RequestPath:        request.URL.Path,
 		RequestHost:        request.URL.Host,
-	}
-	if request.URL.User != nil {
-		data.RequestUser = request.URL.User.Username()
 	}
 	if request.Body != nil {
 		body := new(bytes.Buffer)

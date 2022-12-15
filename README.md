@@ -157,7 +157,6 @@ The form of a http request can be described as a sequence of *pathsegments* whic
 | -------- | ---- |
 | `RequestPathParams` | `   map[string]string`|
 | `RequestUrl` | `          string`|
-| `RequestUser` | `         string`|
 | `RequestPath` | `         string`|
 | `RequestHost` | `         string`|
 | `RequestBody` | `         string`|
