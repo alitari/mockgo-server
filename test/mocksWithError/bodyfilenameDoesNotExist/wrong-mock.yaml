@@ -1,0 +1,7 @@
+endpoints:
+  - id: bodyfilenameDoesNotExist
+    request:
+        path: "/wrongResponse"
+    response:
+      statusCode: 204
+      bodyFilename: "notexistingfile.json"

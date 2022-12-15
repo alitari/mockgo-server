@@ -1,0 +1,8 @@
+endpoints:
+  - id: wrongResponseStatusTemplate
+    request:
+      path: "/wrongResponseStatusTemplate"
+    response:
+      statusCode: 204
+      headers: |
+        Content-Type: {{

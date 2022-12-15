@@ -1,0 +1,6 @@
+endpoints:
+  - id: wrongResponseStatusTemplate
+    request:
+      path: "/wrongResponseStatusTemplate"
+    response:
+      statusCode: "{{"

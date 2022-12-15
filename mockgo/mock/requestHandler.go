@@ -3,7 +3,6 @@ package mock
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -112,7 +111,10 @@ func (r *MockRequestHandler) LoadFiles(funcMap template.FuncMap) error {
 				endpoint.Id = strconv.Itoa(endPointCounter)
 			}
 			endpoint.Mock = mock
-			r.initResponseTemplates(endpoint, funcMap)
+			err := r.initResponseTemplates(endpoint, funcMap)
+			if err != nil {
+				return err
+			}
 			r.registerEndpoint(endpoint)
 		}
 	}
@@ -153,7 +155,7 @@ func (r *MockRequestHandler) initResponseTemplates(endpoint *MockEndpoint, funcM
 	body := ""
 	if len(endpoint.Response.Body) > 0 {
 		if len(endpoint.Response.BodyFilename) > 0 {
-			return errors.New("error parsing endpoint id '%s' , response.body and response.bodyFilename can't be defined both")
+			return fmt.Errorf("error parsing endpoint id '%s' , response.body and response.bodyFilename can't be defined both", endpoint.Id)
 		}
 		body = endpoint.Response.Body
 	} else {
@@ -359,9 +361,6 @@ func (r *MockRequestHandler) matchHeaderValues(matchRequest *MatchRequest, reque
 
 func (r *MockRequestHandler) matchBody(matchRequest *MatchRequest, request *http.Request) bool {
 	if matchRequest.BodyRegexp != nil {
-		if request.Body == nil {
-			return false
-		}
 		reqBodyBytes, err := io.ReadAll(request.Body)
 		if err != nil {
 			r.logger.LogError("no match, error reading request body", err)

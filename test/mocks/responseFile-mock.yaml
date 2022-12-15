@@ -1,0 +1,7 @@
+endpoints:
+  - id: responseFile
+    request:
+      path: "/responseFile"
+    response:
+      statusCode: 200
+      bodyFilename: "responseFile.json"

@@ -1,0 +1,8 @@
+endpoints:
+  - id: doubleResponseBody
+    request:
+        path: "/wrongResponse"
+    response:
+      statusCode: 204
+      body: "bla"
+      bodyFilename: "mybodyfile.json"

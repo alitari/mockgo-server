@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/alitari/mockgo-server/mockgo/logging"
@@ -44,6 +45,52 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func TestMockRequestHandler_LoadFiles_dir_not_exists(t *testing.T) {
+	mockRequestHandlerWithError := NewMockRequestHandler("pathnotexists", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "lstat pathnotexists: no such file or directory")
+}
+
+func TestMockRequestHandler_ReadMockfile_wrong_requestBody(t *testing.T) {
+	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/wrongRequestBodyRegexp", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "error parsing regexp: missing closing ]: `[a`")
+}
+
+func TestMockRequestHandler_ReadMockfile_wrong_yaml(t *testing.T) {
+	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/wrongYaml", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "yaml: line 3: mapping values are not allowed in this context")
+}
+
+func TestMockRequestHandler_InitResponseTemplates_doubleBody(t *testing.T) {
+	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/doubleResponseBody", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "error parsing endpoint id 'doubleResponseBody' , response.body and response.bodyFilename can't be defined both")
+}
+
+func TestMockRequestHandler_InitResponseTemplates_bodyfilename_not_exists(t *testing.T) {
+	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/bodyfilenameDoesNotExist", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "open ../../test/mocksWithError/bodyfilenameDoesNotExist/notexistingfile.json: no such file or directory")
+}
+
+func TestMockRequestHandler_InitResponseTemplates_wrongResponseBodyTemplate(t *testing.T) {
+	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/wrongResponseBodyTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "template: responseBody:1: unclosed action")
+}
+
+func TestMockRequestHandler_InitResponseTemplates_wrongResponseStatusTemplate(t *testing.T) {
+	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/wrongResponseStatusTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "template: responseStatus:1: unclosed action")
+}
+
+func TestMockRequestHandler_InitResponseTemplates_wrongResponseHeaderTemplate(t *testing.T) {
+	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/wrongResponseHeaderTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "template: responseHeader:1: unclosed action")
+}
+
+func TestMockRequestHandler_matchBody_readerror(t *testing.T) {
+	mockRequestHandler := NewMockRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	errorRequest := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodGet, "/path", testutil.CreateHeader())
+	assert.False(t, mockRequestHandler.matchBody(&MatchRequest{BodyRegexp: regexp.MustCompile(`^`)}, errorRequest))
+}
+
 func TestMockRequestHandler_serving_matches(t *testing.T) {
 	testCases := []*mockTestCase{
 		{name: "match first", method: http.MethodGet, path: "/first",
@@ -70,6 +117,14 @@ func TestMockRequestHandler_serving_matches(t *testing.T) {
 			expectedStatusCode:     http.StatusNoContent,
 			expectedResponseHeader: map[string]string{"Endpoint-Id": "minimal"},
 			expectedResponseBody:   ""},
+		{name: "minimal2 match ", method: http.MethodGet, path: "/minimal2",
+			expectedStatusCode:     http.StatusOK,
+			expectedResponseHeader: map[string]string{"Endpoint-Id": "minimal2"},
+			expectedResponseBody:   ""},
+		{name: "responseFile match ", method: http.MethodGet, path: "/responseFile",
+			expectedStatusCode:     http.StatusOK,
+			expectedResponseHeader: map[string]string{"Endpoint-Id": "responseFile"},
+			expectedResponseBody:   `{ "hello": "world"}`},
 		{name: "minimal match with header", method: http.MethodGet, path: "/minimal", header: testutil.CreateHeader().WithJsonAccept(),
 			expectedStatusCode:     http.StatusNoContent,
 			expectedResponseHeader: map[string]string{"Endpoint-Id": "minimal"},
@@ -103,6 +158,14 @@ func TestMockRequestHandler_serving_matches(t *testing.T) {
 			expectedStatusCode:     http.StatusNotFound,
 			expectedResponseHeader: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
 			expectedResponseBody:   "404 page not found\n"},
+		{name: "maximal no match no body", method: http.MethodPost,
+			path:                   "/maximal?firstQueryParam=value1&secondQueryParam=value2",
+			header:                 testutil.CreateHeader().WithJsonContentType().WithKeyValue("Myheader", "myheaderValue"),
+			body:                   "",
+			expectedStatusCode:     http.StatusNotFound,
+			expectedResponseHeader: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
+			expectedResponseBody:   "404 page not found\n"},
+
 		{name: "maximal match", method: http.MethodPost,
 			path:                   "/maximal?firstQueryParam=value1&secondQueryParam=value2",
 			header:                 testutil.CreateHeader().WithJsonContentType().WithKeyValue("Myheader", "myheaderValue"),
