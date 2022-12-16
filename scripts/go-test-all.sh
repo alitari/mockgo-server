@@ -3,7 +3,9 @@
 for module in mockgo grpc-kvstore grpc-matchstore mockgo-standalone mockgo-grpc
 do
     cd $module
-    go test -coverprofile cover.out ./...
+    go test -coverprofile cover-temp.out ./...
+    cat cover-temp.out | grep -v ".pb.go" > cover.out
+    rm cover-temp.out
     cd -
 done
 
