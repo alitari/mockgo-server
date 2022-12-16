@@ -157,7 +157,6 @@ The form of a http request can be described as a sequence of *pathsegments* whic
 | -------- | ---- |
 | `RequestPathParams` | `   map[string]string`|
 | `RequestUrl` | `          string`|
-| `RequestUser` | `         string`|
 | `RequestPath` | `         string`|
 | `RequestHost` | `         string`|
 | `RequestBody` | `         string`|
@@ -195,7 +194,7 @@ In order to use a state when creating responses, you have access to a **key-valu
 | `kvStorePut` | `func(key string, value string) string` | store a value with this key |
 | `kvStoreAdd` | `func(key, path, value string) string` | modify a value with an [json patch](https://jsonpatch.com/) "add" operation |
 | `kvStoreRemove` | `func(key, path string) string` | modify a value with an [json patch](https://jsonpatch.com/) "remove" operation |
-| `kvStoreLookup` | `func(key, jsonPath string) interface{}` | get a value with a [json path](https://goessner.net/articles/JsonPath/) expression |
+| `kvStoreJsonPath` | `func(key, jsonPath string) interface{}` | get a value with a [json path](https://goessner.net/articles/JsonPath/) expression |
 
 See extensive example, how to use it.
 
@@ -271,7 +270,7 @@ endpoints:
       body: |-
         {{ $category := .RequestPathParams.category -}}
         {{ if or ( eq $category "childs") ( eq $category "adults") -}}
-          {{ kvStoreLookup "people" ( printf "$.%s" $category ) | toPrettyJson -}}
+          {{ kvStoreJsonPath "people" ( printf "$.%s" $category ) | toPrettyJson -}}
         {{- end -}}
 ```
 

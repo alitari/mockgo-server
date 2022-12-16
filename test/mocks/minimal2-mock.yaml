@@ -1,0 +1,6 @@
+endpoints:
+  - id: "minimal2"
+    request:
+      path: "/minimal2"
+    response:
+      body: ""

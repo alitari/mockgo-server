@@ -1,5 +1,5 @@
 endpoints:
-  - id: single
+  - id: singlewildcard
     request:
       path: "/wildcard/*/foo"
     response:

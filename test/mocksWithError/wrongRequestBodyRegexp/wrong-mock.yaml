@@ -1,0 +1,7 @@
+endpoints:
+  - id: wrongRequestBodyRegexp
+    request:
+        path: "/wrongRequestBody"
+        body: "[a"
+    response:
+      statusCode: 204

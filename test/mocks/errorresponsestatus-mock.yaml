@@ -1,0 +1,7 @@
+endpoints:
+  - id: "errorresponsestatus-mock"
+    request:
+      method: "GET"
+      path: "/renderresponse/errorstatus"
+    response:
+      statusCode: "{{ .Undefined.foo.bar }}"

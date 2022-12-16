@@ -37,5 +37,5 @@ endpoints:
       body: |-
         {{ $category := .RequestPathParams.category -}}
         {{ if or ( eq $category "childs") ( eq $category "adults") -}}
-        {{ kvStoreLookup "people" ( printf "$.%s" $category ) | toPrettyJson -}}
+        {{ kvStoreJsonPath "people" ( printf "$.%s" $category ) | toPrettyJson -}}
         {{- end -}}

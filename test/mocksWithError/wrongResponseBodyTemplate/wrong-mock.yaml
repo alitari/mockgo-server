@@ -1,0 +1,7 @@
+endpoints:
+  - id: wrongResponseBodyTemplate
+    request:
+        path: "/wrongResponseBodyTemplate"
+    response:
+      statusCode: 204
+      body: "{{ "

@@ -1,5 +1,5 @@
 endpoints:
-  - id: multi
+  - id: multiwildcard
     request:
       path: "/multiwildcard/*/foo/*"
     response:

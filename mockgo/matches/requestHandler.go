@@ -7,8 +7,6 @@ import (
 	"github.com/alitari/mockgo-server/mockgo/util"
 
 	"github.com/gorilla/mux"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type MatchesRequestHandler struct {
@@ -33,13 +31,13 @@ func NewMatchesRequestHandler(pathPrefix, username, password string, matchStore 
 func (r *MatchesRequestHandler) AddRoutes(router *mux.Router) {
 
 	router.NewRoute().Name("getMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodGet).
-		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"endpointId"}, r.handleMatches))
+		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"endpointId"}, r.handleGetMatches))
 	router.NewRoute().Name("getMatchesCount").Path(r.pathPrefix + "/matchesCount/{endpointId}").Methods(http.MethodGet).
-		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"endpointId"}, r.handleMatchesCount))
+		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"endpointId"}, r.handleGetMatchesCount))
 	router.NewRoute().Name("getMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodGet).
-		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.handleMismatches))
+		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.handleGetMismatches))
 	router.NewRoute().Name("getMismatchesCount").Path(r.pathPrefix + "/mismatchesCount").Methods(http.MethodGet).
-		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.handleMismatchesCount))
+		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", nil, r.handleGetMismatchesCount))
 	router.NewRoute().Name("deleteMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodDelete).
 		HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodDelete, "", "", nil, r.handleDeleteMatches))
 	router.NewRoute().Name("deleteMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodDelete).
@@ -47,14 +45,14 @@ func (r *MatchesRequestHandler) AddRoutes(router *mux.Router) {
 	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
 		HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.health))
 
-	router.NewRoute().Name("health").Path(r.pathPrefix + "/metrics").Handler(promhttp.Handler())
+	
 }
 
 func (r *MatchesRequestHandler) health(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (r *MatchesRequestHandler) handleMatches(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) handleGetMatches(writer http.ResponseWriter, request *http.Request) {
 	endpointId := mux.Vars(request)["endpointId"]
 	if matches, err := r.matchStore.GetMatches(endpointId); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
@@ -63,7 +61,7 @@ func (r *MatchesRequestHandler) handleMatches(writer http.ResponseWriter, reques
 	}
 }
 
-func (r *MatchesRequestHandler) handleMatchesCount(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) handleGetMatchesCount(writer http.ResponseWriter, request *http.Request) {
 	endpointId := mux.Vars(request)["endpointId"]
 	if matchesCount, err := r.matchStore.GetMatchesCount(endpointId); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
@@ -72,7 +70,7 @@ func (r *MatchesRequestHandler) handleMatchesCount(writer http.ResponseWriter, r
 	}
 }
 
-func (r *MatchesRequestHandler) handleMismatches(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) handleGetMismatches(writer http.ResponseWriter, request *http.Request) {
 	if mismatches, err := r.matchStore.GetMismatches(); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
@@ -80,7 +78,7 @@ func (r *MatchesRequestHandler) handleMismatches(writer http.ResponseWriter, req
 	}
 }
 
-func (r *MatchesRequestHandler) handleMismatchesCount(writer http.ResponseWriter, request *http.Request) {
+func (r *MatchesRequestHandler) handleGetMismatchesCount(writer http.ResponseWriter, request *http.Request) {
 	if mismatchesCount, err := r.matchStore.GetMismatchesCount(); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {

@@ -1,0 +1,9 @@
+endpoints:
+  - id: "errorresponseheader2"
+    request:
+      method: "GET"
+      path: "/renderresponse/errorresponseheader2"
+    response:
+      statusCode: 200
+      headers: |-
+        Header: "{{ .Undefined.foo.bar }}"

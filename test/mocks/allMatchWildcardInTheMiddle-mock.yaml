@@ -1,5 +1,6 @@
 endpoints:
-  - request:
+  - id: allmatchwildcardInTheMiddle
+    request:
       path: "/allmatchwildcardInTheMiddle/**/foo"
     response:
       statusCode: 204

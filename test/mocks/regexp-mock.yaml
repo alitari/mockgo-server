@@ -1,5 +1,5 @@
 endpoints:
-  - id: "1"
+  - id: "regexpmock1"
     request:
       scheme: "https"
       host: "mymock.com"
@@ -8,8 +8,7 @@ endpoints:
       body:   "^{.*}$"
     response:
       statusCode: 204
-
-  - id: "2"
+  - id: "regexpmock2"
     request:
       scheme: "https"
       host: "mymock.com"
@@ -18,7 +17,7 @@ endpoints:
       body:   "^{\n.*\n}$"
     response:
       statusCode: 204
-  - id: "3"
+  - id: "regexpmock3"
     request:
       scheme: "https"
       host: "mymock.com"

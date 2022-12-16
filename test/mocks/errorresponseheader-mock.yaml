@@ -1,0 +1,8 @@
+endpoints:
+  - id: "errorresponseheader"
+    request:
+      method: "GET"
+      path: "/renderresponse/errorresponseheader"
+    response:
+      statusCode: 200
+      headers: "no map"

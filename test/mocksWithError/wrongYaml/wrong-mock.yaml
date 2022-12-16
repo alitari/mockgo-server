@@ -1,0 +1,6 @@
+endpoints:
+  - id: wrongyaml
+     request:
+        path: "/wrongyaml"
+    response:
+      statusCode: 204

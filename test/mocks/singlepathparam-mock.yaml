@@ -1,0 +1,8 @@
+endpoints:
+  - id: singlepathparam
+    request:
+      path: "/pathParams/{pathParam}/foo"
+    response:
+      statusCode: 200
+      body: |-
+        pathParam={{ .RequestPathParams.pathParam }}

@@ -1,5 +1,5 @@
 endpoints:
   - request:
-      path: "/pathParams/{pathParam}/foo"
+      path: "/first"
     response:
       statusCode: 204
