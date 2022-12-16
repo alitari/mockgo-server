@@ -130,11 +130,33 @@ func TestMatchstore_GetMatches(t *testing.T) {
 	assert.Len(t, matchesEndpoint2, 3)
 }
 
+func TestMatchstore_GetMatchesCount(t *testing.T) {
+	endpointId1 := "endpoint1"
+	endpointId2 := "endpoint2"
+	matchstores[0].DeleteMatches(endpointId1)
+	matchstores[0].DeleteMatches(endpointId2)
+	addMatchesForEndpoint(0, endpointId1, 1)
+	addMatchesForEndpoint(1, endpointId1, 1)
+	addMatchesForEndpoint(0, endpointId2, 2)
+	addMatchesForEndpoint(1, endpointId2, 1)
+	matchesCountEndpoint1, err := matchstores[0].GetMatchesCount(endpointId1)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), matchesCountEndpoint1)
+	matchesCountEndpoint2, err := matchstores[0].GetMatchesCount(endpointId2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(3), matchesCountEndpoint2)
+
+	matchesCountEndpoint1, err = matchstores[1].GetMatchesCount(endpointId1)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), matchesCountEndpoint1)
+	matchesCountEndpoint2, err = matchstores[1].GetMatchesCount(endpointId2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(3), matchesCountEndpoint2)
+}
+
 func TestMatchstore_GetMismatches(t *testing.T) {
 	matchstores[0].DeleteMismatches()
-	// matchstores[0].AddMismatches(createMismatches(1))
 	addMismatches(0, 1)
-	// matchstores[1].AddMismatches(createMismatches(2))
 	addMismatches(1, 2)
 
 	mismatches, err := matchstores[0].GetMismatches()
@@ -144,6 +166,20 @@ func TestMatchstore_GetMismatches(t *testing.T) {
 	mismatches, err = matchstores[1].GetMismatches()
 	assert.NoError(t, err)
 	assert.Len(t, mismatches, 3)
+}
+
+func TestMatchstore_GetMismatchesCount(t *testing.T) {
+	matchstores[0].DeleteMismatches()
+	addMismatches(0, 1)
+	addMismatches(1, 2)
+
+	mismatchesCount, err := matchstores[0].GetMismatchesCount()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(3), mismatchesCount)
+
+	mismatchesCount, err = matchstores[1].GetMismatchesCount()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(3), mismatchesCount)
 }
 
 func TestMatchstore_DeleteMatches(t *testing.T) {
