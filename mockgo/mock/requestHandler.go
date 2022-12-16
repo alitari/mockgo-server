@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -101,9 +100,6 @@ func (r *MockRequestHandler) LoadFiles(funcMap template.FuncMap) error {
 		if err != nil {
 			return err
 		}
-		sort.SliceStable(mock.Endpoints, func(i, j int) bool {
-			return mock.Endpoints[i].Prio < mock.Endpoints[j].Prio
-		})
 		for _, endpoint := range mock.Endpoints {
 			endPointCounter++
 			if len(endpoint.Id) == 0 {
@@ -223,7 +219,9 @@ func (r *MockRequestHandler) registerEndpoint(endpoint *MockEndpoint) {
 			pathParamName = pathSegment[1 : len(pathSegment)-1]
 			pathSegment = "*"
 		}
-		sn.SearchNodes[pathSegment] = &EpSearchNode{}
+		if sn.SearchNodes[pathSegment] == nil {
+			sn.SearchNodes[pathSegment] = &EpSearchNode{}
+		}
 		sn = sn.SearchNodes[pathSegment]
 		sn.PathParamName = pathParamName
 	}
@@ -234,7 +232,19 @@ func (r *MockRequestHandler) registerEndpoint(endpoint *MockEndpoint) {
 	if sn.Endpoints[endpoint.Request.Method] == nil {
 		sn.Endpoints[endpoint.Request.Method] = []*MockEndpoint{}
 	}
-	sn.Endpoints[endpoint.Request.Method] = append(sn.Endpoints[endpoint.Request.Method], endpoint)
+	insertIndex := 0
+	for i, ep := range sn.Endpoints[endpoint.Request.Method] {
+		if endpoint.Prio > ep.Prio {
+			insertIndex = i
+			break
+		}
+	}
+	if len(sn.Endpoints[endpoint.Request.Method]) == insertIndex {
+		sn.Endpoints[endpoint.Request.Method] = append(sn.Endpoints[endpoint.Request.Method], endpoint)
+	} else {
+		sn.Endpoints[endpoint.Request.Method] = append(sn.Endpoints[endpoint.Request.Method][:insertIndex+1], sn.Endpoints[endpoint.Request.Method][insertIndex:]...)
+		sn.Endpoints[endpoint.Request.Method][insertIndex] = endpoint
+	}
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.Id, endpoint.Request.Path, endpoint.Request.Method))
 }
 
@@ -312,6 +322,9 @@ func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*Moc
 
 func (r *MockRequestHandler) matchEndPointsAttributes(endPoints []*MockEndpoint, request *http.Request) (*MockEndpoint, *matches.Match) {
 	mismatchMessage := ""
+	// sort.SliceStable(endPoints, func(i, j int) bool {
+	// 	return endPoints[i].Prio > endPoints[j].Prio
+	// })
 	for _, ep := range endPoints {
 		if !r.matchQueryParams(ep.Request, request) {
 			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted query params: %v", ep.Id, ep.Request.Query)
@@ -443,7 +456,6 @@ func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request 
 		fmt.Fprintf(writer, "Error converting response status: %v", err)
 		return
 	}
-	writer.WriteHeader(responseStatus)
 
 	var renderedBody bytes.Buffer
 	err = endpoint.Response.Template.ExecuteTemplate(&renderedBody, templateResponseBody, responseTemplateData)
@@ -452,13 +464,8 @@ func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request 
 		fmt.Fprintf(writer, "Error rendering response body: %v", err)
 		return
 	}
-
-	_, err = writer.Write(renderedBody.Bytes())
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(writer, "Error writing response body: %v", err)
-		return
-	}
+	writer.WriteHeader(responseStatus)
+	writer.Write(renderedBody.Bytes())
 
 	//TODO: handle headers
 	match.ActualResponse = &matches.ActualResponse{StatusCode: responseStatus, Header: make(map[string][]string)}
