@@ -1,0 +1,7 @@
+endpoints:
+  - id: "errorresponsestatus2-mock"
+    request:
+      method: "GET"
+      path: "/renderresponse/errorstatus2"
+    response:
+      statusCode: "must be a number"

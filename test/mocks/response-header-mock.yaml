@@ -1,0 +1,10 @@
+endpoints:
+  - id: "response-header"
+    request:
+      method: "GET"
+      path: "/responseheader"
+    response:
+      headers: |-
+        Header1: "headervalue1"
+        Header2: "headervalue2"
+      statusCode: 200

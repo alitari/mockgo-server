@@ -1,0 +1,9 @@
+endpoints:
+  - id: "errorresponsebody-mock"
+    request:
+      method: "GET"
+      path: "/renderresponse/errorbody"
+    response:
+      body: |-
+        {{ .Undefined.foo.bar }}
+      statusCode: 200

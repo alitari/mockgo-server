@@ -1,8 +1,10 @@
 package mock
 
 import (
+	"io"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"regexp"
 	"testing"
@@ -91,6 +93,19 @@ func TestMockRequestHandler_matchBody_readerror(t *testing.T) {
 	assert.False(t, mockRequestHandler.matchBody(&MatchRequest{BodyRegexp: regexp.MustCompile(`^`)}, errorRequest))
 }
 
+func TestMockRequestHandler_renderResponse_readerror(t *testing.T) {
+	mockRequestHandler := NewMockRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	errorRequest := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodGet, "/path", testutil.CreateHeader())
+	recorder := httptest.NewRecorder()
+	mockRequestHandler.renderResponse(recorder, errorRequest, &MockEndpoint{Id: "myId"}, nil, nil, nil)
+	response := recorder.Result()
+	assert.Equal(t, http.StatusInternalServerError, response.StatusCode)
+	defer response.Body.Close()
+	respBytes, err := io.ReadAll(response.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, "Error rendering response: error reading bytes", string(respBytes))
+}
+
 func TestMockRequestHandler_serving_matches(t *testing.T) {
 	testCases := []*mockTestCase{
 		{name: "match first", method: http.MethodGet, path: "/first",
@@ -125,6 +140,10 @@ func TestMockRequestHandler_serving_matches(t *testing.T) {
 			expectedStatusCode:     http.StatusOK,
 			expectedResponseHeader: map[string]string{"Endpoint-Id": "responseFile"},
 			expectedResponseBody:   `{ "hello": "world"}`},
+		{name: "responseHeader match ", method: http.MethodGet, path: "/responseheader",
+			expectedStatusCode:     http.StatusOK,
+			expectedResponseHeader: map[string]string{"Endpoint-Id": "response-header", "Header1": "headervalue1", "Header2": "headervalue2"},
+			expectedResponseBody:   ""},
 		{name: "minimal match with header", method: http.MethodGet, path: "/minimal", header: testutil.CreateHeader().WithJsonAccept(),
 			expectedStatusCode:     http.StatusNoContent,
 			expectedResponseHeader: map[string]string{"Endpoint-Id": "minimal"},
@@ -289,6 +308,21 @@ RequestPath=/responsetemplates/foo
 RequestHost=
 RequestBody={ "mybody": "is cool!" }
 RequestBodyJsonData=map[mybody:is cool!]`},
+		{name: "error rendering response body", method: http.MethodGet, path: "/renderresponse/errorbody",
+			expectedStatusCode:   http.StatusInternalServerError,
+			expectedResponseBody: "Error rendering response body: template: responseBody:1:13: executing \"responseBody\" at <.Undefined.foo.bar>: can't evaluate field Undefined in type *mock.ResponseTemplateData"},
+		{name: "error rendering response status", method: http.MethodGet, path: "/renderresponse/errorstatus",
+			expectedStatusCode:   http.StatusInternalServerError,
+			expectedResponseBody: "Error rendering response status: template: responseStatus:1:13: executing \"responseStatus\" at <.Undefined.foo.bar>: can't evaluate field Undefined in type *mock.ResponseTemplateData"},
+		{name: "error rendering response status2", method: http.MethodGet, path: "/renderresponse/errorstatus2",
+			expectedStatusCode:   http.StatusInternalServerError,
+			expectedResponseBody: "Error converting response status: strconv.Atoi: parsing \"must be a number\": invalid syntax"},
+		{name: "error rendering response header", method: http.MethodGet, path: "/renderresponse/errorresponseheader",
+			expectedStatusCode:   http.StatusInternalServerError,
+			expectedResponseBody: "Error unmarshalling response headers: yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `no map` into map[string]string"},
+		{name: "error rendering response header2", method: http.MethodGet, path: "/renderresponse/errorresponseheader2",
+			expectedStatusCode:   http.StatusInternalServerError,
+			expectedResponseBody: "Error rendering response headers: template: responseHeader:1:22: executing \"responseHeader\" at <.Undefined.foo.bar>: can't evaluate field Undefined in type *mock.ResponseTemplateData"},
 	}
 	assertTestcases(t, testCases)
 }
