@@ -104,7 +104,7 @@ func NewLoggingResponseWriter(writer http.ResponseWriter, logger *LoggerUtil, sk
 		buf:            &bytes.Buffer{},
 		loggerUtil:     logger,
 		responseCode:   http.StatusOK,
-		skip: skip,
+		skip:           skip,
 	}
 	return lrw
 }

@@ -28,7 +28,6 @@ Cluster-grpc       |___/  %s
 
 const versionTag = "testversion"
 
-
 type RequestHandler interface {
 	AddRoutes(router *mux.Router)
 }
@@ -103,7 +102,7 @@ Cluster:
 }
 
 func main() {
-	log.Printf(banner,versionTag)
+	log.Printf(banner, versionTag)
 	configuration := createConfiguration()
 	log.Print(configuration.info())
 	matchstore := createMatchstore(configuration)

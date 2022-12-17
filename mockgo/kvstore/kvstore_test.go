@@ -255,7 +255,7 @@ func TestKVStore_patch_invalidJsonError(t *testing.T) {
 func TestKVStore_patch_invalidPatchError(t *testing.T) {
 	kvstore := createInMemoryStore()
 	key := randString(10)
-	kvstore.Put(key,`{ "foo":"bar" }`)
+	kvstore.Put(key, `{ "foo":"bar" }`)
 	err := kvstore.patch(key, `[{"op":"add","path":"/foo/no","value": "val"}]`)
 	assert.ErrorContains(t, err, "json: cannot unmarshal string into Go value of type jsonpatch.partialDoc")
 }

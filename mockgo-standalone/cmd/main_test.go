@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const ()
-
 var apiPassword = testutil.RandString(10)
 
 func TestMain(m *testing.M) {
