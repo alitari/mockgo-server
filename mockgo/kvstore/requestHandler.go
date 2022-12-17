@@ -41,11 +41,16 @@ func NewKVStoreRequestHandler(pathPrefix, username, password string, kvstore *KV
 }
 
 func (r *KVStoreRequestHandler) AddRoutes(router *mux.Router) {
-	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, "", "", http.MethodGet, "", "", nil, r.handleHealth))
-	router.NewRoute().Name("setKVStore").Path(r.pathPrefix + "/kvstore/{key}").Methods(http.MethodPut).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPut, "application/json", "", []string{"key"}, r.handleSetKVStore))
-	router.NewRoute().Name("getKVStore").Path(r.pathPrefix + "/kvstore/{key}").Methods(http.MethodGet).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodGet, "", "application/json", []string{"key"}, r.handleGetKVStore))
-	router.NewRoute().Name("addKVStore").Path(r.pathPrefix + "/kvstore/{key}/add").Methods(http.MethodPost).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.handleAddKVStore))
-	router.NewRoute().Name("removeKVStore").Path(r.pathPrefix + "/kvstore/{key}/remove").Methods(http.MethodPost).HandlerFunc(util.RequestMustHave(r.logger, r.basicAuthUsername, r.basicAuthPassword, http.MethodPost, "application/json", "", []string{"key"}, r.handleRemoveKVStore))
+	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
+		HandlerFunc(r.handleHealth)
+	router.NewRoute().Name("setKVStore").Path(r.pathPrefix + "/kvstore/{key}").Methods(http.MethodPut).
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JsonContentTypeRequest(util.PathParamRequest([]string{"key"}, r.handleSetKVStore))))
+	router.NewRoute().Name("getKVStore").Path(r.pathPrefix + "/kvstore/{key}").Methods(http.MethodGet).
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JsonAcceptRequest(util.PathParamRequest([]string{"key"}, r.handleGetKVStore))))
+	router.NewRoute().Name("addKVStore").Path(r.pathPrefix + "/kvstore/{key}/add").Methods(http.MethodPost).
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JsonContentTypeRequest(util.PathParamRequest([]string{"key"}, r.handleAddKVStore))))
+	router.NewRoute().Name("removeKVStore").Path(r.pathPrefix + "/kvstore/{key}/remove").Methods(http.MethodPost).
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.PathParamRequest([]string{"key"}, r.handleRemoveKVStore)))
 }
 
 func (r *KVStoreRequestHandler) handleHealth(writer http.ResponseWriter, request *http.Request) {

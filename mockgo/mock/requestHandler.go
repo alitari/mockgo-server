@@ -248,6 +248,14 @@ func (r *MockRequestHandler) registerEndpoint(endpoint *MockEndpoint) {
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.Id, endpoint.Request.Path, endpoint.Request.Method))
 }
 
+func getPathSegment(segments []string, pos int) string {
+	if pos < len(segments) {
+		return segments[pos]
+	} else {
+		return ""
+	}
+}
+
 func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*MockEndpoint, *matches.Match, map[string]string, map[string]string) {
 	requestPathParams := map[string]string{}
 	queryParams := map[string]string{}
@@ -257,13 +265,6 @@ func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*Moc
 	}
 
 	sn := r.EpSearchNode
-	getPathSegment := func(segments []string, pos int) string {
-		if pos < len(segments) {
-			return segments[pos]
-		} else {
-			return ""
-		}
-	}
 	pathSegments := strings.Split(request.URL.Path, "/")[1:]
 	allMatch := false
 	pathSegment := getPathSegment(pathSegments, 0)

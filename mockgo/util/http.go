@@ -13,50 +13,67 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func RequestMustHave(loggerUtil *logging.LoggerUtil, expectedUsername, expectedPassword, method, contentType, acceptType string, urlPathParams []string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+func BasicAuthRequest(expectedUsername, expectedPassword string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
 	f := func(w http.ResponseWriter, r *http.Request) {
-		loggerUtil.LogIncomingRequest(r)
-		if loggerUtil.Level >= logging.Debug {
-			w = logging.NewLoggingResponseWriter(w, loggerUtil, 2)
-		}
-		noAuth := len(expectedUsername) == 0 && len(expectedPassword) == 0
 		username, password, ok := r.BasicAuth()
-		if ok || noAuth {
-			usernameMatch := noAuth || username == expectedUsername
-			passwordMatch := noAuth || subtle.ConstantTimeCompare([]byte(password), []byte(expectedPassword)) == 1
-
+		if ok {
+			usernameMatch := username == expectedUsername
+			passwordMatch := subtle.ConstantTimeCompare([]byte(password), []byte(expectedPassword)) == 1
 			if usernameMatch && passwordMatch {
-				if r.Method == method {
-					if len(contentType) == 0 || r.Header.Get(headers.ContentType) == contentType {
-						if len(acceptType) == 0 || r.Header.Get(headers.Accept) == acceptType {
-							if urlPathParams != nil {
-								vars := mux.Vars(r)
-								for _, urlPathParam := range urlPathParams {
-									if vars[urlPathParam] == "" {
-										http.Error(w, fmt.Sprintf("url path param '%s' is not set", urlPathParam), http.StatusNotFound)
-										if loggerUtil.Level >= logging.Debug {
-											w.(*logging.LoggingResponseWriter).Log()
-										}
-										return
-									}
-								}
-							}
-							impl(w, r)
-						} else {
-							http.Error(w, fmt.Sprintf("wrong request headers: Accept must be %s, but is %s ", acceptType, r.Header.Get(headers.Accept)), http.StatusUnsupportedMediaType)
-						}
-					} else {
-						http.Error(w, fmt.Sprintf("wrong request headers: Content-Type must be %s, but is %s ", contentType, r.Header.Get(headers.ContentType)), http.StatusUnsupportedMediaType)
-					}
-				} else {
-					http.Error(w, fmt.Sprintf("wrong http request method: must be %s ", method), http.StatusBadRequest)
-				}
+				impl(w, r)
 			} else {
 				http.Error(w, fmt.Sprintf("Authorization with username '%s' failed. ", username), http.StatusUnauthorized)
 			}
 		} else {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}
+	}
+	return f
+}
+
+func JsonContentTypeRequest(impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+	f := func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(headers.ContentType) == "application/json" {
+			impl(w, r)
+		} else {
+			http.Error(w, fmt.Sprintf("wrong request headers: Content-Type must be application/json, but is '%s'", r.Header.Get(headers.ContentType)), http.StatusUnsupportedMediaType)
+		}
+	}
+	return f
+}
+
+func JsonAcceptRequest(impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+	f := func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(headers.Accept) == "application/json" {
+			impl(w, r)
+		} else {
+			http.Error(w, fmt.Sprintf("wrong request headers: Accept must be application/json, but is '%s'", r.Header.Get(headers.ContentType)), http.StatusUnsupportedMediaType)
+		}
+	}
+	return f
+}
+
+func PathParamRequest(expectedPathParams []string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+	f := func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		for _, expectedPathParam := range expectedPathParams {
+			if vars[expectedPathParam] == "" {
+				http.Error(w, fmt.Sprintf("url path param '%s' is not set", expectedPathParam), http.StatusNotFound)
+				return
+			}
+		}
+		impl(w, r)
+	}
+	return f
+}
+
+func LoggingRequest(loggerUtil *logging.LoggerUtil, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+	f := func(w http.ResponseWriter, r *http.Request) {
+		loggerUtil.LogIncomingRequest(r)
+		if loggerUtil.Level >= logging.Debug {
+			w = logging.NewLoggingResponseWriter(w, loggerUtil, 2)
+		}
+		impl(w, r)
 		if loggerUtil.Level >= logging.Debug {
 			w.(*logging.LoggingResponseWriter).Log()
 		}
