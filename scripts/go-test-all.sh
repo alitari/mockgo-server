@@ -1,8 +1,16 @@
 #!/bin/bash
 
+set -e
+
+misspell -error .
+
 for module in mockgo grpc-kvstore grpc-matchstore mockgo-standalone mockgo-grpc
 do
     cd $module
+    gofmt -s -w .
+    go vet ./...
+    ineffassign ./...
+    gocyclo -ignore '.*\.pb\.go$' -over 15 .
     go test -coverprofile cover-temp.out ./...
     cat cover-temp.out | grep -v ".pb.go" > cover.out
     rm cover-temp.out
