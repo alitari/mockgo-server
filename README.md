@@ -3,7 +3,9 @@
 <img src="./assets/mockgo-icon.png" alt="drawing" width="200"/>
 
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6619/badge)](https://bestpractices.coreinfrastructure.org/projects/6619)
+
 [![Build](https://github.com/alitari/mockgo-server/workflows/Workflow/badge.svg?branch=master)](https://github.com/alitari/mockgo-server/actions?workflow=Workflow&branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/alitari/mockgo-server/mockgo)](https://goreportcard.com/report/github.com/alitari/mockgo-server/mockgo)
 [![codecov](https://codecov.io/gh/alitari/mockgo-server/branch/master/graph/badge.svg?token=WRJ9KFCJFI)](https://codecov.io/gh/alitari/mockgo-server)
 
 ![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/alitari/mockgo-standalone?label=image%20mockgo-standalone)
@@ -75,7 +77,7 @@ docker run -it -v ${MOCK_DIR}:/mocks -e MOCK_DIR=/mocks alitari/mockgo-${MOCKGO_
 
 ## mockfiles and endpoints
 
-A mockgo-server configuration consist of one or multiple files in yaml format, the so called *mockfiles*. Each *mockfile* contains one or multiple *endpoints*. The *endpoint* defines criterias which qualify the endpoint to serve an incoming request. This process is called *matching*. The second configuration part of an *endpoint* is the defintion of the http response. 
+A mockgo-server configuration consist of one or multiple files in yaml format, the so called *mockfiles*. Each *mockfile* contains one or multiple *endpoints*. The *endpoint* defines criteria which qualify the endpoint to serve an incoming request. This process is called *matching*. The second configuration part of an *endpoint* is the definition of the http response. 
 
 ```yaml
 endpoints:
