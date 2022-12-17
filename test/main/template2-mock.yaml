@@ -5,14 +5,14 @@ endpoints:
       path: '/storePeople'
     response:
       statusCode: |-
-        {{ $payload := .RequestBodyJsonData -}}
+        {{ $payload := .RequestBodyJSONData -}}
         {{ if and $payload.name $payload.age -}}
         200
         {{- else -}}
         400
         {{- end -}}
       body: |-
-        {{ $payload := .RequestBodyJsonData -}}
+        {{ $payload := .RequestBodyJSONData -}}
         {{ if and $payload.name $payload.age -}}
         {{ if gt ( int $payload.age) 17 -}}
         {{ kvStoreAdd "people" "/adults/-" .RequestBody -}}

@@ -51,7 +51,7 @@ endpoints:
       body: |-
         {{ .RequestBody -}}
       headers: |
-        Header1: "{{ .RequestUrl }}"
+        Header1: "{{ .RequestURL }}"
   - id: "queryParams"
     request:
       method: "GET"

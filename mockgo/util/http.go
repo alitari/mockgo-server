@@ -13,6 +13,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
+/*
+BasicAuthRequest checks whether the BasicAuth header of the request contains the expected username and password
+*/
 func BasicAuthRequest(expectedUsername, expectedPassword string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
@@ -31,7 +34,10 @@ func BasicAuthRequest(expectedUsername, expectedPassword string, impl func(write
 	return f
 }
 
-func JsonContentTypeRequest(impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+/*
+JSONContentTypeRequest checks whether the Content-type header of the request is application/json
+*/
+func JSONContentTypeRequest(impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(headers.ContentType) == "application/json" {
 			impl(w, r)
@@ -42,7 +48,10 @@ func JsonContentTypeRequest(impl func(writer http.ResponseWriter, request *http.
 	return f
 }
 
-func JsonAcceptRequest(impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+/*
+JSONAcceptRequest checks whether the Accept header of the request is application/json
+*/
+func JSONAcceptRequest(impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(headers.Accept) == "application/json" {
 			impl(w, r)
@@ -53,6 +62,9 @@ func JsonAcceptRequest(impl func(writer http.ResponseWriter, request *http.Reque
 	return f
 }
 
+/*
+PathParamRequest checks whether the request path contains expected path parameters
+*/
 func PathParamRequest(expectedPathParams []string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -67,20 +79,26 @@ func PathParamRequest(expectedPathParams []string, impl func(writer http.Respons
 	return f
 }
 
+/*
+LoggingRequest writes details of request and response
+*/
 func LoggingRequest(loggerUtil *logging.LoggerUtil, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		loggerUtil.LogIncomingRequest(r)
 		if loggerUtil.Level >= logging.Debug {
-			w = logging.NewLoggingResponseWriter(w, loggerUtil, 2)
+			w = logging.NewResponseWriter(w, loggerUtil, 2)
 		}
 		impl(w, r)
 		if loggerUtil.Level >= logging.Debug {
-			w.(*logging.LoggingResponseWriter).Log()
+			w.(*logging.ResponseWriter).Log()
 		}
 	}
 	return f
 }
 
+/*
+WriteEntity marshals an entity and writes the output to the http response
+*/
 func WriteEntity(writer http.ResponseWriter, entity interface{}) {
 	entityString, isString := entity.(string)
 	if !isString {
@@ -98,6 +116,9 @@ func WriteEntity(writer http.ResponseWriter, entity interface{}) {
 	}
 }
 
+/*
+BasicAuth create a BasicAuth header value for given user credentials
+*/
 func BasicAuth(username, password string) string {
 	auth := username + ":" + password
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))

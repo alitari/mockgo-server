@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createInMemoryStore() *KVStoreJSON {
+func createInMemoryStore() *JSONStorage {
 	kvstoreImpl := NewInmemoryKVStore()
 	return NewKVStoreJSON(kvstoreImpl, true)
 }
@@ -38,9 +38,9 @@ func TestKVStore_PutGetJson(t *testing.T) {
 	storeVal := map[string]interface{}{"store1": "storeval11", "store2": "storeval11"}
 	err = kvstore.Put(key, &storeVal)
 	assert.NoError(t, err)
-	storeJson, err := kvstore.GetAsJson(key)
+	storeJSON, err := kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":"storeval11","store2":"storeval11"}`, storeJson)
+	assert.Equal(t, `{"store1":"storeval11","store2":"storeval11"}`, storeJSON)
 }
 
 func TestKVStore_PutGetJsonError(t *testing.T) {
@@ -49,7 +49,7 @@ func TestKVStore_PutGetJsonError(t *testing.T) {
 	storeVal := make(chan int)
 	err := kvstore.Put(key, storeVal)
 	assert.NoError(t, err)
-	_, err = kvstore.GetAsJson(key)
+	_, err = kvstore.GetAsJSON(key)
 	assert.ErrorContains(t, err, "json: unsupported type: chan int")
 }
 
@@ -60,7 +60,7 @@ func TestKVStore_PutJsonGet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, store)
 	storeVal := map[string]interface{}{"store1": "storeval11", "store2": "storeval11"}
-	err = kvstore.PutAsJson(key, `{"store1":"storeval11","store2":"storeval11"}`)
+	err = kvstore.PutAsJSON(key, `{"store1":"storeval11","store2":"storeval11"}`)
 	assert.NoError(t, err)
 	val, err := kvstore.Get(key)
 	assert.NoError(t, err)
@@ -70,7 +70,7 @@ func TestKVStore_PutJsonGet(t *testing.T) {
 func TestKVStore_PutJsonGet_Error(t *testing.T) {
 	kvstore := createInMemoryStore()
 	key := randString(10)
-	err := kvstore.PutAsJson(key, `{ invalid": json}`)
+	err := kvstore.PutAsJSON(key, `{ invalid": json}`)
 	assert.ErrorContains(t, err, "invalid character 'i' looking for beginning of object key string")
 }
 
@@ -120,7 +120,7 @@ func TestKVStore_Lookup(t *testing.T) {
 	store, err := kvstore.Get(key)
 	assert.NoError(t, err)
 	assert.Empty(t, store)
-	err = kvstore.PutAsJson(key, bookstore)
+	err = kvstore.PutAsJSON(key, bookstore)
 	assert.NoError(t, err)
 
 	res, err := kvstore.LookUp(key, `$.expensive`)
@@ -155,9 +155,9 @@ func TestKVStore_Lookup(t *testing.T) {
 	res, err = kvstore.LookUp(key, jsonPath)
 	assert.NoError(t, err)
 	assert.Equal(t, []interface{}{"Nigel Rees"}, res)
-	resJson, err := kvstore.LookUpJson(key, jsonPath)
+	resJSON, err := kvstore.LookUpJSON(key, jsonPath)
 	assert.NoError(t, err)
-	assert.Equal(t, `["Nigel Rees"]`, resJson)
+	assert.Equal(t, `["Nigel Rees"]`, resJSON)
 
 }
 
@@ -172,39 +172,39 @@ func TestKVStore_PatchAdd(t *testing.T) {
 
 	err = kvstore.PatchAdd(key, "/store1", "val1patched")
 	assert.NoError(t, err)
-	storeJson, err := kvstore.GetAsJson(key)
+	storeJSON, err := kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":"val1patched","store2":"val2"}`, storeJson)
+	assert.Equal(t, `{"store1":"val1patched","store2":"val2"}`, storeJSON)
 
 	err = kvstore.PatchAdd(key, "/store3", "val3patched")
 	assert.NoError(t, err)
-	storeJson, err = kvstore.GetAsJson(key)
+	storeJSON, err = kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched"}`, storeJson)
+	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched"}`, storeJSON)
 
 	err = kvstore.PatchAdd(key, "/store4", `["val41"]`)
 	assert.NoError(t, err)
-	storeJson, err = kvstore.GetAsJson(key)
+	storeJSON, err = kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41"]}`, storeJson)
+	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41"]}`, storeJSON)
 
 	err = kvstore.PatchAdd(key, "/store4/1", "val42")
 	assert.NoError(t, err)
-	storeJson, err = kvstore.GetAsJson(key)
+	storeJSON, err = kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42"]}`, storeJson)
+	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42"]}`, storeJSON)
 
 	err = kvstore.PatchAdd(key, "/store4/2", `{ "key43" : "val43" }`)
 	assert.NoError(t, err)
-	storeJson, err = kvstore.GetAsJson(key)
+	storeJSON, err = kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42",{"key43":"val43"}]}`, storeJson)
+	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42",{"key43":"val43"}]}`, storeJSON)
 
 	err = kvstore.PatchAdd(key, "/store4/-", "key44")
 	assert.NoError(t, err)
-	storeJson, err = kvstore.GetAsJson(key)
+	storeJSON, err = kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42",{"key43":"val43"},"key44"]}`, storeJson)
+	assert.Equal(t, `{"store1":"val1patched","store2":"val2","store3":"val3patched","store4":["val41","val42",{"key43":"val43"},"key44"]}`, storeJSON)
 
 	err = kvstore.PatchAdd(key, "invalidPath", "invalid")
 	assert.ErrorContains(t, err, "add operation does not apply: doc is missing path: \"invalidPath\": missing value")
@@ -217,15 +217,15 @@ func TestKVStore_PatchRemove(t *testing.T) {
 	storeVal := map[string]interface{}{"store1": "val1", "store2": "val2"}
 	err := kvstore.Put(key, &storeVal)
 	assert.NoError(t, err)
-	storeJson, err := kvstore.GetAsJson(key)
+	storeJSON, err := kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":"val1","store2":"val2"}`, storeJson)
+	assert.Equal(t, `{"store1":"val1","store2":"val2"}`, storeJSON)
 
 	err = kvstore.PatchRemove(key, "/store1")
 	assert.NoError(t, err)
-	storeJson, err = kvstore.GetAsJson(key)
+	storeJSON, err = kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store2":"val2"}`, storeJson)
+	assert.Equal(t, `{"store2":"val2"}`, storeJSON)
 }
 
 func TestKVStore_PatchReplace(t *testing.T) {
@@ -234,15 +234,15 @@ func TestKVStore_PatchReplace(t *testing.T) {
 	storeVal := map[string]interface{}{"store1": "val1", "store2": "val2"}
 	err := kvstore.Put(key, &storeVal)
 	assert.NoError(t, err)
-	storeJson, err := kvstore.GetAsJson(key)
+	storeJSON, err := kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":"val1","store2":"val2"}`, storeJson)
+	assert.Equal(t, `{"store1":"val1","store2":"val2"}`, storeJSON)
 
 	err = kvstore.PatchReplace(key, "/store1", `"replacedvalue"`)
 	assert.NoError(t, err)
-	storeJson, err = kvstore.GetAsJson(key)
+	storeJSON, err = kvstore.GetAsJSON(key)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"store1":"replacedvalue","store2":"val2"}`, storeJson)
+	assert.Equal(t, `{"store1":"replacedvalue","store2":"val2"}`, storeJSON)
 }
 
 func TestKVStore_patch_invalidJsonError(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type MatchesRequestHandler struct {
+type RequestHandler struct {
 	pathPrefix        string
 	matchStore        Matchstore
 	logger            *logging.LoggerUtil
@@ -17,8 +17,8 @@ type MatchesRequestHandler struct {
 	basicAuthPassword string
 }
 
-func NewMatchesRequestHandler(pathPrefix, username, password string, matchStore Matchstore, logger *logging.LoggerUtil) *MatchesRequestHandler {
-	configRouter := &MatchesRequestHandler{
+func NewRequestHandler(pathPrefix, username, password string, matchStore Matchstore, logger *logging.LoggerUtil) *RequestHandler {
+	configRouter := &RequestHandler{
 		pathPrefix:        pathPrefix,
 		matchStore:        matchStore,
 		logger:            logger,
@@ -28,17 +28,17 @@ func NewMatchesRequestHandler(pathPrefix, username, password string, matchStore 
 	return configRouter
 }
 
-func (r *MatchesRequestHandler) AddRoutes(router *mux.Router) {
+func (r *RequestHandler) AddRoutes(router *mux.Router) {
 	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
 		HandlerFunc(r.health)
 	router.NewRoute().Name("getMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodGet).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JsonAcceptRequest(util.PathParamRequest([]string{"endpointId"}, r.handleGetMatches))))
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(util.PathParamRequest([]string{"endpointId"}, r.handleGetMatches))))
 	router.NewRoute().Name("getMatchesCount").Path(r.pathPrefix + "/matchesCount/{endpointId}").Methods(http.MethodGet).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JsonAcceptRequest(util.PathParamRequest([]string{"endpointId"}, r.handleGetMatchesCount))))
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(util.PathParamRequest([]string{"endpointId"}, r.handleGetMatchesCount))))
 	router.NewRoute().Name("getMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodGet).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JsonAcceptRequest(r.handleGetMismatches)))
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(r.handleGetMismatches)))
 	router.NewRoute().Name("getMismatchesCount").Path(r.pathPrefix + "/mismatchesCount").Methods(http.MethodGet).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JsonAcceptRequest(r.handleGetMismatchesCount)))
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(r.handleGetMismatchesCount)))
 	router.NewRoute().Name("deleteMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodDelete).
 		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.PathParamRequest([]string{"endpointId"}, r.handleDeleteMatches)))
 	router.NewRoute().Name("deleteMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodDelete).
@@ -61,29 +61,29 @@ func (r *MatchesRequestHandler) AddRoutes(router *mux.Router) {
 
 }
 
-func (r *MatchesRequestHandler) health(writer http.ResponseWriter, request *http.Request) {
+func (r *RequestHandler) health(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (r *MatchesRequestHandler) handleGetMatches(writer http.ResponseWriter, request *http.Request) {
-	endpointId := mux.Vars(request)["endpointId"]
-	if matches, err := r.matchStore.GetMatches(endpointId); err != nil {
+func (r *RequestHandler) handleGetMatches(writer http.ResponseWriter, request *http.Request) {
+	endpointID := mux.Vars(request)["endpointId"]
+	if matches, err := r.matchStore.GetMatches(endpointID); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
 		util.WriteEntity(writer, matches)
 	}
 }
 
-func (r *MatchesRequestHandler) handleGetMatchesCount(writer http.ResponseWriter, request *http.Request) {
-	endpointId := mux.Vars(request)["endpointId"]
-	if matchesCount, err := r.matchStore.GetMatchesCount(endpointId); err != nil {
+func (r *RequestHandler) handleGetMatchesCount(writer http.ResponseWriter, request *http.Request) {
+	endpointID := mux.Vars(request)["endpointId"]
+	if matchesCount, err := r.matchStore.GetMatchesCount(endpointID); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
 		util.WriteEntity(writer, matchesCount)
 	}
 }
 
-func (r *MatchesRequestHandler) handleGetMismatches(writer http.ResponseWriter, request *http.Request) {
+func (r *RequestHandler) handleGetMismatches(writer http.ResponseWriter, request *http.Request) {
 	if mismatches, err := r.matchStore.GetMismatches(); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
@@ -91,7 +91,7 @@ func (r *MatchesRequestHandler) handleGetMismatches(writer http.ResponseWriter, 
 	}
 }
 
-func (r *MatchesRequestHandler) handleGetMismatchesCount(writer http.ResponseWriter, request *http.Request) {
+func (r *RequestHandler) handleGetMismatchesCount(writer http.ResponseWriter, request *http.Request) {
 	if mismatchesCount, err := r.matchStore.GetMismatchesCount(); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
@@ -99,16 +99,16 @@ func (r *MatchesRequestHandler) handleGetMismatchesCount(writer http.ResponseWri
 	}
 }
 
-func (r *MatchesRequestHandler) handleDeleteMatches(writer http.ResponseWriter, request *http.Request) {
-	endpointId := mux.Vars(request)["endpointId"]
-	if err := r.matchStore.DeleteMatches(endpointId); err != nil {
+func (r *RequestHandler) handleDeleteMatches(writer http.ResponseWriter, request *http.Request) {
+	endpointID := mux.Vars(request)["endpointId"]
+	if err := r.matchStore.DeleteMatches(endpointID); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
 		writer.WriteHeader(http.StatusOK)
 	}
 }
 
-func (r *MatchesRequestHandler) handleDeleteMismatches(writer http.ResponseWriter, request *http.Request) {
+func (r *RequestHandler) handleDeleteMismatches(writer http.ResponseWriter, request *http.Request) {
 	if err := r.matchStore.DeleteMismatches(); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {

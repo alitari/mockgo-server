@@ -12,25 +12,25 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type KVStoreRequestHandler struct {
+type RequestHandler struct {
 	pathPrefix        string
 	logger            *logging.LoggerUtil
-	kvstore           *KVStoreJSON
+	kvstore           *JSONStorage
 	basicAuthUsername string
 	basicAuthPassword string
 }
 
-type AddKVStoreRequest struct {
+type AddRequest struct {
 	Path  string `json:"path"`
 	Value string `json:"value"`
 }
 
-type RemoveKVStoreRequest struct {
+type RemoveRequest struct {
 	Path string `json:"path"`
 }
 
-func NewKVStoreRequestHandler(pathPrefix, username, password string, kvstore *KVStoreJSON, logger *logging.LoggerUtil) *KVStoreRequestHandler {
-	configRouter := &KVStoreRequestHandler{
+func NewRequestHandler(pathPrefix, username, password string, kvstore *JSONStorage, logger *logging.LoggerUtil) *RequestHandler {
+	configRouter := &RequestHandler{
 		pathPrefix:        pathPrefix,
 		logger:            logger,
 		kvstore:           kvstore,
@@ -40,24 +40,24 @@ func NewKVStoreRequestHandler(pathPrefix, username, password string, kvstore *KV
 	return configRouter
 }
 
-func (r *KVStoreRequestHandler) AddRoutes(router *mux.Router) {
+func (r *RequestHandler) AddRoutes(router *mux.Router) {
 	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
 		HandlerFunc(r.handleHealth)
 	router.NewRoute().Name("setKVStore").Path(r.pathPrefix + "/kvstore/{key}").Methods(http.MethodPut).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JsonContentTypeRequest(util.PathParamRequest([]string{"key"}, r.handleSetKVStore))))
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONContentTypeRequest(util.PathParamRequest([]string{"key"}, r.handleSetKVStore))))
 	router.NewRoute().Name("getKVStore").Path(r.pathPrefix + "/kvstore/{key}").Methods(http.MethodGet).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JsonAcceptRequest(util.PathParamRequest([]string{"key"}, r.handleGetKVStore))))
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(util.PathParamRequest([]string{"key"}, r.handleGetKVStore))))
 	router.NewRoute().Name("addKVStore").Path(r.pathPrefix + "/kvstore/{key}/add").Methods(http.MethodPost).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JsonContentTypeRequest(util.PathParamRequest([]string{"key"}, r.handleAddKVStore))))
+		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONContentTypeRequest(util.PathParamRequest([]string{"key"}, r.handleAddKVStore))))
 	router.NewRoute().Name("removeKVStore").Path(r.pathPrefix + "/kvstore/{key}/remove").Methods(http.MethodPost).
 		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.PathParamRequest([]string{"key"}, r.handleRemoveKVStore)))
 }
 
-func (r *KVStoreRequestHandler) handleHealth(writer http.ResponseWriter, request *http.Request) {
+func (r *RequestHandler) handleHealth(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (r *KVStoreRequestHandler) handleGetKVStore(writer http.ResponseWriter, request *http.Request) {
+func (r *RequestHandler) handleGetKVStore(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	key := vars["key"]
 	if val, err := r.kvstore.Get(key); err != nil {
@@ -67,7 +67,7 @@ func (r *KVStoreRequestHandler) handleGetKVStore(writer http.ResponseWriter, req
 	}
 }
 
-func (r *KVStoreRequestHandler) handleSetKVStore(writer http.ResponseWriter, request *http.Request) {
+func (r *RequestHandler) handleSetKVStore(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	key := vars["key"]
 	body, err := io.ReadAll(request.Body)
@@ -75,7 +75,7 @@ func (r *KVStoreRequestHandler) handleSetKVStore(writer http.ResponseWriter, req
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	err = r.kvstore.PutAsJson(key, string(body))
+	err = r.kvstore.PutAsJSON(key, string(body))
 	if err != nil {
 		http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
 		return
@@ -83,7 +83,7 @@ func (r *KVStoreRequestHandler) handleSetKVStore(writer http.ResponseWriter, req
 	writer.WriteHeader(http.StatusNoContent)
 }
 
-func (r *KVStoreRequestHandler) handleAddKVStore(writer http.ResponseWriter, request *http.Request) {
+func (r *RequestHandler) handleAddKVStore(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	key := vars["key"]
 	body, err := io.ReadAll(request.Body)
@@ -91,7 +91,7 @@ func (r *KVStoreRequestHandler) handleAddKVStore(writer http.ResponseWriter, req
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	var addKvStoreRequest AddKVStoreRequest
+	var addKvStoreRequest AddRequest
 	err = json.Unmarshal(body, &addKvStoreRequest)
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("Can't parse request body '%s' : %v", body, err), http.StatusBadRequest)
@@ -105,7 +105,7 @@ func (r *KVStoreRequestHandler) handleAddKVStore(writer http.ResponseWriter, req
 	writer.WriteHeader(http.StatusNoContent)
 }
 
-func (r *KVStoreRequestHandler) handleRemoveKVStore(writer http.ResponseWriter, request *http.Request) {
+func (r *RequestHandler) handleRemoveKVStore(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	key := vars["key"]
 	body, err := io.ReadAll(request.Body)
@@ -113,7 +113,7 @@ func (r *KVStoreRequestHandler) handleRemoveKVStore(writer http.ResponseWriter, 
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	var removeKvStoreRequest RemoveKVStoreRequest
+	var removeKvStoreRequest RemoveRequest
 	err = json.Unmarshal(body, &removeKvStoreRequest)
 	if err != nil {
 		http.Error(writer, "Can't parse request body: "+err.Error(), http.StatusBadRequest)

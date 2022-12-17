@@ -1,5 +1,7 @@
 {
     "go.testFlags": [
     "-v"
-    ]
+    ],
+    "go.lintOnSave": "workspace",
+    "go.lintTool": "golint"
 }

@@ -46,12 +46,12 @@ func (h Header) WithKeyValue(key, value string) Header {
 	return h
 }
 
-func (h Header) WithJsonContentType() Header {
+func (h Header) WithJSONContentType() Header {
 	h.entries[headers.ContentType] = []string{"application/json"}
 	return h
 }
 
-func (h Header) WithJsonAccept() Header {
+func (h Header) WithJSONAccept() Header {
 	h.entries[headers.Accept] = []string{"application/json"}
 	return h
 }

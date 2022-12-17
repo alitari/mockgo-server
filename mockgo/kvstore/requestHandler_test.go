@@ -16,12 +16,12 @@ const (
 	password = "password"
 )
 
-var kvstoreHandler *KVStoreRequestHandler
+var kvstoreHandler *RequestHandler
 
 func TestMain(m *testing.M) {
 	kvstoreLogger := logging.NewLoggerUtil(logging.Debug)
-	kvstoreJson := NewKVStoreJSON(NewInmemoryKVStore(), true)
-	kvstoreHandler = NewKVStoreRequestHandler("", username, password, kvstoreJson, kvstoreLogger)
+	kvstoreJSON := NewKVStoreJSON(NewInmemoryKVStore(), true)
+	kvstoreHandler = NewRequestHandler("", username, password, kvstoreJSON, kvstoreLogger)
 	router := mux.NewRouter()
 	kvstoreHandler.AddRoutes(router)
 	testutil.StartServing(router)
@@ -48,7 +48,7 @@ func TestKVStoreRequestHandler_serving_setKVStore(t *testing.T) {
 	err := kvstoreHandler.kvstore.Put(key, nil)
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodPut, "/kvstore/"+key,
-		testutil.CreateHeader().WithAuth(username, password).WithJsonContentType(),
+		testutil.CreateHeader().WithAuth(username, password).WithJSONContentType(),
 		`{ "testkey":"testvalue"}`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNoContent))
 	val, err := kvstoreHandler.kvstore.Get(key)
@@ -80,7 +80,7 @@ func TestKVStoreRequestHandler_serving_getKVStore(t *testing.T) {
 	err = kvstoreHandler.kvstore.Put("key2", "val2 not expected")
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/kvstore/"+key,
-		testutil.CreateHeader().WithAuth(username, password).WithJsonAccept(), "")
+		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
 		assert.Equal(t, "expectedVal", responseBody)
 	}))
@@ -91,7 +91,7 @@ func TestKVStoreRequestHandler_serving_addKVStore(t *testing.T) {
 	err := kvstoreHandler.kvstore.Put(key, nil)
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodPost, "/kvstore/"+key+"/add",
-		testutil.CreateHeader().WithAuth(username, password).WithJsonContentType(),
+		testutil.CreateHeader().WithAuth(username, password).WithJSONContentType(),
 		`{ "path": "/testpath", "value": "testvalue" }`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNoContent))
 	val, err := kvstoreHandler.kvstore.Get(key)
@@ -131,7 +131,7 @@ func TestKVStoreRequestHandler_removeKVStore(t *testing.T) {
 	err := kvstoreHandler.kvstore.Put(key, map[string]string{"deletepath": "deletzevalue"})
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodPost, "/kvstore/"+key+"/remove",
-		testutil.CreateHeader().WithAuth(username, password).WithJsonContentType(), `{ "path": "/deletepath"}`)
+		testutil.CreateHeader().WithAuth(username, password).WithJSONContentType(), `{ "path": "/deletepath"}`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNoContent))
 	all, err := kvstoreHandler.kvstore.Get(key)
 	assert.NoError(t, err)

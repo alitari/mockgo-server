@@ -37,13 +37,13 @@ func TestBasicAuthRequest(t *testing.T) {
 
 func TestJsonContentTypeRequest(t *testing.T) {
 	request := testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader(), "")
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, JsonContentTypeRequest(impl),
+	assert.NoError(t, testutil.AssertHandlerFunc(t, request, JSONContentTypeRequest(impl),
 		func(response *http.Response, responseBody string) {
 			assert.Equal(t, http.StatusUnsupportedMediaType, response.StatusCode)
 			assert.Equal(t, "wrong request headers: Content-Type must be application/json, but is ''\n", responseBody)
 		}))
-	request = testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader().WithJsonContentType(), "")
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, JsonContentTypeRequest(impl),
+	request = testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader().WithJSONContentType(), "")
+	assert.NoError(t, testutil.AssertHandlerFunc(t, request, JSONContentTypeRequest(impl),
 		func(response *http.Response, responseBody string) {
 			assert.Equal(t, http.StatusOK, response.StatusCode)
 			assert.Equal(t, "OK", responseBody)
@@ -52,13 +52,13 @@ func TestJsonContentTypeRequest(t *testing.T) {
 
 func TestJsonAcceptRequest(t *testing.T) {
 	request := testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader(), "")
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, JsonAcceptRequest(impl),
+	assert.NoError(t, testutil.AssertHandlerFunc(t, request, JSONAcceptRequest(impl),
 		func(response *http.Response, responseBody string) {
 			assert.Equal(t, http.StatusUnsupportedMediaType, response.StatusCode)
 			assert.Equal(t, "wrong request headers: Accept must be application/json, but is ''\n", responseBody)
 		}))
-	request = testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader().WithJsonAccept(), "")
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, JsonAcceptRequest(impl),
+	request = testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader().WithJSONAccept(), "")
+	assert.NoError(t, testutil.AssertHandlerFunc(t, request, JSONAcceptRequest(impl),
 		func(response *http.Response, responseBody string) {
 			assert.Equal(t, http.StatusOK, response.StatusCode)
 			assert.Equal(t, "OK", responseBody)

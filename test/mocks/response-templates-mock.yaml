@@ -7,9 +7,9 @@ endpoints:
       body: |-
         RequestPathParams={{ .RequestPathParams }}
         RequestQueryParams={{ .RequestQueryParams }}
-        RequestUrl={{ .RequestUrl }}
+        RequestUrl={{ .RequestURL }}
         RequestPath={{ .RequestPath }}
         RequestHost={{ .RequestHost }}
         RequestBody={{ .RequestBody }}
-        RequestBodyJsonData={{ .RequestBodyJsonData }}
+        RequestBodyJSONData={{ .RequestBodyJSONData }}
       statusCode: 200

@@ -1,6 +1,6 @@
 {{ $key := .RequestPathParams.key -}}
 {{ $body := .RequestBody -}}
-{{ $path := .RequestBodyJsonData.path -}}
+{{ $path := .RequestBodyJSONData.path -}}
 {{ kvStoreRemove $key $path  -}}
 
 {
