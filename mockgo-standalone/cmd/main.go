@@ -25,10 +25,16 @@ Standalone         |___/  %s
 
 const versionTag = "testversion"
 
+/*
+RequestHandler abstraction of a set of http handler funcs
+*/
 type RequestHandler interface {
 	AddRoutes(router *mux.Router)
 }
 
+/*
+Configuration is the configuration model of the server which is defined via environment variables
+*/
 type Configuration struct {
 	LoglevelAPI     int    `default:"1" split_words:"true"`
 	LoglevelMock    int    `default:"1" split_words:"true"`
@@ -90,13 +96,9 @@ func setupRouter() (*mux.Router, int, error) {
 	log.Print(configuration.info())
 	matchStore := matches.NewInMemoryMatchstore(uint16(configuration.MatchesCapacity))
 	matchHandler := createMatchHandler(configuration, matchStore)
-	kvStoreHandler, kvs, _ := createKVStoreHandler(configuration)
+	kvStoreHandler := createKVStoreHandler(configuration)
 	mockHandler := createMockHandler(configuration, matchStore)
-	// kvstore.KVStoreFuncMap(kvs, logger)
-	if err := mockHandler.LoadFiles(kvs.TemplateFuncMap()); err != nil {
-		return nil, -1, err
-	}
-	if err := mockHandler.RegisterMetrics(); err != nil {
+	if err := mockHandler.LoadFiles(kvStoreHandler.GetFuncMap()); err != nil {
 		return nil, -1, err
 	}
 	return createRouter(matchHandler, kvStoreHandler, mockHandler), configuration.MockPort, nil
@@ -116,10 +118,9 @@ func createMatchHandler(configuration *Configuration, matchstore matches.Matchst
 		matchstore, matchLogger)
 }
 
-func createKVStoreHandler(configuration *Configuration) (*kvstore.RequestHandler, *kvstore.JSONStorage, *logging.LoggerUtil) {
+func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler {
 	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	kvstoreJSON := kvstore.NewKVStoreJSON(kvstore.NewInmemoryKVStore(), logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
-	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJSON, kvstoreLogger), kvstoreJSON, kvstoreLogger
+	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstore.NewInmemoryStorage(), kvstoreLogger)
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.RequestHandler {

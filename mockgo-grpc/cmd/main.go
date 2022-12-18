@@ -28,10 +28,16 @@ Cluster-grpc       |___/  %s
 
 const versionTag = "testversion"
 
+/*
+RequestHandler abstraction of a set of http handler funcs
+*/
 type RequestHandler interface {
 	AddRoutes(router *mux.Router)
 }
 
+/*
+Configuration is the configuration model of the server which is defined via environment variables
+*/
 type Configuration struct {
 	LoglevelAPI        int      `default:"1" split_words:"true"`
 	LoglevelMock       int      `default:"1" split_words:"true"`
@@ -112,9 +118,6 @@ func main() {
 	if err := mockHandler.LoadFiles(nil); err != nil {
 		log.Fatalf("can't load mock files: %v", err)
 	}
-	if err := mockHandler.RegisterMetrics(); err != nil {
-		log.Fatalf("can't register metrics: %v", err)
-	}
 	startServing(configuration, matchHandler, kvStoreHandler, mockHandler)
 }
 
@@ -129,7 +132,7 @@ func createConfiguration() *Configuration {
 	return &configuration
 }
 
-func createMatchstore(configuration *Configuration) *matchstore.GrpcMatchstore {
+func createMatchstore(configuration *Configuration) matches.Matchstore {
 	matchstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMatchstore))
 	addresses := []string{}
 
@@ -163,12 +166,11 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler 
 			addresses = append(addresses, fmt.Sprintf("%s:%d", host, configuration.KvstorePort))
 		}
 	}
-	kvs, err := grpckvstore.NewGrpcKVstore(addresses, configuration.KvstorePort, kvstoreLogger)
+	kvs, err := grpckvstore.NewGrpcStorage(addresses, configuration.KvstorePort, kvstoreLogger)
 	if err != nil {
 		log.Fatalf("can't initialize grpc kvstore: %v", err)
 	}
-	kvstoreJSON := kvstore.NewKVStoreJSON(kvs, logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
-	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJSON, kvstoreLogger)
+	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvs, kvstoreLogger)
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.RequestHandler {

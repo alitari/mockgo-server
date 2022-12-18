@@ -18,7 +18,7 @@ import (
 var clusterSize = 2
 var startPort = 50051
 
-var matchstores []*GrpcMatchstore
+var matchstores []*grpcMatchstore
 
 func TestMain(m *testing.M) {
 	startMatchsroreCluster()
@@ -42,7 +42,7 @@ func startMatchsroreCluster() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		matchstores = append(matchstores, matchStore)
+		matchstores = append(matchstores, matchStore.(*grpcMatchstore))
 	}
 	time.Sleep(100 * time.Millisecond)
 }

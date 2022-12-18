@@ -11,60 +11,68 @@ import (
 	jsonpath "github.com/oliveagle/jsonpath"
 )
 
-type storage interface {
+/*
+Storage is *the* interface for the key value store
+
+There can be implementations using:
+- a local in-memory storage ,
+- multiple servers for a distributed
+- a database like redis
+*/
+type Storage interface {
 	GetVal(key string) (interface{}, error)
 	PutVal(key string, storeVal interface{}) error
 }
 
-type JSONStorage struct {
+type jsonStorage struct {
 	log   bool
-	store storage
+	store Storage
 }
 
-type PatchOp int64
+type patchOp int64
 
 const (
-	Add PatchOp = iota
-	Replace
-	Remove
+	add patchOp = iota
+	replace
+	remove
 )
 
-func (pop PatchOp) String() string {
+func (pop patchOp) String() string {
 	switch pop {
-	case Add:
+	case add:
 		return "add"
-	case Replace:
+	case replace:
 		return "replace"
-	case Remove:
+	case remove:
 		return "remove"
 	}
 	return "unknown"
 }
 
-func NewKVStoreJSON(kvStore storage, log bool) *JSONStorage {
-	return &JSONStorage{store: kvStore, log: log}
+func newJSONStorage(kvStore Storage, log bool) *jsonStorage {
+	return &jsonStorage{store: kvStore, log: log}
 }
 
-func (s *JSONStorage) PutAsJSON(key, jsonStr string) error {
+func (s *jsonStorage) putAsJSON(key, jsonStr string) error {
 	var storeVal interface{}
 	err := json.Unmarshal([]byte(jsonStr), &storeVal)
 	if err != nil {
 		return err
 	}
-	err = s.Put(key, storeVal)
+	err = s.put(key, storeVal)
 	return err
 }
 
-func (s *JSONStorage) Get(key string) (interface{}, error) {
+func (s *jsonStorage) get(key string) (interface{}, error) {
 	return s.store.GetVal(key)
 }
 
-func (s *JSONStorage) Put(key string, storeVal interface{}) error {
+func (s *jsonStorage) put(key string, storeVal interface{}) error {
 	return s.store.PutVal(key, storeVal)
 }
 
-func (s *JSONStorage) GetAsJSON(key string) (string, error) {
-	storeVal, err := s.Get(key)
+func (s *jsonStorage) getAsJSON(key string) (string, error) {
+	storeVal, err := s.get(key)
 	if err != nil {
 		return "", err
 	}
@@ -78,28 +86,28 @@ func (s *JSONStorage) GetAsJSON(key string) (string, error) {
 	return string(storeJSON), nil
 }
 
-func (s *JSONStorage) PatchAdd(key, path, value string) error {
+func (s *jsonStorage) patchAdd(key, path, value string) error {
 	if !strings.HasPrefix(value, "{") && !strings.HasPrefix(value, "[") {
 		value = "\"" + value + "\""
 	}
-	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s","value": %s}]`, Add.String(), path, value))
+	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s","value": %s}]`, add.String(), path, value))
 }
 
-func (s *JSONStorage) PatchRemove(key, path string) error {
-	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s"}]`, Remove.String(), path))
+func (s *jsonStorage) patchRemove(key, path string) error {
+	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s"}]`, remove.String(), path))
 }
 
-func (s *JSONStorage) PatchReplace(key, path, value string) error {
-	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s","value": %s}]`, Replace.String(), path, value))
+func (s *jsonStorage) patchReplace(key, path, value string) error {
+	return s.patch(key, fmt.Sprintf(`[{"op":"%s","path":"%s","value": %s}]`, replace.String(), path, value))
 }
 
-func (s *JSONStorage) patch(key, patchJSON string) error {
+func (s *jsonStorage) patch(key, patchJSON string) error {
 	s.logStr("patchJson=" + patchJSON)
 	patch, err := jsonpatch.DecodePatch([]byte(patchJSON))
 	if err != nil {
 		return err
 	}
-	storeJSON, err := s.GetAsJSON(key)
+	storeJSON, err := s.getAsJSON(key)
 	if err != nil {
 		return err
 	}
@@ -110,16 +118,16 @@ func (s *JSONStorage) patch(key, patchJSON string) error {
 		return err
 	}
 	s.logStr("modifiedStoreJson=" + string(modifiedStoreJSON))
-	err = s.PutAsJSON(key, string(modifiedStoreJSON))
+	err = s.putAsJSON(key, string(modifiedStoreJSON))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *JSONStorage) LookUp(key, jsonPath string) (interface{}, error) {
+func (s *jsonStorage) lookUp(key, jsonPath string) (interface{}, error) {
 	s.logStr("jsonpath=" + jsonPath)
-	value, err := s.Get(key)
+	value, err := s.get(key)
 	if err != nil {
 		return "", err
 	}
@@ -130,8 +138,8 @@ func (s *JSONStorage) LookUp(key, jsonPath string) (interface{}, error) {
 	return res, nil
 }
 
-func (s *JSONStorage) LookUpJSON(key, jsonPath string) (string, error) {
-	res, err := s.LookUp(key, jsonPath)
+func (s *jsonStorage) lookUpJSON(key, jsonPath string) (string, error) {
+	res, err := s.lookUp(key, jsonPath)
 	if err != nil {
 		return "", err
 	}
@@ -143,13 +151,13 @@ func (s *JSONStorage) LookUpJSON(key, jsonPath string) (string, error) {
 	return string(resJSON), nil
 }
 
-func (s *JSONStorage) logStr(message string) {
+func (s *jsonStorage) logStr(message string) {
 	if s.log {
 		log.Print(message)
 	}
 }
 
-func (s *JSONStorage) TemplateFuncMap() template.FuncMap {
+func (s *jsonStorage) templateFuncMap() template.FuncMap {
 	return template.FuncMap{
 		"kvStoreGet": func(key string) interface{} {
 			val, err := s.store.GetVal(key)
@@ -165,19 +173,19 @@ func (s *JSONStorage) TemplateFuncMap() template.FuncMap {
 			return ""
 		},
 		"kvStoreAdd": func(key, path, value string) string {
-			if err := s.PatchAdd(key, path, value); err != nil {
+			if err := s.patchAdd(key, path, value); err != nil {
 				return err.Error()
 			}
 			return ""
 		},
 		"kvStoreRemove": func(key, path string) string {
-			if err := s.PatchRemove(key, path); err != nil {
+			if err := s.patchRemove(key, path); err != nil {
 				return err.Error()
 			}
 			return ""
 		},
 		"kvStoreJsonPath": func(key, jsonPath string) interface{} {
-			val, err := s.LookUp(key, jsonPath)
+			val, err := s.lookUp(key, jsonPath)
 			if err != nil {
 				return err.Error()
 			}

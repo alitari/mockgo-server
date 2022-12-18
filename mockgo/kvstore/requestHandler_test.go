@@ -20,8 +20,7 @@ var kvstoreHandler *RequestHandler
 
 func TestMain(m *testing.M) {
 	kvstoreLogger := logging.NewLoggerUtil(logging.Debug)
-	kvstoreJSON := NewKVStoreJSON(NewInmemoryKVStore(), true)
-	kvstoreHandler = NewRequestHandler("", username, password, kvstoreJSON, kvstoreLogger)
+	kvstoreHandler = NewRequestHandler("", username, password, NewInmemoryStorage(), kvstoreLogger)
 	router := mux.NewRouter()
 	kvstoreHandler.AddRoutes(router)
 	testutil.StartServing(router)
@@ -45,13 +44,13 @@ func TestKVStoreRequestHandler_serving_health(t *testing.T) {
 
 func TestKVStoreRequestHandler_serving_setKVStore(t *testing.T) {
 	key := randString(5)
-	err := kvstoreHandler.kvstore.Put(key, nil)
+	err := kvstoreHandler.jsonStorage.put(key, nil)
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodPut, "/kvstore/"+key,
 		testutil.CreateHeader().WithAuth(username, password).WithJSONContentType(),
 		`{ "testkey":"testvalue"}`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNoContent))
-	val, err := kvstoreHandler.kvstore.Get(key)
+	val, err := kvstoreHandler.jsonStorage.get(key)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]interface{}{"testkey": "testvalue"}, val)
 }
@@ -75,9 +74,9 @@ func TestKVStoreRequestHandler_setKVStore_NoJsonError(t *testing.T) {
 
 func TestKVStoreRequestHandler_serving_getKVStore(t *testing.T) {
 	key := randString(5)
-	err := kvstoreHandler.kvstore.Put(key, "expectedVal")
+	err := kvstoreHandler.jsonStorage.put(key, "expectedVal")
 	assert.NoError(t, err)
-	err = kvstoreHandler.kvstore.Put("key2", "val2 not expected")
+	err = kvstoreHandler.jsonStorage.put("key2", "val2 not expected")
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/kvstore/"+key,
 		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
@@ -88,13 +87,13 @@ func TestKVStoreRequestHandler_serving_getKVStore(t *testing.T) {
 
 func TestKVStoreRequestHandler_serving_addKVStore(t *testing.T) {
 	key := randString(5)
-	err := kvstoreHandler.kvstore.Put(key, nil)
+	err := kvstoreHandler.jsonStorage.put(key, nil)
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodPost, "/kvstore/"+key+"/add",
 		testutil.CreateHeader().WithAuth(username, password).WithJSONContentType(),
 		`{ "path": "/testpath", "value": "testvalue" }`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNoContent))
-	val, err := kvstoreHandler.kvstore.Get(key)
+	val, err := kvstoreHandler.jsonStorage.get(key)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]interface{}{"testpath": "testvalue"}, val)
 }
@@ -128,12 +127,12 @@ func TestKVStoreRequestHandler_addKVStore_WrongPatchFormatError(t *testing.T) {
 
 func TestKVStoreRequestHandler_removeKVStore(t *testing.T) {
 	key := randString(5)
-	err := kvstoreHandler.kvstore.Put(key, map[string]string{"deletepath": "deletzevalue"})
+	err := kvstoreHandler.jsonStorage.put(key, map[string]string{"deletepath": "deletzevalue"})
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodPost, "/kvstore/"+key+"/remove",
 		testutil.CreateHeader().WithAuth(username, password).WithJSONContentType(), `{ "path": "/deletepath"}`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNoContent))
-	all, err := kvstoreHandler.kvstore.Get(key)
+	all, err := kvstoreHandler.jsonStorage.get(key)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]interface{}{}, all)
 }

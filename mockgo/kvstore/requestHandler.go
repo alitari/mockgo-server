@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"text/template"
 
 	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/util"
@@ -12,34 +13,51 @@ import (
 	"github.com/gorilla/mux"
 )
 
+/*
+RequestHandler implements an http API to access a Storage
+*/
 type RequestHandler struct {
 	pathPrefix        string
 	logger            *logging.LoggerUtil
-	kvstore           *JSONStorage
+	jsonStorage       *jsonStorage
 	basicAuthUsername string
 	basicAuthPassword string
 }
 
-type AddRequest struct {
+type addRequest struct {
 	Path  string `json:"path"`
 	Value string `json:"value"`
 }
 
-type RemoveRequest struct {
+type removeRequest struct {
 	Path string `json:"path"`
 }
 
-func NewRequestHandler(pathPrefix, username, password string, kvstore *JSONStorage, logger *logging.LoggerUtil) *RequestHandler {
+/*
+NewRequestHandler creates an instance of RequestHandler
+*/
+func NewRequestHandler(pathPrefix, username, password string, storage Storage, logger *logging.LoggerUtil) *RequestHandler {
+	jsonStorage := newJSONStorage(storage, logger.Level == logging.Debug)
 	configRouter := &RequestHandler{
 		pathPrefix:        pathPrefix,
 		logger:            logger,
-		kvstore:           kvstore,
+		jsonStorage:       jsonStorage,
 		basicAuthUsername: username,
 		basicAuthPassword: password,
 	}
 	return configRouter
 }
 
+/*
+GetFuncMap returns template functions for accessing the Storage
+*/
+func (r *RequestHandler) GetFuncMap() template.FuncMap {
+	return r.jsonStorage.templateFuncMap()
+}
+
+/*
+AddRoutes adds mux.Routes for the http API to a given mux.Router
+*/
 func (r *RequestHandler) AddRoutes(router *mux.Router) {
 	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
 		HandlerFunc(r.handleHealth)
@@ -60,7 +78,7 @@ func (r *RequestHandler) handleHealth(writer http.ResponseWriter, request *http.
 func (r *RequestHandler) handleGetKVStore(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	key := vars["key"]
-	if val, err := r.kvstore.Get(key); err != nil {
+	if val, err := r.jsonStorage.get(key); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
 		util.WriteEntity(writer, val)
@@ -75,7 +93,7 @@ func (r *RequestHandler) handleSetKVStore(writer http.ResponseWriter, request *h
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	err = r.kvstore.PutAsJSON(key, string(body))
+	err = r.jsonStorage.putAsJSON(key, string(body))
 	if err != nil {
 		http.Error(writer, "Problem with kvstore value, ( is it valid JSON?): "+err.Error(), http.StatusBadRequest)
 		return
@@ -91,13 +109,13 @@ func (r *RequestHandler) handleAddKVStore(writer http.ResponseWriter, request *h
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	var addKvStoreRequest AddRequest
+	var addKvStoreRequest addRequest
 	err = json.Unmarshal(body, &addKvStoreRequest)
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("Can't parse request body '%s' : %v", body, err), http.StatusBadRequest)
 		return
 	}
-	err = r.kvstore.PatchAdd(key, addKvStoreRequest.Path, addKvStoreRequest.Value)
+	err = r.jsonStorage.patchAdd(key, addKvStoreRequest.Path, addKvStoreRequest.Value)
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("Problem adding kvstore path: '%s' value: '%s', : %v ", addKvStoreRequest.Path, addKvStoreRequest.Value, err), http.StatusBadRequest)
 		return
@@ -113,13 +131,13 @@ func (r *RequestHandler) handleRemoveKVStore(writer http.ResponseWriter, request
 		http.Error(writer, "Problem reading request body: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	var removeKvStoreRequest RemoveRequest
+	var removeKvStoreRequest removeRequest
 	err = json.Unmarshal(body, &removeKvStoreRequest)
 	if err != nil {
 		http.Error(writer, "Can't parse request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = r.kvstore.PatchRemove(key, removeKvStoreRequest.Path)
+	err = r.jsonStorage.patchRemove(key, removeKvStoreRequest.Path)
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("Problem removing kvstore '%s', path: '%s' : %v ", key, removeKvStoreRequest.Path, err), http.StatusBadRequest)
 		return
