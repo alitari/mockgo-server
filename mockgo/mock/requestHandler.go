@@ -34,6 +34,7 @@ const headerKeyEndpointID = "endpoint-Id"
 type responseTemplateData struct {
 	RequestPathParams   map[string]string
 	RequestQueryParams  map[string]string
+	RequestHeader       map[string]string
 	KVStore             map[string]interface{}
 	RequestURL          string
 	RequestPath         string
@@ -485,9 +486,14 @@ func (r *RequestHandler) createResponseTemplateData(request *http.Request, reque
 	data := &responseTemplateData{
 		RequestURL:         request.URL.String(),
 		RequestPathParams:  requestPathParams,
+		RequestHeader:      make(map[string]string),
 		RequestQueryParams: queryParams,
 		RequestPath:        request.URL.Path,
 		RequestHost:        request.URL.Host,
+	}
+
+	for k, v := range request.Header {
+		data.RequestHeader[k] = v[0]
 	}
 	if request.Body != nil {
 		body := new(bytes.Buffer)

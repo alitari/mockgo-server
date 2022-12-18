@@ -302,6 +302,7 @@ func TestMockRequestHandler_serving_matches(t *testing.T) {
 RequestQueryParams=map[query1:queryvalue1 query2:queryvalue2]
 RequestUrl=/responsetemplates/foo?query1=queryvalue1&query2=queryvalue2
 RequestPath=/responsetemplates/foo
+RequestHeader=map[Accept-Encoding:gzip Content-Length:24 Headerkey:headerValue User-Agent:Go-http-client/1.1]
 RequestHost=
 RequestBody={ "mybody": "is cool!" }
 RequestBodyJSONData=map[mybody:is cool!]`},
