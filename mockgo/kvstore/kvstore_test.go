@@ -12,7 +12,7 @@ import (
 
 func createInMemoryStore() *JSONStorage {
 	kvstoreImpl := NewInmemoryKVStore()
-	return NewKVStoreJSON(kvstoreImpl, true)
+	return NewJSONStorage(kvstoreImpl, true)
 }
 
 func TestKVStore_GetPut(t *testing.T) {

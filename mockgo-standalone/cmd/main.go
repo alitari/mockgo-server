@@ -118,7 +118,7 @@ func createMatchHandler(configuration *Configuration, matchstore matches.Matchst
 
 func createKVStoreHandler(configuration *Configuration) (*kvstore.RequestHandler, *kvstore.JSONStorage, *logging.LoggerUtil) {
 	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	kvstoreJSON := kvstore.NewKVStoreJSON(kvstore.NewInmemoryKVStore(), logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
+	kvstoreJSON := kvstore.NewJSONStorage(kvstore.NewInmemoryKVStore(), logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
 	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJSON, kvstoreLogger), kvstoreJSON, kvstoreLogger
 }
 

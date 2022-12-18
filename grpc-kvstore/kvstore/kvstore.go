@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type GrpcKVStore struct {
+type grpcStorage struct {
 	id string
 	*kvstore.InmemoryKVStore
 	clients []KVStoreClient
@@ -25,20 +25,23 @@ type GrpcKVStore struct {
 	server *grpc.Server
 }
 
-func NewGrpcKVstore(addresses []string, serverPort int, logger *logging.LoggerUtil) (*GrpcKVStore, error) {
-	kvstore := &GrpcKVStore{id: uuid.New().String(), InmemoryKVStore: kvstore.NewInmemoryKVStore(), timeout: 1 * time.Second, logger: logger}
+/*
+NewGrpcStorage creates a new distributed kvstore.Storage.
+*/
+func NewGrpcStorage(addresses []string, serverPort int, logger *logging.LoggerUtil) (kvstore.Storage, error) {
+	storage := &grpcStorage{id: uuid.New().String(), InmemoryKVStore: kvstore.NewInmemoryKVStore(), timeout: 1 * time.Second, logger: logger}
 	for _, address := range addresses {
 		conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return nil, err
 		}
-		kvstore.clients = append(kvstore.clients, NewKVStoreClient(conn))
+		storage.clients = append(storage.clients, NewKVStoreClient(conn))
 	}
-	go kvstore.startServe(serverPort)
-	return kvstore, nil
+	go storage.startServe(serverPort)
+	return storage, nil
 }
 
-func (g *GrpcKVStore) startServe(port int) {
+func (g *grpcStorage) startServe(port int) {
 	listening, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Fatalf("can't create listening to port %d: %v", port, err)
@@ -51,12 +54,12 @@ func (g *GrpcKVStore) startServe(port int) {
 	}
 }
 
-func (g *GrpcKVStore) StopServe() {
+func (g *grpcStorage) StopServe() {
 	g.logger.LogWhenVerbose(fmt.Sprintf("stop serving kvstore: %s ", g.id))
 	g.server.GracefulStop()
 }
 
-func (g *GrpcKVStore) StoreVal(ctx context.Context, storeValRequest *StoreValRequest) (*StoreValResponse, error) {
+func (g *grpcStorage) StoreVal(ctx context.Context, storeValRequest *StoreValRequest) (*StoreValResponse, error) {
 	var val interface{}
 	err := json.Unmarshal([]byte(storeValRequest.Value), &val)
 	if err != nil {
@@ -71,7 +74,7 @@ func (g *GrpcKVStore) StoreVal(ctx context.Context, storeValRequest *StoreValReq
 	return &StoreValResponse{}, nil
 }
 
-func (g *GrpcKVStore) PutVal(key string, storeVal interface{}) error {
+func (g *grpcStorage) PutVal(key string, storeVal interface{}) error {
 	json, err := json.Marshal(storeVal)
 	if err != nil {
 		return err

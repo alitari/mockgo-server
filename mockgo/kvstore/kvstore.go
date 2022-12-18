@@ -11,14 +11,14 @@ import (
 	jsonpath "github.com/oliveagle/jsonpath"
 )
 
-type storage interface {
+type Storage interface {
 	GetVal(key string) (interface{}, error)
 	PutVal(key string, storeVal interface{}) error
 }
 
 type JSONStorage struct {
 	log   bool
-	store storage
+	store Storage
 }
 
 type PatchOp int64
@@ -41,7 +41,7 @@ func (pop PatchOp) String() string {
 	return "unknown"
 }
 
-func NewKVStoreJSON(kvStore storage, log bool) *JSONStorage {
+func NewJSONStorage(kvStore Storage, log bool) *JSONStorage {
 	return &JSONStorage{store: kvStore, log: log}
 }
 

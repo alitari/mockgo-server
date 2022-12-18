@@ -163,11 +163,11 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler 
 			addresses = append(addresses, fmt.Sprintf("%s:%d", host, configuration.KvstorePort))
 		}
 	}
-	kvs, err := grpckvstore.NewGrpcKVstore(addresses, configuration.KvstorePort, kvstoreLogger)
+	kvs, err := grpckvstore.NewGrpcStorage(addresses, configuration.KvstorePort, kvstoreLogger)
 	if err != nil {
 		log.Fatalf("can't initialize grpc kvstore: %v", err)
 	}
-	kvstoreJSON := kvstore.NewKVStoreJSON(kvs, logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
+	kvstoreJSON := kvstore.NewJSONStorage(kvs, logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
 	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJSON, kvstoreLogger)
 }
 

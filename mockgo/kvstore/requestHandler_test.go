@@ -20,7 +20,7 @@ var kvstoreHandler *RequestHandler
 
 func TestMain(m *testing.M) {
 	kvstoreLogger := logging.NewLoggerUtil(logging.Debug)
-	kvstoreJSON := NewKVStoreJSON(NewInmemoryKVStore(), true)
+	kvstoreJSON := NewJSONStorage(NewInmemoryKVStore(), true)
 	kvstoreHandler = NewRequestHandler("", username, password, kvstoreJSON, kvstoreLogger)
 	router := mux.NewRouter()
 	kvstoreHandler.AddRoutes(router)
