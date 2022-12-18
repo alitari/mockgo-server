@@ -2,13 +2,13 @@ package testutil
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/alitari/mockgo-server/mockgo/util"
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -33,8 +33,12 @@ func CreateHeader() Header {
 }
 
 func (h Header) WithAuth(username, password string) Header {
-	h.entries[headers.Authorization] = []string{util.BasicAuth(username, password)}
+	h.entries[headers.Authorization] = []string{basicAuth(username, password)}
 	return h
+}
+
+func basicAuth(username, password string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
 }
 
 func (h Header) WithKeyValue(key, value string) Header {
@@ -42,12 +46,12 @@ func (h Header) WithKeyValue(key, value string) Header {
 	return h
 }
 
-func (h Header) WithJsonContentType() Header {
+func (h Header) WithJSONContentType() Header {
 	h.entries[headers.ContentType] = []string{"application/json"}
 	return h
 }
 
-func (h Header) WithJsonAccept() Header {
+func (h Header) WithJSONAccept() Header {
 	h.entries[headers.Accept] = []string{"application/json"}
 	return h
 }
@@ -91,7 +95,7 @@ func CreateIncomingRequest(method, path string, header Header, body string) *htt
 		bodyReader = bytes.NewBufferString(body)
 	}
 
-	request := httptest.NewRequest(method, fmt.Sprintf("%s%s", testServer.URL, path), bodyReader)
+	request := httptest.NewRequest(method, fmt.Sprintf("%s%s", "http://localhost/", path), bodyReader)
 	return setHeader(request, header)
 }
 

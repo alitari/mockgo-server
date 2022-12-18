@@ -4,7 +4,9 @@
 
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6619/badge)](https://bestpractices.coreinfrastructure.org/projects/6619)
 [![Build](https://github.com/alitari/mockgo-server/workflows/Workflow/badge.svg?branch=master)](https://github.com/alitari/mockgo-server/actions?workflow=Workflow&branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/alitari/mockgo-server/mockgo)](https://goreportcard.com/report/github.com/alitari/mockgo-server/mockgo)
 [![codecov](https://codecov.io/gh/alitari/mockgo-server/branch/master/graph/badge.svg?token=WRJ9KFCJFI)](https://codecov.io/gh/alitari/mockgo-server)
+[![Go Reference](https://pkg.go.dev/badge/github.com/alitari/mockgo-server/mockgo.svg)](https://pkg.go.dev/github.com/alitari/mockgo-server/mockgo)
 
 ![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/alitari/mockgo-standalone?label=image%20mockgo-standalone)
 ![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/alitari/mockgo-grpc?label=image%20mockgo-grpc)
@@ -75,7 +77,7 @@ docker run -it -v ${MOCK_DIR}:/mocks -e MOCK_DIR=/mocks alitari/mockgo-${MOCKGO_
 
 ## mockfiles and endpoints
 
-A mockgo-server configuration consist of one or multiple files in yaml format, the so called *mockfiles*. Each *mockfile* contains one or multiple *endpoints*. The *endpoint* defines criterias which qualify the endpoint to serve an incoming request. This process is called *matching*. The second configuration part of an *endpoint* is the defintion of the http response. 
+A mockgo-server configuration consist of one or multiple files in yaml format, the so called *mockfiles*. Each *mockfile* contains one or multiple *endpoints*. The *endpoint* defines criteria which qualify the endpoint to serve an incoming request. This process is called *matching*. The second configuration part of an *endpoint* is the definition of the http response. 
 
 ```yaml
 endpoints:
@@ -160,7 +162,7 @@ The form of a http request can be described as a sequence of *pathsegments* whic
 | `RequestPath` | `         string`|
 | `RequestHost` | `         string`|
 | `RequestBody` | `         string`|
-| `RequestBodyJsonData` | ` map[string]interface{}`|
+| `RequestBodyJSONData` | ` map[string]interface{}`|
 
 ### example
 
@@ -176,7 +178,7 @@ endpoints:
       body: |-
         {{ .RequestBody -}}
       headers: |
-        Header1: "{{ .RequestUrl }}"
+        Header1: "{{ .RequestURL }}"
 EOF
 # per default mockgo-server looks in the current dir for files with names matching "*-mock.*"
 ./bin/mockgo-standalone-linux-amd64
@@ -238,14 +240,14 @@ endpoints:
       path: '/storePeople'
     response:
       statusCode: |-
-        {{ $payload := .RequestBodyJsonData -}}
+        {{ $payload := .RequestBodyJSONData -}}
         {{ if and $payload.name $payload.age -}}
           200
         {{- else -}}
           400
         {{- end -}}
       body: |-
-        {{ $payload := .RequestBodyJsonData -}}
+        {{ $payload := .RequestBodyJSONData -}}
         {{ if and $payload.name $payload.age -}}
           {{ if gt ( int $payload.age) 17 -}}
             {{ kvStoreAdd "people" "/adults/-" .RequestBody -}}

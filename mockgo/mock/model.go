@@ -16,7 +16,7 @@ type MatchRequest struct {
 	BodyRegexp *regexp.Regexp    `yaml:"-" json:"-" `
 }
 
-type MockResponse struct {
+type Response struct {
 	Template     *template.Template `yaml:"-" json:"-"`
 	StatusCode   string             `yaml:"statusCode" json:"statusCode"`
 	Headers      string             `yaml:"headers" json:"headers"`
@@ -24,21 +24,21 @@ type MockResponse struct {
 	BodyFilename string             `yaml:"bodyFilename" json:"bodyFilename"`
 }
 
-type MockEndpoint struct {
-	Id       string        `yaml:"id" json:"id"`
+type Endpoint struct {
+	ID       string        `yaml:"id" json:"id"`
 	Mock     *Mock         `yaml:"-" json:"mock" `
 	Prio     int           `yaml:"prio" json:"prio"`
 	Request  *MatchRequest `yaml:"request" json:"request"`
-	Response *MockResponse `yaml:"response" json:"response"`
+	Response *Response     `yaml:"response" json:"response"`
 }
 
 type Mock struct {
-	Name      string          `yaml:"name" json:"name"`
-	Endpoints []*MockEndpoint `yaml:"endpoints" json:"-"`
+	Name      string      `yaml:"name" json:"name"`
+	Endpoints []*Endpoint `yaml:"endpoints" json:"-"`
 }
 
 type EpSearchNode struct {
 	SearchNodes   map[string]*EpSearchNode
-	Endpoints     map[string][]*MockEndpoint
+	Endpoints     map[string][]*Endpoint
 	PathParamName string
 }

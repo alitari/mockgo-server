@@ -3,7 +3,7 @@ package matches
 import "time"
 
 type Match struct {
-	EndpointId     string          `json:"endpointId"`
+	EndpointID     string          `json:"endpointId"`
 	Timestamp      time.Time       `json:"timestamp"`
 	ActualRequest  *ActualRequest  `json:"actualRequest"`
 	ActualResponse *ActualResponse `json:"actualResponse"`
@@ -28,12 +28,12 @@ type ActualResponse struct {
 }
 
 type Matchstore interface {
-	GetMatches(endpointId string) ([]*Match, error)
-	GetMatchesCount(endpointId string) (uint64, error)
+	GetMatches(endpointID string) ([]*Match, error)
+	GetMatchesCount(endpointID string) (uint64, error)
 	GetMismatches() ([]*Mismatch, error)
-	AddMatch(endpointId string, match *Match) error
+	AddMatch(endpointID string, match *Match) error
 	AddMismatch(*Mismatch) error
 	GetMismatchesCount() (uint64, error)
-	DeleteMatches(endpointId string) error
+	DeleteMatches(endpointID string) error
 	DeleteMismatches() error
 }

@@ -28,14 +28,13 @@ type GrpcKVStore struct {
 func NewGrpcKVstore(addresses []string, serverPort int, logger *logging.LoggerUtil) (*GrpcKVStore, error) {
 	kvstore := &GrpcKVStore{id: uuid.New().String(), InmemoryKVStore: kvstore.NewInmemoryKVStore(), timeout: 1 * time.Second, logger: logger}
 	for _, address := range addresses {
-		if conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
+		conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
 			return nil, err
-		} else {
-			kvstore.clients = append(kvstore.clients, NewKVStoreClient(conn))
 		}
+		kvstore.clients = append(kvstore.clients, NewKVStoreClient(conn))
 	}
 	go kvstore.startServe(serverPort)
-
 	return kvstore, nil
 }
 

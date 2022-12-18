@@ -18,9 +18,9 @@ func NewInMemoryMatchstore(size uint16) *InMemoryMatchstore {
 	return inMemoryMatchstore
 }
 
-func (s *InMemoryMatchstore) GetMatches(endpointId string) ([]*Match, error) {
+func (s *InMemoryMatchstore) GetMatches(endpointID string) ([]*Match, error) {
 	matchesResult := []*Match{}
-	matchesList := s.matches[endpointId]
+	matchesList := s.matches[endpointID]
 	if matchesList != nil {
 		for match := matchesList.Front(); match != nil; match = match.Next() {
 			matchesResult = append(matchesResult, match.Value.(*Match))
@@ -29,8 +29,8 @@ func (s *InMemoryMatchstore) GetMatches(endpointId string) ([]*Match, error) {
 	return matchesResult, nil
 }
 
-func (s *InMemoryMatchstore) GetMatchesCount(endpointId string) (uint64, error) {
-	return s.matchesCount[endpointId], nil
+func (s *InMemoryMatchstore) GetMatchesCount(endpointID string) (uint64, error) {
+	return s.matchesCount[endpointID], nil
 }
 
 func (s *InMemoryMatchstore) GetMismatches() ([]*Mismatch, error) {
@@ -50,16 +50,16 @@ func (s *InMemoryMatchstore) AddMismatch(mismatch *Mismatch) error {
 	return nil
 }
 
-func (s *InMemoryMatchstore) AddMatch(endpointId string, match *Match) error {
-	if s.matches[endpointId] == nil {
-		s.matches[endpointId] = list.New()
+func (s *InMemoryMatchstore) AddMatch(endpointID string, match *Match) error {
+	if s.matches[endpointID] == nil {
+		s.matches[endpointID] = list.New()
 	}
-	matches := s.matches[endpointId]
+	matches := s.matches[endpointID]
 	matches.PushBack(match)
 	if uint16(matches.Len()) > s.size {
 		matches.Remove(matches.Front())
 	}
-	s.matchesCount[endpointId]++
+	s.matchesCount[endpointID]++
 	return nil
 }
 
@@ -67,14 +67,14 @@ func (s *InMemoryMatchstore) GetMismatchesCount() (uint64, error) {
 	return s.mismatchesCount, nil
 }
 
-func (s *InMemoryMatchstore) DeleteMatches(endpointId string) error {
-	matchesList := s.matches[endpointId]
+func (s *InMemoryMatchstore) DeleteMatches(endpointID string) error {
+	matchesList := s.matches[endpointID]
 	if matchesList != nil {
 		for match := matchesList.Front(); match != nil; match = matchesList.Front() {
 			matchesList.Remove(match)
 		}
 	}
-	s.matchesCount[endpointId] = uint64(0)
+	s.matchesCount[endpointID] = uint64(0)
 	return nil
 }
 

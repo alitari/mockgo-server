@@ -1,9 +1,9 @@
 {
-    "requestUrl": "{{ .RequestUrl }}",
+    "requestUrl": "{{ .RequestURL }}",
     "requestPathParams": "{{ .RequestPathParams }}",
     "requestPathParam1": "{{ .RequestPathParams.myparam1 }}",
     "requestPath": "{{ .RequestPath }}",
     "requestHost": "{{ .RequestHost }}",
     "requestBody": {{ .RequestBody | quote }},
-    "requestBodyKey" : "{{ .RequestBodyJsonData.requestBodyKey }}"
+    "requestBodyKey" : "{{ .RequestBodyJSONData.requestBodyKey }}"
 }

@@ -1,7 +1,7 @@
 {{ $key := .RequestPathParams.key -}}
 {{ $body := .RequestBody -}}
-{{ $path := .RequestBodyJsonData.path -}}
-{{ $val := .RequestBodyJsonData.value -}}
+{{ $path := .RequestBodyJSONData.path -}}
+{{ $val := .RequestBodyJSONData.value -}}
 {{ kvStoreAdd $key $path $val -}}
 
 {

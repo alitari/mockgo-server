@@ -28,7 +28,6 @@ Cluster-grpc       |___/  %s
 
 const versionTag = "testversion"
 
-
 type RequestHandler interface {
 	AddRoutes(router *mux.Router)
 }
@@ -103,7 +102,7 @@ Cluster:
 }
 
 func main() {
-	log.Printf(banner,versionTag)
+	log.Printf(banner, versionTag)
 	configuration := createConfiguration()
 	log.Print(configuration.info())
 	matchstore := createMatchstore(configuration)
@@ -148,13 +147,13 @@ func createMatchstore(configuration *Configuration) *matchstore.GrpcMatchstore {
 	return matchStore
 }
 
-func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.MatchesRequestHandler {
+func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.RequestHandler {
 	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	return matches.NewMatchesRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
+	return matches.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
 		matchstore, matchLogger)
 }
 
-func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestHandler {
+func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler {
 	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelKvstore))
 	addresses := []string{}
 	for _, host := range configuration.ClusterHostnames {
@@ -168,13 +167,13 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.KVStoreRequestH
 	if err != nil {
 		log.Fatalf("can't initialize grpc kvstore: %v", err)
 	}
-	kvstoreJson := kvstore.NewKVStoreJSON(kvs, logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
-	return kvstore.NewKVStoreRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJson, kvstoreLogger)
+	kvstoreJSON := kvstore.NewKVStoreJSON(kvs, logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
+	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJSON, kvstoreLogger)
 }
 
-func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.MockRequestHandler {
+func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.RequestHandler {
 	mockLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMock))
-	mockHandler := mock.NewMockRequestHandler(configuration.MockDir, configuration.MockFilepattern, matchstore, mockLogger)
+	mockHandler := mock.NewRequestHandler(configuration.MockDir, configuration.MockFilepattern, matchstore, mockLogger)
 	return mockHandler
 }
 

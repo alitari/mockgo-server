@@ -20,16 +20,16 @@ const (
 type ErrorMatchstore struct {
 }
 
-func (s *ErrorMatchstore) GetMatches(endpointId string) ([]*Match, error) {
+func (s *ErrorMatchstore) GetMatches(endpointID string) ([]*Match, error) {
 	return nil, fmt.Errorf("error in get matches")
 }
 func (s *ErrorMatchstore) GetMismatches() ([]*Mismatch, error) {
 	return nil, fmt.Errorf("error in get mismatches")
 }
-func (s *ErrorMatchstore) GetMatchesCount(endpointId string) (uint64, error) {
+func (s *ErrorMatchstore) GetMatchesCount(endpointID string) (uint64, error) {
 	return 0, fmt.Errorf("error in get matches count")
 }
-func (s *ErrorMatchstore) AddMatch(endpointId string, match *Match) error {
+func (s *ErrorMatchstore) AddMatch(endpointID string, match *Match) error {
 	return fmt.Errorf("error in add match")
 }
 func (s *ErrorMatchstore) AddMismatch(*Mismatch) error {
@@ -38,15 +38,15 @@ func (s *ErrorMatchstore) AddMismatch(*Mismatch) error {
 func (s *ErrorMatchstore) GetMismatchesCount() (uint64, error) {
 	return 0, fmt.Errorf("error in get mismatches count")
 }
-func (s *ErrorMatchstore) DeleteMatches(endpointId string) error {
+func (s *ErrorMatchstore) DeleteMatches(endpointID string) error {
 	return fmt.Errorf("error in delete matches")
 }
 func (s *ErrorMatchstore) DeleteMismatches() error {
 	return fmt.Errorf("error in delete mismatches")
 }
 
-var matchesRequestHandler = NewMatchesRequestHandler("", username, password, NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-var matchesRequestHandlerErroneous = NewMatchesRequestHandler("", username, password, &ErrorMatchstore{}, logging.NewLoggerUtil(logging.Debug))
+var matchesRequestHandler = NewRequestHandler("", username, password, NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+var matchesRequestHandlerErroneous = NewRequestHandler("", username, password, &ErrorMatchstore{}, logging.NewLoggerUtil(logging.Debug))
 
 func TestMain(m *testing.M) {
 	router := mux.NewRouter()
@@ -63,13 +63,13 @@ func TestMatchesRequestHandler_serving_health(t *testing.T) {
 }
 
 func TestMatchesRequestHandler_serving_getMatches(t *testing.T) {
-	endpointId := "myEndpointId"
-	err := matchesRequestHandler.matchStore.DeleteMatches(endpointId)
+	endpointID := "myEndpointId"
+	err := matchesRequestHandler.matchStore.DeleteMatches(endpointID)
 	assert.NoError(t, err)
-	err = matchesRequestHandler.matchStore.AddMatch(endpointId, createMatch(endpointId))
+	err = matchesRequestHandler.matchStore.AddMatch(endpointID, createMatch(endpointID))
 	assert.NoError(t, err)
-	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/matches/"+endpointId,
-		testutil.CreateHeader().WithAuth(username, password).WithJsonAccept(), "")
+	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/matches/"+endpointID,
+		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
 	testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.Equal(t, `[{"endpointId":"myEndpointId","timestamp":"2009-11-17T20:34:58.651387237Z","actualRequest":{"method":"GET","url":"./http://myhost","header":null,"host":""},"actualResponse":null}]`, responseBody)
@@ -86,13 +86,13 @@ func TestMatchesRequestHandler_getMatches_Error(t *testing.T) {
 }
 
 func TestMatchesRequestHandler_serving_getMatchesCount(t *testing.T) {
-	endpointId := "myEndpointId"
-	err := matchesRequestHandler.matchStore.DeleteMatches(endpointId)
+	endpointID := "myEndpointId"
+	err := matchesRequestHandler.matchStore.DeleteMatches(endpointID)
 	assert.NoError(t, err)
-	err = matchesRequestHandler.matchStore.AddMatch(endpointId, createMatch(endpointId))
+	err = matchesRequestHandler.matchStore.AddMatch(endpointID, createMatch(endpointID))
 	assert.NoError(t, err)
-	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/matchesCount/"+endpointId,
-		testutil.CreateHeader().WithAuth(username, password).WithJsonAccept(), "")
+	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/matchesCount/"+endpointID,
+		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
 	testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.Equal(t, `1`, responseBody)
@@ -114,7 +114,7 @@ func TestMatchesRequestHandler_serving_getMismatches(t *testing.T) {
 	err = matchesRequestHandler.matchStore.AddMismatch(createMismatch())
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/mismatches",
-		testutil.CreateHeader().WithAuth(username, password).WithJsonAccept(), "")
+		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
 	testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.Equal(t, `[{"MismatchDetails":"","timestamp":"2009-11-17T20:34:58.651387237Z","actualRequest":{"method":"GET","url":"./http://myhost","header":null,"host":""}}]`, responseBody)
@@ -136,7 +136,7 @@ func TestMatchesRequestHandler_serving_getMismatchesCount(t *testing.T) {
 	err = matchesRequestHandler.matchStore.AddMismatch(createMismatch())
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/mismatchesCount",
-		testutil.CreateHeader().WithAuth(username, password).WithJsonAccept(), "")
+		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
 	testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.Equal(t, `1`, responseBody)
@@ -153,13 +153,13 @@ func TestMatchesRequestHandler_getMismatchesCount_Error(t *testing.T) {
 }
 
 func TestMatchesRequestHandler_serving_deleteMatches(t *testing.T) {
-	endpointId := "myEndpointId"
-	err := matchesRequestHandler.matchStore.AddMatch(endpointId, createMatch(endpointId))
+	endpointID := "myEndpointId"
+	err := matchesRequestHandler.matchStore.AddMatch(endpointID, createMatch(endpointID))
 	assert.NoError(t, err)
-	request := testutil.CreateOutgoingRequest(t, http.MethodDelete, "/matches/"+endpointId,
-		testutil.CreateHeader().WithAuth(username, password).WithJsonAccept(), "")
+	request := testutil.CreateOutgoingRequest(t, http.MethodDelete, "/matches/"+endpointID,
+		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
 	testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusOK)
-	matches, err := matchesRequestHandler.matchStore.GetMatches(endpointId)
+	matches, err := matchesRequestHandler.matchStore.GetMatches(endpointID)
 	assert.NoError(t, err)
 	assert.Empty(t, matches)
 }
@@ -177,7 +177,7 @@ func TestMatchesRequestHandler_serving_deleteMismatches(t *testing.T) {
 	err := matchesRequestHandler.matchStore.AddMismatch(createMismatch())
 	assert.NoError(t, err)
 	request := testutil.CreateOutgoingRequest(t, http.MethodDelete, "/mismatches",
-		testutil.CreateHeader().WithAuth(username, password).WithJsonAccept(), "")
+		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
 	testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusOK)
 	mismatches, err := matchesRequestHandler.matchStore.GetMismatches()
 	assert.NoError(t, err)

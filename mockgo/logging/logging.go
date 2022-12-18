@@ -90,7 +90,7 @@ func (l *LoggerUtil) callerInfo(skip int) (info string) {
 	return fmt.Sprintf("%s:%d ", fileName, lineNo)
 }
 
-type LoggingResponseWriter struct {
+type ResponseWriter struct {
 	http.ResponseWriter
 	responseCode int
 	buf          *bytes.Buffer
@@ -98,27 +98,27 @@ type LoggingResponseWriter struct {
 	skip         int
 }
 
-func NewLoggingResponseWriter(writer http.ResponseWriter, logger *LoggerUtil, skip int) *LoggingResponseWriter {
-	lrw := &LoggingResponseWriter{
+func NewResponseWriter(writer http.ResponseWriter, logger *LoggerUtil, skip int) *ResponseWriter {
+	lrw := &ResponseWriter{
 		ResponseWriter: writer,
 		buf:            &bytes.Buffer{},
 		loggerUtil:     logger,
 		responseCode:   http.StatusOK,
-		skip: skip,
+		skip:           skip,
 	}
 	return lrw
 }
 
-func (lrw *LoggingResponseWriter) Write(p []byte) (int, error) {
+func (lrw *ResponseWriter) Write(p []byte) (int, error) {
 	return lrw.buf.Write(p)
 }
 
-func (lrw *LoggingResponseWriter) WriteHeader(code int) {
+func (lrw *ResponseWriter) WriteHeader(code int) {
 	lrw.responseCode = code
 	lrw.ResponseWriter.WriteHeader(code)
 }
 
-func (lrw *LoggingResponseWriter) Log() {
+func (lrw *ResponseWriter) Log() {
 	if lrw.loggerUtil.Level >= Debug {
 		lrw.loggerUtil.logger.Printf("%s (DEBUG) Sending response with status %d :\nbody:'%s'", lrw.loggerUtil.callerInfo(lrw.skip), lrw.responseCode, lrw.buf.String())
 	}

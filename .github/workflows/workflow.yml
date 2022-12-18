@@ -18,12 +18,19 @@ jobs:
       with:
         go-version: 1.19
 
-    - name: protobuf
+    - name: tools
       run: |
         sudo apt update -y
         sudo apt install -y protobuf-compiler
         go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
         go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+        go install github.com/client9/misspell/cmd/misspell@latest
+        go install github.com/gordonklaus/ineffassign@latest
+        go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+        go install golang.org/x/lint/golint@latest
+
+    - name: Test all
+      run: ./scripts/go-test-all.sh
 
     - name: Build mockgo standalone
       run: |
@@ -43,9 +50,6 @@ jobs:
         ./scripts/go-build-mockgo.sh linux arm64 grpc norelease
         ./scripts/go-build-mockgo.sh windows amd64 grpc norelease
 
-    - name: Test all
-      run: ./scripts/go-test-all.sh
-    
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:

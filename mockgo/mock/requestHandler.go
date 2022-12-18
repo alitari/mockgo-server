@@ -29,20 +29,20 @@ const templateResponseBody = "responseBody"
 const templateResponseStatus = "responseStatus"
 const templateResponseHeader = "responseHeader"
 
-const headerKeyEndpointId = "endpoint-Id"
+const headerKeyEndpointID = "endpoint-Id"
 
 type ResponseTemplateData struct {
 	RequestPathParams   map[string]string
 	RequestQueryParams  map[string]string
 	KVStore             map[string]interface{}
-	RequestUrl          string
+	RequestURL          string
 	RequestPath         string
 	RequestHost         string
 	RequestBody         string
-	RequestBodyJsonData map[string]interface{}
+	RequestBodyJSONData map[string]interface{}
 }
 
-type MockRequestHandler struct {
+type RequestHandler struct {
 	mockDir         string
 	mockFilepattern string
 	logger          *logging.LoggerUtil
@@ -50,8 +50,8 @@ type MockRequestHandler struct {
 	matchstore      matches.Matchstore
 }
 
-func NewMockRequestHandler(mockDir, mockFilepattern string, matchstore matches.Matchstore, logger *logging.LoggerUtil) *MockRequestHandler {
-	mockRouter := &MockRequestHandler{
+func NewRequestHandler(mockDir, mockFilepattern string, matchstore matches.Matchstore, logger *logging.LoggerUtil) *RequestHandler {
+	mockRouter := &RequestHandler{
 		mockDir:         mockDir,
 		mockFilepattern: mockFilepattern,
 		logger:          logger,
@@ -77,7 +77,7 @@ var (
 	)
 )
 
-func (r *MockRequestHandler) RegisterMetrics() error {
+func (r *RequestHandler) RegisterMetrics() error {
 	if err := prometheus.Register(matchesMetric); err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (r *MockRequestHandler) RegisterMetrics() error {
 	return nil
 }
 
-func (r *MockRequestHandler) LoadFiles(funcMap template.FuncMap) error {
+func (r *RequestHandler) LoadFiles(funcMap template.FuncMap) error {
 	r.EpSearchNode = &EpSearchNode{}
 	endPointCounter := 0
 	mockFiles, err := walkMatch(r.mockDir, r.mockFilepattern)
@@ -102,8 +102,8 @@ func (r *MockRequestHandler) LoadFiles(funcMap template.FuncMap) error {
 		}
 		for _, endpoint := range mock.Endpoints {
 			endPointCounter++
-			if len(endpoint.Id) == 0 {
-				endpoint.Id = strconv.Itoa(endPointCounter)
+			if len(endpoint.ID) == 0 {
+				endpoint.ID = strconv.Itoa(endPointCounter)
 			}
 			endpoint.Mock = mock
 			err := r.initResponseTemplates(endpoint, funcMap)
@@ -116,7 +116,7 @@ func (r *MockRequestHandler) LoadFiles(funcMap template.FuncMap) error {
 	return nil
 }
 
-func (r *MockRequestHandler) readMockFile(mockFile string) (*Mock, error) {
+func (r *RequestHandler) readMockFile(mockFile string) (*Mock, error) {
 	r.logger.LogWhenVerbose(fmt.Sprintf("Reading mock file '%s' ...", mockFile))
 	mockFileContent, err := os.ReadFile(mockFile)
 	if err != nil {
@@ -145,12 +145,12 @@ func (r *MockRequestHandler) readMockFile(mockFile string) (*Mock, error) {
 	return &mock, nil
 }
 
-func (r *MockRequestHandler) initResponseTemplates(endpoint *MockEndpoint, funcMap template.FuncMap) error {
-	endpoint.Response.Template = template.New(endpoint.Id).Funcs(sprig.TxtFuncMap()).Funcs(funcMap)
+func (r *RequestHandler) initResponseTemplates(endpoint *Endpoint, funcMap template.FuncMap) error {
+	endpoint.Response.Template = template.New(endpoint.ID).Funcs(sprig.TxtFuncMap()).Funcs(funcMap)
 	body := ""
 	if len(endpoint.Response.Body) > 0 {
 		if len(endpoint.Response.BodyFilename) > 0 {
-			return fmt.Errorf("error parsing endpoint id '%s' , response.body and response.bodyFilename can't be defined both", endpoint.Id)
+			return fmt.Errorf("error parsing endpoint id '%s' , response.body and response.bodyFilename can't be defined both", endpoint.ID)
 		}
 		body = endpoint.Response.Body
 	} else {
@@ -182,8 +182,8 @@ func (r *MockRequestHandler) initResponseTemplates(endpoint *MockEndpoint, funcM
 	return nil
 }
 
-func (r *MockRequestHandler) AddRoutes(router *mux.Router) {
-	var endPoint *MockEndpoint
+func (r *RequestHandler) AddRoutes(router *mux.Router) {
+	var endPoint *Endpoint
 	var match *matches.Match
 	var requestPathParam map[string]string
 	var queryParams map[string]string
@@ -194,16 +194,16 @@ func (r *MockRequestHandler) AddRoutes(router *mux.Router) {
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		r.logger.LogIncomingRequest(request)
 		if r.logger.Level >= logging.Debug {
-			writer = logging.NewLoggingResponseWriter(writer, r.logger, 2)
+			writer = logging.NewResponseWriter(writer, r.logger, 2)
 		}
 		r.renderResponse(writer, request, endPoint, match, requestPathParam, queryParams)
 		if r.logger.Level >= logging.Debug {
-			writer.(*logging.LoggingResponseWriter).Log()
+			writer.(*logging.ResponseWriter).Log()
 		}
 	})
 }
 
-func (r *MockRequestHandler) registerEndpoint(endpoint *MockEndpoint) {
+func (r *RequestHandler) registerEndpoint(endpoint *Endpoint) {
 	if endpoint.Request.Method == "" {
 		endpoint.Request.Method = "GET"
 	}
@@ -226,11 +226,11 @@ func (r *MockRequestHandler) registerEndpoint(endpoint *MockEndpoint) {
 		sn.PathParamName = pathParamName
 	}
 	if sn.Endpoints == nil {
-		sn.Endpoints = make(map[string][]*MockEndpoint)
+		sn.Endpoints = make(map[string][]*Endpoint)
 	}
 
 	if sn.Endpoints[endpoint.Request.Method] == nil {
-		sn.Endpoints[endpoint.Request.Method] = []*MockEndpoint{}
+		sn.Endpoints[endpoint.Request.Method] = []*Endpoint{}
 	}
 	insertIndex := 0
 	for i, ep := range sn.Endpoints[endpoint.Request.Method] {
@@ -245,10 +245,17 @@ func (r *MockRequestHandler) registerEndpoint(endpoint *MockEndpoint) {
 		sn.Endpoints[endpoint.Request.Method] = append(sn.Endpoints[endpoint.Request.Method][:insertIndex+1], sn.Endpoints[endpoint.Request.Method][insertIndex:]...)
 		sn.Endpoints[endpoint.Request.Method][insertIndex] = endpoint
 	}
-	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.Id, endpoint.Request.Path, endpoint.Request.Method))
+	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.ID, endpoint.Request.Path, endpoint.Request.Method))
 }
 
-func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*MockEndpoint, *matches.Match, map[string]string, map[string]string) {
+func getPathSegment(segments []string, pos int) string {
+	if pos < len(segments) {
+		return segments[pos]
+	}
+	return ""
+}
+
+func (r *RequestHandler) matchRequestToEndpoint(request *http.Request) (*Endpoint, *matches.Match, map[string]string, map[string]string) {
 	requestPathParams := map[string]string{}
 	queryParams := map[string]string{}
 
@@ -257,13 +264,6 @@ func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*Moc
 	}
 
 	sn := r.EpSearchNode
-	getPathSegment := func(segments []string, pos int) string {
-		if pos < len(segments) {
-			return segments[pos]
-		} else {
-			return ""
-		}
-	}
 	pathSegments := strings.Split(request.URL.Path, "/")[1:]
 	allMatch := false
 	pathSegment := getPathSegment(pathSegments, 0)
@@ -291,10 +291,9 @@ func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*Moc
 					if sn.SearchNodes["**"] == nil {
 						r.addMismatch(sn, pos, "", request)
 						return nil, nil, requestPathParams, queryParams
-					} else {
-						allMatch = true
-						sn = sn.SearchNodes["**"]
 					}
+					allMatch = true
+					sn = sn.SearchNodes["**"]
 				} else {
 					sn = sn.SearchNodes["*"]
 					if len(sn.PathParamName) > 0 {
@@ -311,31 +310,30 @@ func (r *MockRequestHandler) matchRequestToEndpoint(request *http.Request) (*Moc
 		if sn.Endpoints[request.Method] != nil {
 			ep, match := r.matchEndPointsAttributes(sn.Endpoints[request.Method], request)
 			return ep, match, requestPathParams, queryParams
-		} else {
-			r.addMismatch(nil, -1, fmt.Sprintf("no endpoint found with method '%s'", request.Method), request)
-			return nil, nil, requestPathParams, queryParams
 		}
+		r.addMismatch(nil, -1, fmt.Sprintf("no endpoint found with method '%s'", request.Method), request)
+		return nil, nil, requestPathParams, queryParams
 	}
 	r.addMismatch(sn, math.MaxInt, "", request)
 	return nil, nil, requestPathParams, queryParams
 }
 
-func (r *MockRequestHandler) matchEndPointsAttributes(endPoints []*MockEndpoint, request *http.Request) (*MockEndpoint, *matches.Match) {
+func (r *RequestHandler) matchEndPointsAttributes(endPoints []*Endpoint, request *http.Request) (*Endpoint, *matches.Match) {
 	mismatchMessage := ""
 	// sort.SliceStable(endPoints, func(i, j int) bool {
 	// 	return endPoints[i].Prio > endPoints[j].Prio
 	// })
 	for _, ep := range endPoints {
 		if !r.matchQueryParams(ep.Request, request) {
-			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted query params: %v", ep.Id, ep.Request.Query)
+			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted query params: %v", ep.ID, ep.Request.Query)
 			continue
 		}
 		if !r.matchHeaderValues(ep.Request, request) {
-			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted header: %v", ep.Id, ep.Request.Headers)
+			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted header: %v", ep.ID, ep.Request.Headers)
 			continue
 		}
 		if !r.matchBody(ep.Request, request) {
-			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted body: '%s'", ep.Id, ep.Request.Body)
+			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted body: '%s'", ep.ID, ep.Request.Body)
 			continue
 		}
 		match := r.addMatch(ep, request)
@@ -345,7 +343,7 @@ func (r *MockRequestHandler) matchEndPointsAttributes(endPoints []*MockEndpoint,
 	return nil, nil
 }
 
-func (r *MockRequestHandler) matchQueryParams(matchRequest *MatchRequest, request *http.Request) bool {
+func (r *RequestHandler) matchQueryParams(matchRequest *MatchRequest, request *http.Request) bool {
 	if len(matchRequest.Query) > 0 {
 		for key, val := range matchRequest.Query {
 			if request.URL.Query().Get(key) != val {
@@ -353,12 +351,11 @@ func (r *MockRequestHandler) matchQueryParams(matchRequest *MatchRequest, reques
 			}
 		}
 		return true
-	} else {
-		return true
 	}
+	return true
 }
 
-func (r *MockRequestHandler) matchHeaderValues(matchRequest *MatchRequest, request *http.Request) bool {
+func (r *RequestHandler) matchHeaderValues(matchRequest *MatchRequest, request *http.Request) bool {
 	if len(matchRequest.Headers) > 0 {
 		for key, val := range matchRequest.Headers {
 			if request.Header.Get(key) != val {
@@ -366,12 +363,11 @@ func (r *MockRequestHandler) matchHeaderValues(matchRequest *MatchRequest, reque
 			}
 		}
 		return true
-	} else {
-		return true
 	}
+	return true
 }
 
-func (r *MockRequestHandler) matchBody(matchRequest *MatchRequest, request *http.Request) bool {
+func (r *RequestHandler) matchBody(matchRequest *MatchRequest, request *http.Request) bool {
 	if matchRequest.BodyRegexp != nil {
 		reqBodyBytes, err := io.ReadAll(request.Body)
 		if err != nil {
@@ -379,20 +375,19 @@ func (r *MockRequestHandler) matchBody(matchRequest *MatchRequest, request *http
 			return false
 		}
 		return matchRequest.BodyRegexp.Match(reqBodyBytes)
-	} else {
-		return true
 	}
+	return true
 }
 
-func (r *MockRequestHandler) addMatch(endPoint *MockEndpoint, request *http.Request) *matches.Match {
+func (r *RequestHandler) addMatch(endPoint *Endpoint, request *http.Request) *matches.Match {
 	actualRequest := &matches.ActualRequest{Method: request.Method, URL: request.URL.String(), Header: request.Header, Host: request.Host}
-	match := &matches.Match{EndpointId: endPoint.Id, Timestamp: time.Now(), ActualRequest: actualRequest}
-	r.matchstore.AddMatch(endPoint.Id, match)
-	matchesMetric.With(prometheus.Labels{"endpoint": endPoint.Id}).Inc()
+	match := &matches.Match{EndpointID: endPoint.ID, Timestamp: time.Now(), ActualRequest: actualRequest}
+	r.matchstore.AddMatch(endPoint.ID, match)
+	matchesMetric.With(prometheus.Labels{"endpoint": endPoint.ID}).Inc()
 	return match
 }
 
-func (r *MockRequestHandler) addMismatch(sn *EpSearchNode, pathPos int, endpointMismatchDetails string, request *http.Request) {
+func (r *RequestHandler) addMismatch(sn *EpSearchNode, pathPos int, endpointMismatchDetails string, request *http.Request) {
 	var mismatchDetails string
 	if sn == nil { // node found -> path matched
 		mismatchDetails = fmt.Sprintf("path '%s' matched, but %s", request.URL.Path, endpointMismatchDetails)
@@ -415,8 +410,8 @@ func (r *MockRequestHandler) addMismatch(sn *EpSearchNode, pathPos int, endpoint
 	mismatchesMetric.Inc()
 }
 
-func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *MockEndpoint, match *matches.Match, requestPathParams, queryParams map[string]string) {
-	writer.Header().Add(headerKeyEndpointId, endpoint.Id)
+func (r *RequestHandler) renderResponse(writer http.ResponseWriter, request *http.Request, endpoint *Endpoint, match *matches.Match, requestPathParams, queryParams map[string]string) {
+	writer.Header().Add(headerKeyEndpointID, endpoint.ID)
 	responseTemplateData, err := r.createResponseTemplateData(request, requestPathParams, queryParams)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -471,9 +466,9 @@ func (r *MockRequestHandler) renderResponse(writer http.ResponseWriter, request 
 	match.ActualResponse = &matches.ActualResponse{StatusCode: responseStatus, Header: make(map[string][]string)}
 }
 
-func (r *MockRequestHandler) createResponseTemplateData(request *http.Request, requestPathParams, queryParams map[string]string) (*ResponseTemplateData, error) {
+func (r *RequestHandler) createResponseTemplateData(request *http.Request, requestPathParams, queryParams map[string]string) (*ResponseTemplateData, error) {
 	data := &ResponseTemplateData{
-		RequestUrl:         request.URL.String(),
+		RequestURL:         request.URL.String(),
 		RequestPathParams:  requestPathParams,
 		RequestQueryParams: queryParams,
 		RequestPath:        request.URL.Path,
@@ -489,7 +484,7 @@ func (r *MockRequestHandler) createResponseTemplateData(request *http.Request, r
 		bodyData := &map[string]interface{}{}
 		err = json.Unmarshal(body.Bytes(), bodyData)
 		if err == nil { // ignore when no json
-			data.RequestBodyJsonData = *bodyData
+			data.RequestBodyJSONData = *bodyData
 		}
 	}
 	return data, nil

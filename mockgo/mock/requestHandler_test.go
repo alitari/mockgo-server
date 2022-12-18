@@ -31,7 +31,7 @@ type mockTestCase struct {
 var router = mux.NewRouter()
 
 func TestMain(m *testing.M) {
-	mockRequestHandler := NewMockRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandler := NewRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	if err := mockRequestHandler.LoadFiles(nil); err != nil {
 		log.Fatal(err)
 	}
@@ -48,56 +48,56 @@ func TestMain(m *testing.M) {
 }
 
 func TestMockRequestHandler_LoadFiles_dir_not_exists(t *testing.T) {
-	mockRequestHandlerWithError := NewMockRequestHandler("pathnotexists", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandlerWithError := NewRequestHandler("pathnotexists", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "lstat pathnotexists: no such file or directory")
 }
 
 func TestMockRequestHandler_ReadMockfile_wrong_requestBody(t *testing.T) {
-	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/wrongRequestBodyRegexp", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongRequestBodyRegexp", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "error parsing regexp: missing closing ]: `[a`")
 }
 
 func TestMockRequestHandler_ReadMockfile_wrong_yaml(t *testing.T) {
-	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/wrongYaml", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongYaml", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "yaml: line 3: mapping values are not allowed in this context")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_doubleBody(t *testing.T) {
-	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/doubleResponseBody", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/doubleResponseBody", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "error parsing endpoint id 'doubleResponseBody' , response.body and response.bodyFilename can't be defined both")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_bodyfilename_not_exists(t *testing.T) {
-	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/bodyfilenameDoesNotExist", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/bodyfilenameDoesNotExist", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "open ../../test/mocksWithError/bodyfilenameDoesNotExist/notexistingfile.json: no such file or directory")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseBodyTemplate(t *testing.T) {
-	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/wrongResponseBodyTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongResponseBodyTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "template: responseBody:1: unclosed action")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseStatusTemplate(t *testing.T) {
-	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/wrongResponseStatusTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongResponseStatusTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "template: responseStatus:1: unclosed action")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseHeaderTemplate(t *testing.T) {
-	mockRequestHandlerWithError := NewMockRequestHandler("../../test/mocksWithError/wrongResponseHeaderTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongResponseHeaderTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "template: responseHeader:1: unclosed action")
 }
 
 func TestMockRequestHandler_matchBody_readerror(t *testing.T) {
-	mockRequestHandler := NewMockRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandler := NewRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	errorRequest := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodGet, "/path", testutil.CreateHeader())
 	assert.False(t, mockRequestHandler.matchBody(&MatchRequest{BodyRegexp: regexp.MustCompile(`^`)}, errorRequest))
 }
 
 func TestMockRequestHandler_renderResponse_readerror(t *testing.T) {
-	mockRequestHandler := NewMockRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandler := NewRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
 	errorRequest := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodGet, "/path", testutil.CreateHeader())
 	recorder := httptest.NewRecorder()
-	mockRequestHandler.renderResponse(recorder, errorRequest, &MockEndpoint{Id: "myId"}, nil, nil, nil)
+	mockRequestHandler.renderResponse(recorder, errorRequest, &Endpoint{ID: "myId"}, nil, nil, nil)
 	response := recorder.Result()
 	assert.Equal(t, http.StatusInternalServerError, response.StatusCode)
 	defer response.Body.Close()
@@ -144,7 +144,7 @@ func TestMockRequestHandler_serving_matches(t *testing.T) {
 			expectedStatusCode:     http.StatusOK,
 			expectedResponseHeader: map[string]string{"Endpoint-Id": "response-header", "Header1": "headervalue1", "Header2": "headervalue2"},
 			expectedResponseBody:   ""},
-		{name: "minimal match with header", method: http.MethodGet, path: "/minimal", header: testutil.CreateHeader().WithJsonAccept(),
+		{name: "minimal match with header", method: http.MethodGet, path: "/minimal", header: testutil.CreateHeader().WithJSONAccept(),
 			expectedStatusCode:     http.StatusNoContent,
 			expectedResponseHeader: map[string]string{"Endpoint-Id": "minimal"},
 			expectedResponseBody:   ""},
@@ -158,28 +158,28 @@ func TestMockRequestHandler_serving_matches(t *testing.T) {
 			expectedResponseBody:   ""},
 		{name: "maximal no match wrong query params", method: http.MethodPost,
 			path:                   "/maximal?firstQueryParam=value1&wrongQueryParam=value",
-			header:                 testutil.CreateHeader().WithJsonContentType().WithKeyValue("Myheader", "myheaderValue"),
+			header:                 testutil.CreateHeader().WithJSONContentType().WithKeyValue("Myheader", "myheaderValue"),
 			body:                   "{\n  \"mybody\": \"is max\"\n}\n",
 			expectedStatusCode:     http.StatusNotFound,
 			expectedResponseHeader: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
 			expectedResponseBody:   "404 page not found\n"},
 		{name: "maximal no match wrong header", method: http.MethodPost,
 			path:                   "/maximal?firstQueryParam=value1&secondQueryParam=value2",
-			header:                 testutil.CreateHeader().WithJsonContentType().WithKeyValue("Myheader", "wrong"),
+			header:                 testutil.CreateHeader().WithJSONContentType().WithKeyValue("Myheader", "wrong"),
 			body:                   "{\n  \"mybody\": \"is max\"\n}\n",
 			expectedStatusCode:     http.StatusNotFound,
 			expectedResponseHeader: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
 			expectedResponseBody:   "404 page not found\n"},
 		{name: "maximal no match wrong body", method: http.MethodPost,
 			path:                   "/maximal?firstQueryParam=value1&secondQueryParam=value2",
-			header:                 testutil.CreateHeader().WithJsonContentType().WithKeyValue("Myheader", "myheaderValue"),
+			header:                 testutil.CreateHeader().WithJSONContentType().WithKeyValue("Myheader", "myheaderValue"),
 			body:                   "{\n  \"mybody\": \"is wrong\"\n}\n",
 			expectedStatusCode:     http.StatusNotFound,
 			expectedResponseHeader: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
 			expectedResponseBody:   "404 page not found\n"},
 		{name: "maximal no match no body", method: http.MethodPost,
 			path:                   "/maximal?firstQueryParam=value1&secondQueryParam=value2",
-			header:                 testutil.CreateHeader().WithJsonContentType().WithKeyValue("Myheader", "myheaderValue"),
+			header:                 testutil.CreateHeader().WithJSONContentType().WithKeyValue("Myheader", "myheaderValue"),
 			body:                   "",
 			expectedStatusCode:     http.StatusNotFound,
 			expectedResponseHeader: map[string]string{"Content-Type": "text/plain; charset=utf-8"},
@@ -187,14 +187,14 @@ func TestMockRequestHandler_serving_matches(t *testing.T) {
 
 		{name: "maximal match", method: http.MethodPost,
 			path:                   "/maximal?firstQueryParam=value1&secondQueryParam=value2",
-			header:                 testutil.CreateHeader().WithJsonContentType().WithKeyValue("Myheader", "myheaderValue"),
+			header:                 testutil.CreateHeader().WithJSONContentType().WithKeyValue("Myheader", "myheaderValue"),
 			body:                   "{\n  \"mybody\": \"is max\"\n}\n",
 			expectedStatusCode:     http.StatusNoContent,
 			expectedResponseHeader: map[string]string{"Endpoint-Id": "maximal"},
 			expectedResponseBody:   ""},
 		{name: "maximal match header and query superset", method: http.MethodPost,
 			path:                   "/maximal?firstQueryParam=value1&secondQueryParam=value2&thirdQueryParam=value3",
-			header:                 testutil.CreateHeader().WithJsonContentType().WithKeyValue("Myheader", "myheaderValue").WithKeyValue("AnotherHeader", "anotherheaderValue"),
+			header:                 testutil.CreateHeader().WithJSONContentType().WithKeyValue("Myheader", "myheaderValue").WithKeyValue("AnotherHeader", "anotherheaderValue"),
 			body:                   "{\n  \"mybody\": \"is max\"\n}\n",
 			expectedStatusCode:     http.StatusNoContent,
 			expectedResponseHeader: map[string]string{"Endpoint-Id": "maximal"},
@@ -307,7 +307,7 @@ RequestUrl=/responsetemplates/foo?query1=queryvalue1&query2=queryvalue2
 RequestPath=/responsetemplates/foo
 RequestHost=
 RequestBody={ "mybody": "is cool!" }
-RequestBodyJsonData=map[mybody:is cool!]`},
+RequestBodyJSONData=map[mybody:is cool!]`},
 		{name: "error rendering response body", method: http.MethodGet, path: "/renderresponse/errorbody",
 			expectedStatusCode:   http.StatusInternalServerError,
 			expectedResponseBody: "Error rendering response body: template: responseBody:1:13: executing \"responseBody\" at <.Undefined.foo.bar>: can't evaluate field Undefined in type *mock.ResponseTemplateData"},
