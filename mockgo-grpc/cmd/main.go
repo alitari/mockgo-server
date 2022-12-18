@@ -28,10 +28,16 @@ Cluster-grpc       |___/  %s
 
 const versionTag = "testversion"
 
+/*
+RequestHandler abstraction of a set of http handler funcs
+*/
 type RequestHandler interface {
 	AddRoutes(router *mux.Router)
 }
 
+/*
+Configuration is the configuration model of the server which is defined via environment variables
+*/
 type Configuration struct {
 	LoglevelAPI        int      `default:"1" split_words:"true"`
 	LoglevelMock       int      `default:"1" split_words:"true"`
@@ -111,9 +117,6 @@ func main() {
 	mockHandler := createMockHandler(configuration, matchstore)
 	if err := mockHandler.LoadFiles(nil); err != nil {
 		log.Fatalf("can't load mock files: %v", err)
-	}
-	if err := mockHandler.RegisterMetrics(); err != nil {
-		log.Fatalf("can't register metrics: %v", err)
 	}
 	startServing(configuration, matchHandler, kvStoreHandler, mockHandler)
 }

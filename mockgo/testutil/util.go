@@ -4,10 +4,12 @@ import (
 	"log"
 	"math/rand"
 	"testing"
+	"time"
 )
 
+// RunAndCheckCoverage use this in order to let the test fail when a coverage is not reached
 func RunAndCheckCoverage(testPackage string, m *testing.M, treshold float64) int {
-
+	rand.Seed(time.Now().UnixNano())
 	code := m.Run()
 
 	if code == 0 && testing.CoverMode() != "" {
@@ -22,6 +24,7 @@ func RunAndCheckCoverage(testPackage string, m *testing.M, treshold float64) int
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
+// RandString create a random string with n letters
 func RandString(n int) string {
 	b := make([]byte, n)
 	for i := range b {

@@ -35,9 +35,6 @@ func TestMain(m *testing.M) {
 	if err := mockRequestHandler.LoadFiles(nil); err != nil {
 		log.Fatal(err)
 	}
-	if err := mockRequestHandler.RegisterMetrics(); err != nil {
-		log.Fatal(err)
-	}
 	mockRequestHandler.AddRoutes(router)
 	router.NewRoute().Name("metrics").Path("/__/metrics").Handler(promhttp.Handler())
 
@@ -310,10 +307,10 @@ RequestBody={ "mybody": "is cool!" }
 RequestBodyJSONData=map[mybody:is cool!]`},
 		{name: "error rendering response body", method: http.MethodGet, path: "/renderresponse/errorbody",
 			expectedStatusCode:   http.StatusInternalServerError,
-			expectedResponseBody: "Error rendering response body: template: responseBody:1:13: executing \"responseBody\" at <.Undefined.foo.bar>: can't evaluate field Undefined in type *mock.ResponseTemplateData"},
+			expectedResponseBody: "Error rendering response body: template: responseBody:1:13: executing \"responseBody\" at <.Undefined.foo.bar>: can't evaluate field Undefined in type *mock.responseTemplateData"},
 		{name: "error rendering response status", method: http.MethodGet, path: "/renderresponse/errorstatus",
 			expectedStatusCode:   http.StatusInternalServerError,
-			expectedResponseBody: "Error rendering response status: template: responseStatus:1:13: executing \"responseStatus\" at <.Undefined.foo.bar>: can't evaluate field Undefined in type *mock.ResponseTemplateData"},
+			expectedResponseBody: "Error rendering response status: template: responseStatus:1:13: executing \"responseStatus\" at <.Undefined.foo.bar>: can't evaluate field Undefined in type *mock.responseTemplateData"},
 		{name: "error rendering response status2", method: http.MethodGet, path: "/renderresponse/errorstatus2",
 			expectedStatusCode:   http.StatusInternalServerError,
 			expectedResponseBody: "Error converting response status: strconv.Atoi: parsing \"must be a number\": invalid syntax"},
@@ -322,7 +319,7 @@ RequestBodyJSONData=map[mybody:is cool!]`},
 			expectedResponseBody: "Error unmarshalling response headers: yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `no map` into map[string]string"},
 		{name: "error rendering response header2", method: http.MethodGet, path: "/renderresponse/errorresponseheader2",
 			expectedStatusCode:   http.StatusInternalServerError,
-			expectedResponseBody: "Error rendering response headers: template: responseHeader:1:22: executing \"responseHeader\" at <.Undefined.foo.bar>: can't evaluate field Undefined in type *mock.ResponseTemplateData"},
+			expectedResponseBody: "Error rendering response headers: template: responseHeader:1:22: executing \"responseHeader\" at <.Undefined.foo.bar>: can't evaluate field Undefined in type *mock.responseTemplateData"},
 	}
 	assertTestcases(t, testCases)
 }

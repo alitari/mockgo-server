@@ -5,7 +5,7 @@ import (
 )
 
 /*
-InMemoryMatchstore implements a Matchstore using local memory 
+InMemoryMatchstore implements a Matchstore using local memory
 */
 type InMemoryMatchstore struct {
 	size            uint16

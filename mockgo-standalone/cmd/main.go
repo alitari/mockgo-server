@@ -25,10 +25,16 @@ Standalone         |___/  %s
 
 const versionTag = "testversion"
 
+/*
+RequestHandler abstraction of a set of http handler funcs
+*/
 type RequestHandler interface {
 	AddRoutes(router *mux.Router)
 }
 
+/*
+Configuration is the configuration model of the server which is defined via environment variables
+*/
 type Configuration struct {
 	LoglevelAPI     int    `default:"1" split_words:"true"`
 	LoglevelMock    int    `default:"1" split_words:"true"`
@@ -93,9 +99,6 @@ func setupRouter() (*mux.Router, int, error) {
 	kvStoreHandler := createKVStoreHandler(configuration)
 	mockHandler := createMockHandler(configuration, matchStore)
 	if err := mockHandler.LoadFiles(kvStoreHandler.GetFuncMap()); err != nil {
-		return nil, -1, err
-	}
-	if err := mockHandler.RegisterMetrics(); err != nil {
 		return nil, -1, err
 	}
 	return createRouter(matchHandler, kvStoreHandler, mockHandler), configuration.MockPort, nil

@@ -31,7 +31,7 @@ const templateResponseHeader = "responseHeader"
 
 const headerKeyEndpointID = "endpoint-Id"
 
-type ResponseTemplateData struct {
+type responseTemplateData struct {
 	RequestPathParams   map[string]string
 	RequestQueryParams  map[string]string
 	KVStore             map[string]interface{}
@@ -42,20 +42,26 @@ type ResponseTemplateData struct {
 	RequestBodyJSONData map[string]interface{}
 }
 
+/*
+RequestHandler implements an http server for mock endpoints
+*/
 type RequestHandler struct {
 	mockDir         string
 	mockFilepattern string
 	logger          *logging.LoggerUtil
-	EpSearchNode    *EpSearchNode
+	EpSearchNode    *epSearchNode
 	matchstore      matches.Matchstore
 }
 
+/*
+NewRequestHandler creates an instance of RequestHandler
+*/
 func NewRequestHandler(mockDir, mockFilepattern string, matchstore matches.Matchstore, logger *logging.LoggerUtil) *RequestHandler {
 	mockRouter := &RequestHandler{
 		mockDir:         mockDir,
 		mockFilepattern: mockFilepattern,
 		logger:          logger,
-		EpSearchNode:    &EpSearchNode{},
+		EpSearchNode:    &epSearchNode{},
 		matchstore:      matchstore,
 	}
 	return mockRouter
@@ -77,7 +83,7 @@ var (
 	)
 )
 
-func (r *RequestHandler) RegisterMetrics() error {
+func (r *RequestHandler) registerMetrics() error {
 	if err := prometheus.Register(matchesMetric); err != nil {
 		return err
 	}
@@ -87,8 +93,11 @@ func (r *RequestHandler) RegisterMetrics() error {
 	return nil
 }
 
+/*
+LoadFiles reads the mockfiles from the mockDir and creates the datamodel for serving mock endpoints for http requests
+*/
 func (r *RequestHandler) LoadFiles(funcMap template.FuncMap) error {
-	r.EpSearchNode = &EpSearchNode{}
+	r.EpSearchNode = &epSearchNode{}
 	endPointCounter := 0
 	mockFiles, err := walkMatch(r.mockDir, r.mockFilepattern)
 	if err != nil {
@@ -112,6 +121,9 @@ func (r *RequestHandler) LoadFiles(funcMap template.FuncMap) error {
 			}
 			r.registerEndpoint(endpoint)
 		}
+	}
+	if err := r.registerMetrics(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -182,6 +194,9 @@ func (r *RequestHandler) initResponseTemplates(endpoint *Endpoint, funcMap templ
 	return nil
 }
 
+/*
+AddRoutes adds mux.Routes for the http API to a given mux.Router
+*/
 func (r *RequestHandler) AddRoutes(router *mux.Router) {
 	var endPoint *Endpoint
 	var match *matches.Match
@@ -211,39 +226,39 @@ func (r *RequestHandler) registerEndpoint(endpoint *Endpoint) {
 	sn := r.EpSearchNode
 	pathSegments := strings.Split(endpoint.Request.Path, "/")
 	for _, pathSegment := range pathSegments[1:] {
-		if sn.SearchNodes == nil {
-			sn.SearchNodes = make(map[string]*EpSearchNode)
+		if sn.searchNodes == nil {
+			sn.searchNodes = make(map[string]*epSearchNode)
 		}
 		pathParamName := ""
 		if strings.HasPrefix(pathSegment, "{") && strings.HasSuffix(pathSegment, "}") {
 			pathParamName = pathSegment[1 : len(pathSegment)-1]
 			pathSegment = "*"
 		}
-		if sn.SearchNodes[pathSegment] == nil {
-			sn.SearchNodes[pathSegment] = &EpSearchNode{}
+		if sn.searchNodes[pathSegment] == nil {
+			sn.searchNodes[pathSegment] = &epSearchNode{}
 		}
-		sn = sn.SearchNodes[pathSegment]
-		sn.PathParamName = pathParamName
+		sn = sn.searchNodes[pathSegment]
+		sn.pathParamName = pathParamName
 	}
-	if sn.Endpoints == nil {
-		sn.Endpoints = make(map[string][]*Endpoint)
+	if sn.endpoints == nil {
+		sn.endpoints = make(map[string][]*Endpoint)
 	}
 
-	if sn.Endpoints[endpoint.Request.Method] == nil {
-		sn.Endpoints[endpoint.Request.Method] = []*Endpoint{}
+	if sn.endpoints[endpoint.Request.Method] == nil {
+		sn.endpoints[endpoint.Request.Method] = []*Endpoint{}
 	}
 	insertIndex := 0
-	for i, ep := range sn.Endpoints[endpoint.Request.Method] {
+	for i, ep := range sn.endpoints[endpoint.Request.Method] {
 		if endpoint.Prio > ep.Prio {
 			insertIndex = i
 			break
 		}
 	}
-	if len(sn.Endpoints[endpoint.Request.Method]) == insertIndex {
-		sn.Endpoints[endpoint.Request.Method] = append(sn.Endpoints[endpoint.Request.Method], endpoint)
+	if len(sn.endpoints[endpoint.Request.Method]) == insertIndex {
+		sn.endpoints[endpoint.Request.Method] = append(sn.endpoints[endpoint.Request.Method], endpoint)
 	} else {
-		sn.Endpoints[endpoint.Request.Method] = append(sn.Endpoints[endpoint.Request.Method][:insertIndex+1], sn.Endpoints[endpoint.Request.Method][insertIndex:]...)
-		sn.Endpoints[endpoint.Request.Method][insertIndex] = endpoint
+		sn.endpoints[endpoint.Request.Method] = append(sn.endpoints[endpoint.Request.Method][:insertIndex+1], sn.endpoints[endpoint.Request.Method][insertIndex:]...)
+		sn.endpoints[endpoint.Request.Method][insertIndex] = endpoint
 	}
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.ID, endpoint.Request.Path, endpoint.Request.Method))
 }
@@ -268,7 +283,7 @@ func (r *RequestHandler) matchRequestToEndpoint(request *http.Request) (*Endpoin
 	allMatch := false
 	pathSegment := getPathSegment(pathSegments, 0)
 	for pos := 1; pathSegment != ""; pos++ {
-		if sn.SearchNodes == nil {
+		if sn.searchNodes == nil {
 			if allMatch {
 				break
 			} else {
@@ -278,7 +293,7 @@ func (r *RequestHandler) matchRequestToEndpoint(request *http.Request) (*Endpoin
 		} else {
 			if allMatch {
 				for i := pos; pathSegment != ""; i++ {
-					if sn.SearchNodes[pathSegment] != nil {
+					if sn.searchNodes[pathSegment] != nil {
 						pos = i
 						break
 					}
@@ -286,29 +301,29 @@ func (r *RequestHandler) matchRequestToEndpoint(request *http.Request) (*Endpoin
 				}
 				allMatch = false
 			}
-			if sn.SearchNodes[pathSegment] == nil {
-				if sn.SearchNodes["*"] == nil {
-					if sn.SearchNodes["**"] == nil {
+			if sn.searchNodes[pathSegment] == nil {
+				if sn.searchNodes["*"] == nil {
+					if sn.searchNodes["**"] == nil {
 						r.addMismatch(sn, pos, "", request)
 						return nil, nil, requestPathParams, queryParams
 					}
 					allMatch = true
-					sn = sn.SearchNodes["**"]
+					sn = sn.searchNodes["**"]
 				} else {
-					sn = sn.SearchNodes["*"]
-					if len(sn.PathParamName) > 0 {
-						requestPathParams[sn.PathParamName] = pathSegment
+					sn = sn.searchNodes["*"]
+					if len(sn.pathParamName) > 0 {
+						requestPathParams[sn.pathParamName] = pathSegment
 					}
 				}
 			} else {
-				sn = sn.SearchNodes[pathSegment]
+				sn = sn.searchNodes[pathSegment]
 			}
 			pathSegment = getPathSegment(pathSegments, pos)
 		}
 	}
-	if sn != nil && sn.Endpoints != nil {
-		if sn.Endpoints[request.Method] != nil {
-			ep, match := r.matchEndPointsAttributes(sn.Endpoints[request.Method], request)
+	if sn != nil && sn.endpoints != nil {
+		if sn.endpoints[request.Method] != nil {
+			ep, match := r.matchEndPointsAttributes(sn.endpoints[request.Method], request)
 			return ep, match, requestPathParams, queryParams
 		}
 		r.addMismatch(nil, -1, fmt.Sprintf("no endpoint found with method '%s'", request.Method), request)
@@ -387,7 +402,7 @@ func (r *RequestHandler) addMatch(endPoint *Endpoint, request *http.Request) *ma
 	return match
 }
 
-func (r *RequestHandler) addMismatch(sn *EpSearchNode, pathPos int, endpointMismatchDetails string, request *http.Request) {
+func (r *RequestHandler) addMismatch(sn *epSearchNode, pathPos int, endpointMismatchDetails string, request *http.Request) {
 	var mismatchDetails string
 	if sn == nil { // node found -> path matched
 		mismatchDetails = fmt.Sprintf("path '%s' matched, but %s", request.URL.Path, endpointMismatchDetails)
@@ -466,8 +481,8 @@ func (r *RequestHandler) renderResponse(writer http.ResponseWriter, request *htt
 	match.ActualResponse = &matches.ActualResponse{StatusCode: responseStatus, Header: make(map[string][]string)}
 }
 
-func (r *RequestHandler) createResponseTemplateData(request *http.Request, requestPathParams, queryParams map[string]string) (*ResponseTemplateData, error) {
-	data := &ResponseTemplateData{
+func (r *RequestHandler) createResponseTemplateData(request *http.Request, requestPathParams, queryParams map[string]string) (*responseTemplateData, error) {
+	data := &responseTemplateData{
 		RequestURL:         request.URL.String(),
 		RequestPathParams:  requestPathParams,
 		RequestQueryParams: queryParams,
