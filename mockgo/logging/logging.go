@@ -10,14 +10,21 @@ import (
 	"runtime"
 )
 
+// LogLevel level of log output
 type LogLevel int64
 
 const (
+	// OnlyError logs just error cases, recommended for production use
 	OnlyError LogLevel = iota
+	// Verbose logs additional informations
 	Verbose
+	// Debug logs information for debugging use cases
 	Debug
 )
 
+/*
+ParseLogLevel parses the LogLevel from an integer value.
+*/
 func ParseLogLevel(ll int) LogLevel {
 	switch ll {
 	case 0:
@@ -30,6 +37,9 @@ func ParseLogLevel(ll int) LogLevel {
 	return 1
 }
 
+/*
+String gets the string representation of the LogLevel
+*/
 func (l LogLevel) String() string {
 	switch l {
 	case OnlyError:
@@ -42,35 +52,49 @@ func (l LogLevel) String() string {
 	return "unknown"
 }
 
+/*
+LoggerUtil a helper for log output
+*/
 type LoggerUtil struct {
 	Level  LogLevel
 	logger *log.Logger
 }
 
+/*
+NewLoggerUtil creates an instance of LoggerUtil
+*/
 func NewLoggerUtil(logLevel LogLevel) *LoggerUtil {
 	return &LoggerUtil{Level: logLevel, logger: log.Default()}
 }
 
-func (l *LoggerUtil) LogPlain(formattedMessage string) {
-	l.logger.Printf("%s ", formattedMessage)
-}
-
+/*
+LogError logs an error case
+*/
 func (l *LoggerUtil) LogError(formattedMessage string, err error) {
 	l.logger.Printf("(ERROR) %s : %v", formattedMessage, err)
 }
 
+/*
+LogWhenVerbose logs an additional information
+*/
 func (l *LoggerUtil) LogWhenVerbose(formattedMessage string) {
 	if l.Level >= Verbose {
 		l.logger.Printf("(VERBOSE) %s ", formattedMessage)
 	}
 }
 
+/*
+LogWhenDebug logs a message for debugging purposes
+*/
 func (l *LoggerUtil) LogWhenDebug(formattedMessage string) {
 	if l.Level >= Debug {
 		l.logger.Printf("%s (DEBUG) %s ", l.callerInfo(2), formattedMessage)
 	}
 }
 
+/*
+LogIncomingRequest helper for logging http requests
+*/
 func (l *LoggerUtil) LogIncomingRequest(request *http.Request) {
 	if l.Level >= Debug {
 		body, err := io.ReadAll(request.Body)
@@ -90,6 +114,9 @@ func (l *LoggerUtil) callerInfo(skip int) (info string) {
 	return fmt.Sprintf("%s:%d ", fileName, lineNo)
 }
 
+/*
+ResponseWriter is a helper for logging http responses
+*/
 type ResponseWriter struct {
 	http.ResponseWriter
 	responseCode int
@@ -98,6 +125,9 @@ type ResponseWriter struct {
 	skip         int
 }
 
+/*
+NewResponseWriter creates a new instance of ResponseWriter
+*/
 func NewResponseWriter(writer http.ResponseWriter, logger *LoggerUtil, skip int) *ResponseWriter {
 	lrw := &ResponseWriter{
 		ResponseWriter: writer,
@@ -113,11 +143,13 @@ func (lrw *ResponseWriter) Write(p []byte) (int, error) {
 	return lrw.buf.Write(p)
 }
 
+// WriteHeader writes the response status code
 func (lrw *ResponseWriter) WriteHeader(code int) {
 	lrw.responseCode = code
 	lrw.ResponseWriter.WriteHeader(code)
 }
 
+// Log logs the response body
 func (lrw *ResponseWriter) Log() {
 	if lrw.loggerUtil.Level >= Debug {
 		lrw.loggerUtil.logger.Printf("%s (DEBUG) Sending response with status %d :\nbody:'%s'", lrw.loggerUtil.callerInfo(lrw.skip), lrw.responseCode, lrw.buf.String())
