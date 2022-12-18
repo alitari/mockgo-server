@@ -90,10 +90,9 @@ func setupRouter() (*mux.Router, int, error) {
 	log.Print(configuration.info())
 	matchStore := matches.NewInMemoryMatchstore(uint16(configuration.MatchesCapacity))
 	matchHandler := createMatchHandler(configuration, matchStore)
-	kvStoreHandler, kvs, _ := createKVStoreHandler(configuration)
+	kvStoreHandler := createKVStoreHandler(configuration)
 	mockHandler := createMockHandler(configuration, matchStore)
-	// kvstore.KVStoreFuncMap(kvs, logger)
-	if err := mockHandler.LoadFiles(kvs.TemplateFuncMap()); err != nil {
+	if err := mockHandler.LoadFiles(kvStoreHandler.GetFuncMap()); err != nil {
 		return nil, -1, err
 	}
 	if err := mockHandler.RegisterMetrics(); err != nil {
@@ -116,10 +115,9 @@ func createMatchHandler(configuration *Configuration, matchstore matches.Matchst
 		matchstore, matchLogger)
 }
 
-func createKVStoreHandler(configuration *Configuration) (*kvstore.RequestHandler, *kvstore.JSONStorage, *logging.LoggerUtil) {
+func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler {
 	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	kvstoreJSON := kvstore.NewJSONStorage(kvstore.NewInmemoryKVStore(), logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
-	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJSON, kvstoreLogger), kvstoreJSON, kvstoreLogger
+	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstore.NewInmemoryStorage(), kvstoreLogger)
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.RequestHandler {

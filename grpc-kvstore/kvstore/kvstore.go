@@ -17,7 +17,7 @@ import (
 
 type grpcStorage struct {
 	id string
-	*kvstore.InmemoryKVStore
+	*kvstore.InmemoryStorage
 	clients []KVStoreClient
 	timeout time.Duration
 	logger  *logging.LoggerUtil
@@ -29,7 +29,7 @@ type grpcStorage struct {
 NewGrpcStorage creates a new distributed kvstore.Storage.
 */
 func NewGrpcStorage(addresses []string, serverPort int, logger *logging.LoggerUtil) (kvstore.Storage, error) {
-	storage := &grpcStorage{id: uuid.New().String(), InmemoryKVStore: kvstore.NewInmemoryKVStore(), timeout: 1 * time.Second, logger: logger}
+	storage := &grpcStorage{id: uuid.New().String(), InmemoryStorage: kvstore.NewInmemoryStorage(), timeout: 1 * time.Second, logger: logger}
 	for _, address := range addresses {
 		conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
@@ -66,7 +66,7 @@ func (g *grpcStorage) StoreVal(ctx context.Context, storeValRequest *StoreValReq
 		return nil, err
 	}
 
-	err = g.InmemoryKVStore.PutVal(storeValRequest.Key, val)
+	err = g.InmemoryStorage.PutVal(storeValRequest.Key, val)
 	if err != nil {
 		return nil, err
 	}

@@ -167,8 +167,7 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler 
 	if err != nil {
 		log.Fatalf("can't initialize grpc kvstore: %v", err)
 	}
-	kvstoreJSON := kvstore.NewJSONStorage(kvs, logging.ParseLogLevel(configuration.LoglevelAPI) == logging.Debug)
-	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstoreJSON, kvstoreLogger)
+	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvs, kvstoreLogger)
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.RequestHandler {
