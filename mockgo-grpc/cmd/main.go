@@ -129,7 +129,7 @@ func createConfiguration() *Configuration {
 	return &configuration
 }
 
-func createMatchstore(configuration *Configuration) *matchstore.GrpcMatchstore {
+func createMatchstore(configuration *Configuration) matches.Matchstore {
 	matchstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMatchstore))
 	addresses := []string{}
 
