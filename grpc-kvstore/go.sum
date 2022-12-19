@@ -1,3 +1,5 @@
+github.com/alitari/mockgo-server/mockgo v1.0.0 h1:CusSPWpJl7hXQET0PVNAMKI0z6xX1FPw72k6s/MUN+w=
+github.com/alitari/mockgo-server/mockgo v1.0.0/go.mod h1:IIKLeTMf89+/YkRjqQ74hXCbmYLcF13dVQAIlYSk4XA=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
