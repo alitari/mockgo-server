@@ -39,20 +39,19 @@ AddRoutes adds mux.Routes for the http API to a given mux.Router
 */
 func (r *RequestHandler) AddRoutes(router *mux.Router) {
 	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
-		HandlerFunc(r.handleHealth)
+		HandlerFunc(util.LoggingRequest(r.logger, r.handleHealth))
 	router.NewRoute().Name("getMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodGet).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(util.PathParamRequest([]string{"endpointId"}, r.handleGetMatches))))
+		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(util.PathParamRequest([]string{"endpointId"}, r.handleGetMatches)))))
 	router.NewRoute().Name("getMatchesCount").Path(r.pathPrefix + "/matchesCount/{endpointId}").Methods(http.MethodGet).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(util.PathParamRequest([]string{"endpointId"}, r.handleGetMatchesCount))))
+		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(util.PathParamRequest([]string{"endpointId"}, r.handleGetMatchesCount)))))
 	router.NewRoute().Name("getMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodGet).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(r.handleGetMismatches)))
+		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(r.handleGetMismatches))))
 	router.NewRoute().Name("getMismatchesCount").Path(r.pathPrefix + "/mismatchesCount").Methods(http.MethodGet).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(r.handleGetMismatchesCount)))
+		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(r.handleGetMismatchesCount))))
 	router.NewRoute().Name("deleteMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodDelete).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.PathParamRequest([]string{"endpointId"}, r.handleDeleteMatches)))
+		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.PathParamRequest([]string{"endpointId"}, r.handleDeleteMatches))))
 	router.NewRoute().Name("deleteMismatches").Path(r.pathPrefix + "/mismatches").Methods(http.MethodDelete).
-		HandlerFunc(util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, r.handleDeleteMismatches))
-
+		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, r.handleDeleteMismatches)))
 }
 
 func (r *RequestHandler) handleHealth(writer http.ResponseWriter, request *http.Request) {
