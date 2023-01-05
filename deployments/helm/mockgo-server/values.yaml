@@ -40,7 +40,7 @@ cluster:
     matchstore: 50051
     kvstore: 50151
 
-image: alitari/mockgo-standalone:latest
+# image: alitari/mockgo-standalone:latest
 pullPolicy: IfNotPresent
 
 # inject custom env variables
@@ -88,8 +88,7 @@ serviceAccount:
 
 resources: {}
 
-containerPort: 8080
-servicePort: 8080
+port: 8080
 
 api:
   pathPrefix: "/__"
