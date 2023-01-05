@@ -2,10 +2,7 @@ module github.com/alitari/mockgo-server/grpc-kvstore
 
 go 1.19
 
-replace github.com/alitari/mockgo-server/mockgo => ../mockgo
-
 require (
-	github.com/alitari/mockgo-server/mockgo v0.0.0-20221119125316-05b2118f80f8
 	github.com/google/uuid v1.3.0
 	github.com/stretchr/testify v1.8.1
 	google.golang.org/grpc v1.51.0
@@ -13,6 +10,7 @@ require (
 )
 
 require (
+	github.com/alitari/mockgo-server/mockgo v1.0.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v0.5.2 // indirect
 	github.com/go-http-utils/headers v0.0.0-20181008091004-fed159eddc2a // indirect
