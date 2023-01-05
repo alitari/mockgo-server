@@ -51,7 +51,7 @@ type Configuration struct {
 	MockFilepattern    string   `default:"*-mock.*" split_words:"true"`
 	ClusterHostnames   []string ` split_words:"true"`
 	MatchstorePort     int      `default:"50051" split_words:"true"`
-	MatchstoreCapacity int      `default:"1000" split_words:"true"`
+	MatchesCapacity    int      `default:"1000" split_words:"true"`
 	KvstorePort        int      `default:"50151" split_words:"true"`
 }
 
@@ -91,7 +91,7 @@ Mock Server:
 Matchstore:
   Port: %d ("MATCHSTORE_PORT")
   LogLevel: %s ("LOGLEVEL_MATCHSTORE")
-  Capacity: %d ("MATCHESTORE_CAPACITY")
+  Capacity: %d ("MATCHES_CAPACITY")
 
 KVStore:
   Port: %d ("KVSTORE_PORT")
@@ -102,7 +102,7 @@ Cluster:
 `,
 		c.APIPathPrefix, c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
 		c.MockPort, c.MockDir, c.MockFilepattern, logging.ParseLogLevel(c.LoglevelMock).String(),
-		c.MatchstorePort, logging.ParseLogLevel(c.LoglevelMatchstore).String(), c.MatchstoreCapacity,
+		c.MatchstorePort, logging.ParseLogLevel(c.LoglevelMatchstore).String(), c.MatchesCapacity,
 		c.KvstorePort, logging.ParseLogLevel(c.LoglevelKvstore).String(),
 		c.ClusterHostnames)
 }
@@ -143,7 +143,7 @@ func createMatchstore(configuration *Configuration) matches.Matchstore {
 			addresses = append(addresses, fmt.Sprintf("%s:%d", host, configuration.MatchstorePort))
 		}
 	}
-	matchStore, err := matchstore.NewGrpcMatchstore(addresses, configuration.MatchstorePort, uint16(configuration.MatchstoreCapacity), matchstoreLogger)
+	matchStore, err := matchstore.NewGrpcMatchstore(addresses, configuration.MatchstorePort, uint16(configuration.MatchesCapacity), matchstoreLogger)
 	if err != nil {
 		log.Fatalf("can't initialize grpc matchstore: %v", err)
 	}
