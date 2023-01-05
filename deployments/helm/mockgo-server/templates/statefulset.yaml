@@ -86,7 +86,7 @@ spec:
       shareProcessNamespace: true
       containers:
       - name: mockgoserver
-        image: {{ .Values.image }}
+        image: {{ .Values.image | default (printf "%s:%s" "alitari/mockgo-grpc" .Chart.AppVersion) }}
         imagePullPolicy: {{ .Values.pullPolicy }}
         {{- if .Values.securityContext }}
         securityContext:

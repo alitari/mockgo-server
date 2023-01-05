@@ -40,7 +40,7 @@ cluster:
     matchstore: 50051
     kvstore: 50151
 
-image: alitari/mockgo-standalone:latest
+# image: alitari/mockgo-standalone:latest
 pullPolicy: IfNotPresent
 
 # inject custom env variables

@@ -71,7 +71,7 @@ spec:
 
       containers:
       - name: mockgo-standalone
-        image: {{ .Values.image }}
+        image: {{ .Values.image | default (printf "%s:%s" "alitari/mockgo-standalone" .Chart.AppVersion) }}
         imagePullPolicy: {{ .Values.pullPolicy }}
         {{- if .Values.securityContext }}
         securityContext:
