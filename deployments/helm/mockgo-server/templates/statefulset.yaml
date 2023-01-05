@@ -96,7 +96,7 @@ spec:
           {{- toYaml .Values.resources | nindent 10 }}
         ports:
         - name: http
-          containerPort: {{ .Values.containerPort }}
+          containerPort: {{ .Values.port }}
         env:
         - name: LOGLEVEL_API
           value: {{ .Values.logging.api.level | quote }}
@@ -107,7 +107,7 @@ spec:
         - name: LOGLEVEL_MATCHSTORE
           value: {{ .Values.logging.matchstore.level | quote }}
         - name: MOCK_PORT
-          value: {{ .Values.containerPort | quote }}
+          value: {{ .Values.port | quote }}
         - name: API_PATH_PREFIX
           value: {{ .Values.api.pathPrefix | quote }}
         - name: API_USERNAME
@@ -138,7 +138,7 @@ spec:
         livenessProbe:
           httpGet:
             path: {{ .Values.api.pathPrefix }}/health
-            port: {{ .Values.containerPort }}
+            port: {{ .Values.port }}
           {{- with .Values.healthcheck.liveness }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
           timeoutSeconds: {{ .timeoutSeconds }}
@@ -150,7 +150,7 @@ spec:
         readinessProbe:
           httpGet:
             path: {{ .Values.api.pathPrefix }}/health
-            port: {{ .Values.containerPort }}
+            port: {{ .Values.port }}
         {{- with .Values.healthcheck.readiness }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
           timeoutSeconds: {{ .timeoutSeconds }}
