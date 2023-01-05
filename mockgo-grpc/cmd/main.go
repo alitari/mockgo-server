@@ -26,7 +26,7 @@ const banner = `
 Cluster-grpc       |___/  %s
 `
 
-const versionTag = "testversion"
+const versionTag = "v1.0.1-05794e1"
 
 /*
 RequestHandler abstraction of a set of http handler funcs
