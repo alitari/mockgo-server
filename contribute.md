@@ -22,6 +22,37 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 ## building testing 
 
 For building and testing you can use the commands which are defined in the [github actions for a pull request](.github/workflows/workflow.yml).
+
+e.g. 
+
+- test: 
+     ```bash
+     ./scripts/go-test-all.sh`
+     ```
+- build
+     ```bash
+     MOCKGO_VARIANT="standalone" # or "grpc"
+     MOCKGO_OS="linux" # or "windows"
+     MOCKGO_ARCH="amd64" # or "arm64"
+     ./scripts/go-build-mockgo.sh $MOCKGO_OS $MOCKGO_ARCH $MOCKGO_VARIANT norelease
+    ```
+- docker build
+     ```bash
+     # no push
+     ./scripts/docker-build-mockgo.sh latest $MOCKGO_VARIANT "false"
+    ```
+## acceptance testing with [minikube](https://minikube.sigs.k8s.io/docs/)
+
+- start minikube
+    ```bash
+    minikube config set profile mockgo
+    minikube start
+    ```
+
+
+
+
+
 E.g. build a the mockgo-server grpc variant for linux amd64: `./scripts/go-build-mockgo-grpc.sh linux amd64`
 
 ## releasing

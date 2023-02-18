@@ -23,7 +23,7 @@ const banner = `
 Standalone         |___/  %s
 `
 
-const versionTag = "testversion"
+const versionTag = "latest"
 
 /*
 RequestHandler abstraction of a set of http handler funcs
@@ -33,7 +33,7 @@ type RequestHandler interface {
 }
 
 /*
-Configuration is the configuration model of the server which is defined via environment variables
+Configuration iss the configuration model of the server which is defined via environment variables
 */
 type Configuration struct {
 	LoglevelAPI     int    `default:"1" split_words:"true"`
