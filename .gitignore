@@ -1,6 +1,5 @@
 cover*.out
 bin/
-test/tavern/.pytest_cache
 reports/hurl
 .github/token
 *.sarif
