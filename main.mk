@@ -43,7 +43,7 @@ DOCKER_RUN_OPTIONS ?=
 
 HELM_DEPLOYED ?= $(shell helm --namespace mockgo list -q | grep -q mockgo-${MOCKGO_VARIANT} && echo "true" || echo "false")
 
-TAVERN_VERSION ?= 1.23.3
+CLUSTER_IP ?= 127.0.0.1
 MOCKGO_HOST ?= mockgo-$(MOCKGO_VARIANT).$(CLUSTER_IP).nip.io
 
 RUN_OPTIONS ?=
@@ -168,7 +168,9 @@ vulncheck:
 	
 .PHONY: helm-deploy
 helm-deploy:
-	helm upgrade --install mockgo-$(MOCKGO_VARIANT) ../deployments/helm/mockgo-server --namespace mockgo --create-namespace -f ../deployments/helm/$(MOCKGO_VARIANT)-values.yaml
+	helm upgrade --install mockgo-$(MOCKGO_VARIANT) $(PROJECT_DIR)/deployments/helm/mockgo-server \
+	--namespace mockgo --create-namespace -f $(PROJECT_DIR)/deployments/helm/$(MOCKGO_VARIANT)-values.yaml \
+	--wait --timeout 20 --atomic
 
 .PHONY: helm-delete
 helm-delete:
@@ -176,12 +178,11 @@ ifeq ($(HELM_DEPLOYED), true)
 	helm delete mockgo-$(MOCKGO_VARIANT) --namespace mockgo
 endif
 
-.PHONY: tavernbuild
-tavernbuild:
-	docker build --build-arg TAVERNVER=$(TAVERN_VERSION) --file ../test/tavern/tavern.Dockerfile --tag tavern:$(TAVERN_VERSION) ../test/tavern
+.PHONY: clean-hurl
+clean-hurl:
+	rm -rf $(PROJECT_DIR)/reports/hurl
 
-.PHONY: tavern
-tavern:
-	docker run --network host -e MOCKGO_HOST=$(MOCKGO_HOST) -v ../test/tavern:/tavern -v ../reports:/reports tavern:$(TAVERN_VERSION) py.test -vv --html=../reports/tavern.html --self-contained-html ../test/tavern/test.tavern.yaml
-
+.PHONY: hurl
+hurl:
+	hurl $(PROJECT_DIR)/test/hurl/hello.hurl $(PROJECT_DIR)/test/hurl/matches.hurl --variable mockgo_host=$(MOCKGO_HOST) --test --report-html $(PROJECT_DIR)/reports/hurl
 

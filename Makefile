@@ -9,14 +9,14 @@ LOCAL_REGISTRY_RUNNING = $(shell docker ps -a | grep -q $(LOCAL_REGISTRY_NAME) &
 KIND_CLUSTER_CONFIG ?= deployments/kind/cluster.yaml
 KIND_CLUSTER_RUNNING ?= $(shell kind get clusters -q | grep -q mockgo && echo "true" || echo "false")
 
-CLUSTER_IP ?= 127.0.0.1
+
 
 .PHONY: env
 env:
 	$(MAKE) -C $(MOCKGO_MODULE) env
 
 .PHONY: clean
-clean:
+clean: clean-hurl helm-delete
 	$(MAKE) -C $(MOCKGO_MODULE) clean
 
 .PHONY: build
@@ -85,10 +85,10 @@ helm-deploy: kind pushdocker
 helm-delete:
 	$(MAKE) -C $(MOCKGO_MODULE) helm-delete
 
-.PHONY: tavernbuild
-tavernbuild:
-	$(MAKE) -C $(MOCKGO_MODULE) tavernbuild
+.PHONY: clean-hurl
+clean-hurl:
+	$(MAKE) -C $(MOCKGO_MODULE) clean-hurl
 
-.PHONY: tavern
-tavern: tavernbuild
-	$(MAKE) -C $(MOCKGO_MODULE) tavern
+.PHONY: hurl
+hurl: helm-deploy
+	$(MAKE) -C $(MOCKGO_MODULE) hurl
