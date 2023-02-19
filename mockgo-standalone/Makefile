@@ -8,6 +8,4 @@ clean: cleanexe
 .PHONY: build
 build: buildexe
 
-.PHONY: buildimage
-buildimage: builddocker
 

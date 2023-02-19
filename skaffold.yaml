@@ -3,16 +3,16 @@ kind: Config
 build:
   artifacts:
     - image: dev.local/mockgo-standalone
-      context: .
+      context: mockgo-standalone
       docker:
-        dockerfile: build/docker/mockgo-standalone.Dockerfile
+        dockerfile: build/mockgo-standalone.Dockerfile
         buildArgs:
           RELEASE: testversion
 
     - image: dev.local/mockgo-grpc
-      context: .
+      context: mockgo-grpc
       docker:
-        dockerfile: build/docker/mockgo-grpc.Dockerfile
+        dockerfile: build/mockgo-grpc.Dockerfile
         buildArgs:
           RELEASE: testversion
 
@@ -24,17 +24,17 @@ deploy:
         artifactOverrides:
           image: dev.local/mockgo-standalone
         valuesFiles:
-          - deployments/helm/minikube-standalone-values.yaml
+          - deployments/helm/standalone-values.yaml
         setValueTemplates:
-          ingress.host: "mockgo-standalone.{{.MINIKUBE_IP}}.nip.io"
+          ingress.host: "mockgo-standalone.{{.CLUSTER_IP}}.nip.io"
       - name: mockgo-grpc
         chartPath: deployments/helm/mockgo-server
         artifactOverrides:
           image: dev.local/mockgo-grpc
         valuesFiles:
-          - deployments/helm/minikube-grpc-values.yaml
+          - deployments/helm/grpc-values.yaml
         setValueTemplates:
-          ingress.host: "mockgo-grpc.{{.MINIKUBE_IP}}.nip.io"
+          ingress.host: "mockgo-grpc.{{.CLUSTER_IP}}.nip.io"
       - name: prometheus
         remoteChart: prometheus-community/prometheus
         valuesFiles:
