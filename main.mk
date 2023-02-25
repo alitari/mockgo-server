@@ -170,7 +170,7 @@ vulncheck:
 helm-deploy:
 	helm upgrade --install mockgo-$(MOCKGO_VARIANT) $(PROJECT_DIR)/deployments/helm/mockgo-server \
 	--namespace mockgo --create-namespace -f $(PROJECT_DIR)/deployments/helm/$(MOCKGO_VARIANT)-values.yaml \
-	--wait --timeout 20 --atomic
+	--wait --timeout 20s --atomic
 
 .PHONY: helm-delete
 helm-delete:
@@ -186,3 +186,33 @@ clean-hurl:
 hurl:
 	hurl $(PROJECT_DIR)/test/hurl/hello.hurl $(PROJECT_DIR)/test/hurl/matches.hurl --variable mockgo_host=$(MOCKGO_HOST) --test --report-html $(PROJECT_DIR)/reports/hurl
 
+.PHONY: drop-dep-mockgo
+drop-dep-mockgo:
+	go mod edit -droprequire github.com/alitari/mockgo-server/mockgo
+	go mod edit -dropreplace github.com/alitari/mockgo-server/mockgo
+
+.PHONY: require-dep-mockgo-dev
+require-dep-mockgo-dev: drop-dep-mockgo
+	go mod edit -replace=github.com/alitari/mockgo-server/mockgo=../mockgo
+
+.PHONY: drop-dep-grpc-kvstore
+drop-dep-grpc-kvstore:
+	go mod edit -droprequire github.com/alitari/mockgo-server/grpc-kvstore
+	go mod edit -dropreplace github.com/alitari/mockgo-server/grpc-kvstore
+
+.PHONY: drop-dep-grpc-matchstore
+drop-dep-grpc-matchstore:
+	go mod edit -droprequire github.com/alitari/mockgo-server/grpc-matchstore
+	go mod edit -dropreplace github.com/alitari/mockgo-server/grpc-matchstore
+
+.PHONY: require-dep-grpc-kvstore-dev
+require-dep-grpc-kvstore-dev: drop-dep-grpc-kvstore
+	go mod edit -replace=github.com/alitari/mockgo-server/grpc-kvstore=../grpc-kvstore
+
+.PHONY: require-dep-grpc-matchstore-dev
+require-dep-grpc-matchstore-dev: drop-dep-grpc-matchstore
+	go mod edit -replace=github.com/alitari/mockgo-server/grpc-matchstore=../grpc-matchstore
+
+.PHONY: mod-tidy
+mod-tidy:
+	go mod tidy

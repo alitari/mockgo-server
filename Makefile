@@ -92,3 +92,11 @@ clean-hurl:
 .PHONY: hurl
 hurl: helm-deploy
 	$(MAKE) -C $(MOCKGO_MODULE) hurl
+
+.PHONY: mod-dev
+mod-dev:
+	$(MAKE) -C $(MOCKGO_MODULE) mod-dev
+
+.PHONY: tidy
+tidy: mod-dev
+	$(MAKE) -C $(MOCKGO_MODULE) mod-tidy

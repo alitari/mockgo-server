@@ -2,10 +2,8 @@ module github.com/alitari/mockgo-server/grpc-matchstore
 
 go 1.19
 
-replace github.com/alitari/mockgo-server/mockgo => ../mockgo
-
 require (
-	github.com/alitari/mockgo-server/mockgo v0.0.0-20221119125316-05b2118f80f8
+	github.com/alitari/mockgo-server/mockgo v0.0.0-00010101000000-000000000000
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
 	github.com/stretchr/testify v1.8.1
@@ -27,3 +25,5 @@ require (
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/alitari/mockgo-server/mockgo => ../mockgo
