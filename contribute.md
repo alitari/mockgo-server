@@ -3,10 +3,27 @@
 ## general
 
 Development guides are applied on a linux amd64 system. Please understand that my support capatibilties are limited regarding other setups. Vscode was used as IDE, however this repo does not contain any relevant files regarding IDE usage.
+main steps can be executed with `make`.
 
-## tools
+## main targets
 
-As [go-workspaces](https://go.dev/blog/get-familiar-with-workspaces) are used development requires **go version 1.19++**. For kubernetes related work i recommend using [minikube](https://minikube.sigs.k8s.io/docs/), [helm](https://helm.sh/) and [skaffold](https://skaffold.dev/).
+### check your environment and the installed tools
+
+```sh
+make env
+```
+
+### run acceptance test
+
+If you have everything in place on your workstation, you can run the acceptance test which involves steps in the development lifecycle. You need to define the variant you want to test.
+
+```sh
+make hurl 
+```
+
+
+
+As [go-workspaces](https://go.dev/blog/get-familiar-with-workspaces) are used development requires **go version 1.19++**.
 
 ## grpc
 

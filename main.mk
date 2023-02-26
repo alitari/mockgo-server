@@ -1,86 +1,124 @@
 # Main targets for a Go app project
-#
-# A Self-Documenting Makefile: http://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
+
+ccred := $(shell echo -e "\033[0;31m")
+ccyellow := $(shell echo -e "\033[0;33m")
+ccend := $(shell echo -e "\033[0m")
 
 OS = $(shell uname | tr A-Z a-z)
 ARCH = $(shell uname -m)
 
-# Build variables
-BUILD_DIR ?= bin
+# golang
+GO_VERSION = $(shell go version | awk '{sub(/^go/, "", $$3);print $$3}')
+ifeq ($(GO_VERSION),)
+GO_VERSION = $(ccred)"not installed$(ccend)"
+endif
+CGO_ENABLED ?= 0
 MAIN_DIR ?= cmd
-MODULE_DIR ?= $(shell pwd)
-PROJECT_DIR ?= "$(shell dirname "${MODULE_DIR}")"
+BUILD_DIR ?= bin
+
 GIT_TAG ?= $(shell git describe --tags --exact-match 2>/dev/null || git symbolic-ref -q --short HEAD)
 GIT_COMMIT_HASH ?= $(shell git rev-parse --short HEAD 2>/dev/null)
-DATE_FMT = +%FT%T%z
-ifdef SOURCE_DATE_EPOCH
-    BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
-else
-    BUILD_DATE ?= $(shell date "$(DATE_FMT)")
-endif
 
-export CGO_ENABLED ?= 0
-ifeq (${VERBOSE}, 1)
-ifeq ($(filter -v,${GOARGS}),)
-	GOARGS += -v
-endif
-TEST_FORMAT = short-verbose
-endif
+MODULE_DIR ?= $(shell pwd)
+PROJECT_DIR ?= "$(shell dirname "${MODULE_DIR}")"
 
-IGNORE_GOLANG_VERSION ?= 0
-GOLANG_VERSION ?= 1.20.1
-
-MOCKGO_VARIANT ?= standalone
 MOCKGO_OS = ${OS}
 MOCKGO_ARCH ?= amd64
 MOCKGO_RELEASE_TAG ?= latest
 
+GOCOVERMODE ?= atomic
+GOCYCLO_LIMIT ?= 15
+
+DOCKER_VERSION = $(shell docker version --format '{{.Server.Version}}')
+ifeq ($(DOCKER_VERSION),)
+DOCKER_VERSION = $(ccred)"not installed$(ccend)"
+endif
 MOCKGO_IMAGE_REGISTRY ?= localhost:5001
-MOCKGO_IMAGE_REPOSITORY ?= alitari
+MOCKGO_IMAGE_REPO ?= alitari
 
-DOCKER_BUILD_OPTIONS ?=
-DOCKER_RUN_OPTIONS ?=
 
-HELM_DEPLOYED ?= $(shell helm --namespace mockgo list -q | grep -q mockgo-${MOCKGO_VARIANT} && echo "true" || echo "false")
+KUBECTL_VERSION = $(shell kubectl version --client=true --short=true 2>/dev/null | awk '{print $$3}')
+ifeq ($(KUBECTL_VERSION),)
+KUBECTL_VERSION = $(ccred)"not installed$(ccend)"
+endif
+
+HELM_VERSION = $(shell helm version --short)
+ifeq ($(HELM_VERSION),)
+HELM_VERSION = $(ccred)"not installed$(ccend)"
+endif
+HELM_DEPLOY_TIMEOUT ?= 300s
+
+KIND_VERSION ?= $(shell kind version | awk '{print $$2}')
+ifeq ($(KIND_VERSION),)
+KIND_VERSION = $(ccred)"not installed$(ccend)"
+endif
+KIND_CLUSTER_CONFIG ?= $(PROJECT_DIR)/deployments/kind/cluster.yaml
+KIND_CLUSTER_RUNNING ?= $(shell kind get clusters -q | grep -q mockgo && echo "true" || echo "false")
+KIND_CLUSTER_WAIT ?= 10s
+
+LOCAL_REGISTRY_NAME ?= kind-registry
+LOCAL_REGISTRY_PORT ?= 5001
+LOCAL_REGISTRY_RUNNING = $(shell docker ps -a | grep -q $(LOCAL_REGISTRY_NAME) && echo "true" || echo "false")
+
+HURL_VERSION ?= $(shell hurl --version 2> /dev/null | head -1 | awk '{print $$2}')
+ifeq ($(HURL_VERSION),)
+HURL_VERSION = $(ccred)"not installed$(ccend)"
+endif
+
+MOCKGO_DEPLOYED ?= $(shell helm --namespace mockgo list -q 2> /dev/null | grep -q mockgo-${MOCKGO_VARIANT} && echo "true" || echo "false")
 
 CLUSTER_IP ?= 127.0.0.1
 MOCKGO_HOST ?= mockgo-$(MOCKGO_VARIANT).$(CLUSTER_IP).nip.io
 
-RUN_OPTIONS ?=
+.PHONY: env-global
+env-global:
+	@echo "------------------ workstation --------------------"
+	@echo "OS - ARCH:  ${OS} -    ${ARCH}"
+	@echo "------------------- golang ------------------------"
+	@echo "GO_VERSION:            ${GO_VERSION}"
+	@echo "CGO_ENABLED:           ${CGO_ENABLED}"
+	@echo "MAIN_DIR:              ${MAIN_DIR}"
+	@echo "BUILD_DIR:             ${BUILD_DIR}"
+	@echo "------------------- git ---------------------------"
+	@echo "GIT_TAG:               ${GIT_TAG}"
+	@echo "GIT_COMMIT_HASH:       ${GIT_COMMIT_HASH}"
+	@echo "------------------- project -----------------------"
+	@echo "PROJECT_DIR:           ${PROJECT_DIR}"
+	@echo "MOCKGO_OS:             ${MOCKGO_OS}"
+	@echo "MOCKGO_ARCH:           ${MOCKGO_ARCH}"
+	@echo "MOCKGO_RELEASE_TAG:    ${MOCKGO_RELEASE_TAG}"
+	@echo "------------------- unit test --------------------------"
+	@echo "GOCOVERMODE:           ${GOCOVERMODE}"
+	@echo "GOCYCLO_LIMIT:         ${GOCYCLO_LIMIT}"
+	@echo "------------------- docker ------------------------"
+	@echo "DOCKER_VERSION:        ${DOCKER_VERSION}"
+	@echo "MOCKGO_IMAGE_REGISTRY: ${MOCKGO_IMAGE_REGISTRY}"
+	@echo "MOCKGO_IMAGE_REPO:     ${MOCKGO_IMAGE_REPO}"
+	@echo "--------------------- k8s -------------------------"
+	@echo "KUBECTL_VERSION:       ${KUBECTL_VERSION}"
+	@echo "LOCAL_REGISTRY:        ${LOCAL_REGISTRY_NAME}:${LOCAL_REGISTRY_PORT}"
+	@echo "LOCAL_REGISTRY_RUNNING:${LOCAL_REGISTRY_RUNNING}"
+	@echo "KIND_VERSION:          ${KIND_VERSION}"
+	@echo "KIND_CLUSTER_CONFIG:   ${KIND_CLUSTER_CONFIG}"
+	@echo "KIND_CLUSTER_RUNNING:  ${KIND_CLUSTER_RUNNING}"
+	@echo "KIND_CLUSTER_WAIT:     ${KIND_CLUSTER_WAIT}"
+	@echo "HELM_VERSION:          ${HELM_VERSION}"
+	@echo "HELM_DEPLOY_TIMEOUT:   ${HELM_DEPLOY_TIMEOUT}"
+	@echo "---------------- acceptance test ------------------"
+	@echo "HURL_VERSION:          ${HURL_VERSION}"
+	@echo "---------------------------------------------------"
 
-GOCYCLO_LIMIT ?= 15
+.PHONY: env-exe
+env-exe:
+	@echo "------- MOCKGO MODULE: $(MOCKGO_MODULE) -----------"
+	@echo "MOCKGO_VARIANT:        ${MOCKGO_VARIANT}"
+	@echo "MOCKGO_DEPLOYED:       ${MOCKGO_DEPLOYED}"
+	@echo "MOCKGO_HOST:           ${MOCKGO_HOST}"
 
-GOCOVERMODE ?= atomic
-
-.PHONY: goversion
-goversion:
-ifneq (${IGNORE_GOLANG_VERSION}, 1)
-	@printf "${GOLANG_VERSION}\n$$(go version | awk '{sub(/^go/, "", $$3);print $$3}')" | sort -t '.' -k 1,1 -k 2,2 -k 3,3 -g | head -1 | grep -q -E "^${GOLANG_VERSION}$$" || (printf "Required Go version is ${GOLANG_VERSION}\nInstalled: `go version`" && exit 1)
-endif
-
-.PHONY: dockerversion
-dockerexists:
-	@command -v docker >/dev/null 2>&1 || (printf "Docker is required to build this project" && exit 1)
-
-.PHONY: env
-env:
-
-	@echo "--------------------------------------------------"
-	@echo "PROJECT_DIR:        ${PROJECT_DIR}"
-	@echo "MAIN_DIR:           ${MAIN_DIR}"
-	@echo "GIT_COMMIT_HASH:    ${GIT_COMMIT_HASH}"
-	@echo "GIT_TAG:            ${GIT_TAG}"
-	@echo "GOPATH:             ${GOPATH}"
-	@echo "BUILD_DIR:          ${BUILD_DIR}"
-	@echo "OS:                 ${OS}"
-	@echo "GOARGS:             ${GOARGS}"
-	@echo "MOCKGO_OS:          ${MOCKGO_OS}"
-	@echo "MOCKGO_ARCH:        ${MOCKGO_ARCH}"
-	@echo "MOCKGO_RELEASE_TAG: ${MOCKGO_RELEASE_TAG}"
-	@echo "CGO_ENABLED:        ${CGO_ENABLED}"
-	@echo "MOCKGO_VARIANT:     ${MOCKGO_VARIANT}"
-	@echo "MOCKGO_MODULE:      ${MOCKGO_MODULE}"
-	@echo "--------------------------------------------------"
+.PHONY: env-lib
+env-lib:
+	@echo "------- MOCKGO MODULE: $(MOCKGO_MODULE) -----------"
+	@echo "PROTO_CONTEXT:         ${PROTO_CONTEXT}"
 
 .PHONY: cleanexe
 cleanexe:
@@ -101,7 +139,7 @@ gen-proto:
 
 
 .PHONY: buildexe
-buildexe: goversion
+buildexe:
 	@sed -i "s/const versionTag = .*/const versionTag = \"$(MOCKGO_RELEASE_TAG)\"/g" $(MAIN_DIR)/main.go
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(MOCKGO_OS) GOARCH=$(MOCKGO_ARCH) go build -C $(MAIN_DIR) $(GOARGS) -o ../$(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-$(MOCKGO_OS)-$(MOCKGO_ARCH)
 	@echo "executable file:"
@@ -111,23 +149,21 @@ buildexe: goversion
 runexe: buildexe
 	./$(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-$(MOCKGO_OS)-$(MOCKGO_ARCH) $(RUN_OPTIONS)
 
-
 .PHONY: buildarchive
-buildarchive: goversion
+buildarchive:
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(MOCKGO_OS) GOARCH=$(MOCKGO_ARCH) go build --buildmode=archive ./...
 
-
 .PHONY: builddocker
-builddocker: dockerexists
-	docker build --build-arg RELEASE=$(MOCKGO_RELEASE_TAG)-$(GIT_COMMIT_HASH) -f build/mockgo-$(MOCKGO_VARIANT).Dockerfile . -t $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPOSITORY)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE_TAG) $(DOCKER_BUILD_OPTIONS)
+builddocker:
+	docker build --build-arg RELEASE=$(MOCKGO_RELEASE_TAG)-$(GIT_COMMIT_HASH) -f build/mockgo-$(MOCKGO_VARIANT).Dockerfile . -t $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE_TAG) $(DOCKER_BUILD_OPTIONS)
 
 .PHONY: pushdocker
 pushdocker:
-	docker push $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPOSITORY)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE_TAG)
+	docker push $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE_TAG)
 
 .PHONY: rundocker
 rundocker:
-	docker run $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPOSITORY)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE_TAG) $(DOCKER_RUN_OPTIONS)
+	docker run $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE_TAG) $(DOCKER_RUN_OPTIONS)
 
 .PHONY: gofmt
 gofmt:
@@ -149,7 +185,7 @@ gocyclo:
 golint:
 	golint -set_exit_status ./...
 
-cover.out: goversion env gofmt vet ineffassign gocyclo golint
+cover.out: env gofmt vet ineffassign gocyclo golint
 	CGO_ENABLED=$(CGO_ENABLED) go test $(GOARGS) -coverprofile=cover-temp.out -covermode=$(GOCOVERMODE) ./...
 	@cat cover-temp.out | grep -v ".pb.go" > cover.out
 	@rm cover-temp.out
@@ -165,16 +201,45 @@ cover-html: cover.out
 .PHONY: vulncheck
 vulncheck:
 	govulncheck ./...
-	
+
+.PHONY: local-registry
+local-registry:
+ifeq ($(LOCAL_REGISTRY_RUNNING), false)
+	docker run -d --restart=always -p "127.0.0.1:$(LOCAL_REGISTRY_PORT):5000" --name "$(LOCAL_REGISTRY_NAME)" registry:2
+endif
+
+.PHONY: local-registry-remove
+local-registry-remove:
+ifeq ($(LOCAL_REGISTRY_RUNNING), true)
+	docker rm -f "$(LOCAL_REGISTRY_NAME)"
+endif
+
+.PHONY: kind
+kind: local-registry
+ifeq ($(KIND_CLUSTER_RUNNING), false)
+	kind create cluster  --name mockgo --config $(KIND_CLUSTER_CONFIG)
+	kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+	sleep $(KIND_CLUSTER_WAIT)
+	docker network connect "kind" "$(LOCAL_REGISTRY_NAME)"
+	kubectl apply -f $(PROJECT_DIR)/deployments/kind/local-registry-configmap.yaml
+endif
+
+.PHONY: kind-delete
+kind-delete: local-registry-remove
+ifeq ($(KIND_CLUSTER_RUNNING), true)
+	kind delete cluster --name mockgo
+endif
+
+
 .PHONY: helm-deploy
-helm-deploy:
+helm-deploy: kind pushdocker
 	helm upgrade --install mockgo-$(MOCKGO_VARIANT) $(PROJECT_DIR)/deployments/helm/mockgo-server \
 	--namespace mockgo --create-namespace -f $(PROJECT_DIR)/deployments/helm/$(MOCKGO_VARIANT)-values.yaml \
-	--wait --timeout 20s --atomic
+	--wait --timeout $(HELM_DEPLOY_TIMEOUT) --atomic
 
 .PHONY: helm-delete
 helm-delete:
-ifeq ($(HELM_DEPLOYED), true)
+ifeq ($(MOCKGO_DEPLOYED), true)
 	helm delete mockgo-$(MOCKGO_VARIANT) --namespace mockgo
 endif
 
@@ -183,7 +248,7 @@ clean-hurl:
 	rm -rf $(PROJECT_DIR)/reports/hurl
 
 .PHONY: hurl
-hurl:
+hurl: helm-deploy
 	hurl $(PROJECT_DIR)/test/hurl/hello.hurl $(PROJECT_DIR)/test/hurl/matches.hurl --variable mockgo_host=$(MOCKGO_HOST) --test --report-html $(PROJECT_DIR)/reports/hurl
 
 .PHONY: drop-dep-mockgo

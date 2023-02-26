@@ -1,6 +1,10 @@
+MOCKGO_MODULE = mockgo-grpc
+MOCKGO_VARIANT = grpc
+
 include ../main.mk
 
-MOCKGO_VARIANT = grpc
+.PHONY: env-module
+env-module: env-exe
 
 .PHONY: clean
 clean: cleanexe
