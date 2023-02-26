@@ -9,7 +9,7 @@ env-module:
 	$(MAKE) -C $(MOCKGO_MODULE) env-module
 
 .PHONY: clean
-clean: clean-hurl helm-delete
+clean:
 	$(MAKE) -C $(MOCKGO_MODULE) clean
 
 .PHONY: build
@@ -21,14 +21,14 @@ run:
 	$(MAKE) -C $(MOCKGO_MODULE) run
 
 .PHONY: builddocker
-builddocker: build
+builddocker:
 	$(MAKE) -C $(MOCKGO_MODULE) builddocker
 
-pushdocker: builddocker
+pushdocker:
 	$(MAKE) -C $(MOCKGO_MODULE) pushdocker
 
 .PHONY: rundocker
-rundocker: builddocker
+rundocker:
 	$(MAKE) -C $(MOCKGO_MODULE) rundocker
 
 .PHONY: cover

@@ -154,15 +154,15 @@ buildarchive:
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(MOCKGO_OS) GOARCH=$(MOCKGO_ARCH) go build --buildmode=archive ./...
 
 .PHONY: builddocker
-builddocker:
+builddocker: buildexe
 	docker build --build-arg RELEASE=$(MOCKGO_RELEASE_TAG)-$(GIT_COMMIT_HASH) -f build/mockgo-$(MOCKGO_VARIANT).Dockerfile . -t $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE_TAG) $(DOCKER_BUILD_OPTIONS)
 
 .PHONY: pushdocker
-pushdocker:
+pushdocker: builddocker
 	docker push $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE_TAG)
 
 .PHONY: rundocker
-rundocker:
+rundocker: builddocker
 	docker run $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE_TAG) $(DOCKER_RUN_OPTIONS)
 
 .PHONY: gofmt
