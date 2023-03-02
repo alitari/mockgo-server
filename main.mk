@@ -237,12 +237,12 @@ ifeq ($(KIND_CLUSTER_RUNNING), true)
 	kind delete cluster --name mockgo
 endif
 
-
 .PHONY: helm-deploy
 helm-deploy: kind pushdocker
 	helm upgrade --install mockgo-$(MOCKGO_VARIANT) $(PROJECT_DIR)/deployments/helm/mockgo-server \
 	--namespace mockgo --create-namespace -f $(PROJECT_DIR)/deployments/helm/$(MOCKGO_VARIANT)-values.yaml \
 	--wait --timeout $(HELM_DEPLOY_TIMEOUT) --atomic
+	sleep 5s
 
 .PHONY: helm-delete
 helm-delete:

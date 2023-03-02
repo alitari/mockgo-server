@@ -1,51 +1,55 @@
 #!/bin/bash
 
-# function for make clean all modules
-function make_clean_all() {
-    for module in mockgo mockgo-standalone grpc-kvstore grpc-matchstore mockgo-grpc
-    do
-        make clean MOCKGO_MODULE=$module
-    done
-}
+set -e
 
-# function for make mod-dev all modules
-function make_dep_dev_all() {
-    for module in mockgo-standalone grpc-kvstore grpc-matchstore mockgo-grpc
-    do
-        make dep-dev MOCKGO_MODULE=$module
-    done
-}
+echo "start release test 󰕹 ..."
+make env
 
-#function for make mod-release all modules
-function make_dep_release_all() {
-    for module in mockgo-standalone grpc-kvstore grpc-matchstore mockgo-grpc
-    do
-        make dep-release MOCKGO_MODULE=$module
-    done
-}
+make clean MOCKGO_MODULE=mockgo
+make tidy MOCKGO_MODULE=mockgo
+make build MOCKGO_MODULE=mockgo
+make cover MOCKGO_MODULE=mockgo
 
+make dep-dev MOCKGO_MODULE=mockgo-standalone
+make tidy MOCKGO_MODULE=mockgo-standalone
+make clean MOCKGO_MODULE=mockgo-standalone
+make cover MOCKGO_MODULE=mockgo-standalone
+make hurl MOCKGO_MODULE=mockgo-standalone
 
-if [ $# -eq 0 ]
-then
-    echo "start release test"
-    make env
-    make_clean_all
-    make_dep_dev_all
-else
-    # check for semver format
-    if [[ ! $1 =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "release tag must be in semver format, e.g. v1.0.0"
-        exit 1
-    fi
-    echo "start release $1"
-    # git stuff
-    make env
-    export MOCKGO_RELEASE=$1
-    make_clean_all
-    make_dep_release_all
+make dep-dev MOCKGO_MODULE=grpc-kvstore
+make tidy MOCKGO_MODULE=grpc-kvstore
+make clean MOCKGO_MODULE=grpc-kvstore
+make build MOCKGO_MODULE=grpc-kvstore
+make cover MOCKGO_MODULE=grpc-kvstore
 
-fi
-gitsha=$(git rev-parse --short HEAD)
+make dep-dev MOCKGO_MODULE=grpc-matchstore
+make tidy MOCKGO_MODULE=grpc-matchstore
+make clean MOCKGO_MODULE=grpc-matchstore
+make build MOCKGO_MODULE=grpc-matchstore
+make cover MOCKGO_MODULE=grpc-matchstore
+
+make dep-dev MOCKGO_MODULE=mockgo-grpc
+make tidy MOCKGO_MODULE=mockgo-grpc
+make clean MOCKGO_MODULE=mockgo-grpc
+make cover MOCKGO_MODULE=mockgo-grpc
+make hurl MOCKGO_MODULE=mockgo-grpc
+
+echo "release test ended successfully "
+
+    # # check for semver format
+    # if [[ ! $1 =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    #     echo "release tag must be in semver format, e.g. v1.0.0"
+    #     exit 1
+    # fi
+    # export MOCKGO_RELEASE=$1
+    # echo "start release $MOCKGO_RELEASE"
+    # # git checkout -b "release-$MOCKGO_RELEASE"
+    # make env
+    # make_clean_all
+    # make_dep_release_all
+
+# fi
+# gitsha=$(git rev-parse --short HEAD)
 
 # docker login
 
@@ -73,26 +77,6 @@ gitsha=$(git rev-parse --short HEAD)
 
 
 # show environment for all
-
-make build MOCKGO_MODULE=mockgo
-make cover MOCKGO_MODULE=mockgo
-make mod-release MOCKGO_MODULE=mockgo
-
-make cover MOCKGO_MODULE=mockgo-standalone
-make hurl MOCKGO_MODULE=mockgo-standalone
-make mod-release MOCKGO_MODULE=mockgo-standalone
-
-make build MOCKGO_MODULE=grpc-kvstore
-make cover MOCKGO_MODULE=grpc-kvstore
-make mod-release MOCKGO_MODULE=grpc-kvstore
-
-make build MOCKGO_MODULE=grpc-matchstore
-make cover MOCKGO_MODULE=grpc-matchstore
-make mod-release MOCKGO_MODULE=grpc-matchstore
-
-make cover MOCKGO_MODULE=mockgo-grpc
-make hurl MOCKGO_MODULE=mockgo-grpc
-make mod-release MOCKGO_MODULE=mockgo-grpc
 
 # for module in mockgo mockgo-standalone grpc-kvstore grpc-matchstore mockgo-grpc
 # do
