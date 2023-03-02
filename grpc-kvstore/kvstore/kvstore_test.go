@@ -61,6 +61,7 @@ func TestKVStore_Put(t *testing.T) {
 
 	storeVal := map[string]interface{}{"key1": []interface{}{"val11", "val22"}, "key2": []interface{}{"val21"}}
 	grpcstorages[0].PutVal(storeKey, storeVal)
+	time.Sleep(50 * time.Millisecond)
 	val, err = grpcstorages[0].GetVal(storeKey)
 	assert.NoError(t, err)
 	assert.EqualValues(t, storeVal, val)
@@ -71,6 +72,7 @@ func TestKVStore_Put(t *testing.T) {
 
 	storeVal2 := map[string]interface{}{"key1": "val1", "key2": "val2"}
 	grpcstorages[1].PutVal(storeKey, storeVal2)
+	time.Sleep(50 * time.Millisecond)
 	val, err = grpcstorages[1].GetVal(storeKey)
 	assert.NoError(t, err)
 	assert.Equal(t, storeVal2, val)
