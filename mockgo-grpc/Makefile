@@ -7,7 +7,7 @@ include ../main.mk
 env-module: env-exe
 
 .PHONY: clean
-clean: cleanexe
+clean: helm-delete cleanexe cleancover
 
 .PHONY: build
 build: buildexe
@@ -15,5 +15,10 @@ build: buildexe
 .PHONY: run
 run: buildexe runexe
 
-.PHONY: mod-dev
-mod-dev: require-dep-mockgo-dev require-dep-grpc-kvstore-dev require-dep-grpc-matchstore-dev
+.PHONY: dep-dev
+dep-dev: require-dep-mockgo-dev require-dep-grpc-kvstore-dev require-dep-grpc-matchstore-dev
+
+.PHONY: dep-release
+dep-release: require-dep-mockgo-release require-dep-grpc-kvstore-release require-dep-grpc-matchstore-release
+
+

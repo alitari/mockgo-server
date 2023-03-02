@@ -3,7 +3,6 @@ module github.com/alitari/mockgo-server/mockgo-standalone
 go 1.20
 
 require (
-	github.com/alitari/mockgo-server/mockgo v0.0.0-00010101000000-000000000000
 	github.com/gorilla/mux v1.8.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/prometheus/client_golang v1.14.0

@@ -9,5 +9,6 @@ env-module: env-lib
 clean: cleancover
 
 .PHONY: build
-build: clean buildarchive
+build: buildarchive
+
 

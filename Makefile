@@ -59,10 +59,18 @@ clean-hurl:
 hurl:
 	$(MAKE) -C $(MOCKGO_MODULE) hurl
 
-.PHONY: mod-dev
-mod-dev:
-	$(MAKE) -C $(MOCKGO_MODULE) mod-dev
+.PHONY: dep-dev
+dep-dev:
+	$(MAKE) -C $(MOCKGO_MODULE) dep-dev
+
+.PHONY: dep-release
+dep-release:
+	$(MAKE) -C $(MOCKGO_MODULE) dep-release
+
+.PHONY: mod-release
+mod-release:
+	$(MAKE) -C $(MOCKGO_MODULE) mod-release
 
 .PHONY: tidy
-tidy: mod-dev
+tidy:
 	$(MAKE) -C $(MOCKGO_MODULE) mod-tidy

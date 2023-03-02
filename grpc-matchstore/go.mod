@@ -3,7 +3,6 @@ module github.com/alitari/mockgo-server/grpc-matchstore
 go 1.19
 
 require (
-	github.com/alitari/mockgo-server/mockgo v0.0.0-00010101000000-000000000000
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
 	github.com/stretchr/testify v1.8.1

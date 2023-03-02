@@ -10,7 +10,10 @@ env-module: env-lib
 clean: cleanexe cleancover cleanproto
 
 .PHONY: build
-build: clean gen-proto buildarchive
+build: gen-proto buildarchive
 
-.PHONY: mod-dev
-mod-dev: require-dep-mockgo-dev
+.PHONY: dep-dev
+dep-dev: require-dep-mockgo-dev
+
+.PHONY: dep-release
+dep-release: require-dep-mockgo-release

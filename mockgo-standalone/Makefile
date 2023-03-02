@@ -7,7 +7,7 @@ include ../main.mk
 env-module: env-exe
 
 .PHONY: clean
-clean: cleanexe cleancover
+clean: helm-delete cleanexe cleancover
 
 .PHONY: build
 build: buildexe
@@ -16,5 +16,5 @@ build: buildexe
 run: buildexe runexe
 
 
-.PHONY: mod-dev
-mod-dev: require-dep-mockgo-dev
+.PHONY: dep-dev
+dep-dev: require-dep-mockgo-dev
