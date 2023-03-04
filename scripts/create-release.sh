@@ -11,21 +11,21 @@ else
         echo "release tag must be in semver format, e.g. v1.0.0"
         exit 1
     fi
-    # # git checks
-    # branch=$(git rev-parse --abbrev-ref HEAD)
-    # if [ "$branch" != "master" ]
-    # then
-    #     echo "you must be in 'master' branch, but you are in '$branch'!"
-    #     exit 1
-    # fi
-    # gitstatus=$(git status --short)
-    # if [[ "$gitstatus" != "" ]]; then
-    #     echo "the workspace is dirty: $gitstatus !"
-    #     exit 1
-    # fi
+    # git checks
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    if [ "$branch" != "master" ]
+    then
+        echo "you must be in 'master' branch, but you are in '$branch'!"
+        exit 1
+    fi
+    gitstatus=$(git status --short)
+    if [[ "$gitstatus" != "" ]]; then
+        echo "the workspace is dirty: $gitstatus !"
+        exit 1
+    fi
 
-    # create a release branch
-    # git checkout -b "release-$MOCKGO_RELEASE"
+    create a release branch
+    git checkout -b "release-$MOCKGO_RELEASE"
 fi
 
 echo "start release test 󰕹 ..."
