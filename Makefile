@@ -24,9 +24,6 @@ run:
 builddocker:
 	$(MAKE) -C $(MOCKGO_MODULE) builddocker
 
-pushdocker:
-	$(MAKE) -C $(MOCKGO_MODULE) pushdocker
-
 .PHONY: rundocker
 rundocker:
 	$(MAKE) -C $(MOCKGO_MODULE) rundocker
