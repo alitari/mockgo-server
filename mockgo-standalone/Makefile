@@ -15,6 +15,8 @@ build: buildexe buildchecksum
 .PHONY: run
 run: buildexe runexe
 
-
 .PHONY: dep-dev
 dep-dev: require-dep-mockgo-dev
+
+.PHONY: dep-release
+dep-release: require-dep-mockgo-release
