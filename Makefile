@@ -71,6 +71,10 @@ dep-release:
 mod-release:
 	$(MAKE) -C $(MOCKGO_MODULE) mod-release
 
+.PHONY: pushdocker
+pushdocker:
+	$(MAKE) -C $(MOCKGO_MODULE) pushdocker
+
 .PHONY: tidy
 tidy:
 	$(MAKE) -C $(MOCKGO_MODULE) mod-tidy

@@ -10,7 +10,7 @@ env-module: env-exe
 clean: helm-delete cleanexe cleancover
 
 .PHONY: build
-build: buildexe
+build: buildexe buildchecksum
 
 .PHONY: run
 run: buildexe runexe

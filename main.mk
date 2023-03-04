@@ -148,9 +148,18 @@ gen-proto:
 .PHONY: buildexe
 buildexe:
 	@sed -i "s/const versionTag = .*/const versionTag = \"$(MOCKGO_RELEASE)\"/g" $(MAIN_DIR)/main.go
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(MOCKGO_OS) GOARCH=$(MOCKGO_ARCH) go build -C $(MAIN_DIR) $(GOARGS) -o ../$(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-$(MOCKGO_OS)-$(MOCKGO_ARCH)
-	@echo "executable file:"
-	@ls -l $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-$(MOCKGO_OS)-$(MOCKGO_ARCH)
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=amd64 go build -C $(MAIN_DIR) $(GOARGS) -o ../$(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-amd64
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=arm64 go build -C $(MAIN_DIR) $(GOARGS) -o ../$(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-arm64
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=windows GOARCH=amd64 go build -C $(MAIN_DIR) $(GOARGS) -o ../$(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-windows-amd64
+	sha256sum $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-*
+	@echo "files:"
+	@ls -l $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-*
+
+.PHONY: buildchecksum
+buildchecksum:
+	sha256sum $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-amd64 > $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-amd64.sha256
+	sha256sum $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-arm64 > $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-arm64.sha256
+	sha256sum $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-windows-amd64 > $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-windows.sha256
 
 .PHONY: runexe
 runexe: buildexe
@@ -161,7 +170,7 @@ buildarchive:
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(MOCKGO_OS) GOARCH=$(MOCKGO_ARCH) go build --buildmode=archive ./...
 
 .PHONY: builddocker
-builddocker: buildexe
+builddocker: buildexe buildchecksum
 	docker build --build-arg RELEASE=$(MOCKGO_RELEASE)-$(GIT_COMMIT_HASH) -f build/mockgo-$(MOCKGO_VARIANT).Dockerfile . -t $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE) $(DOCKER_BUILD_OPTIONS)
 
 .PHONY: pushdocker
@@ -193,6 +202,7 @@ golint:
 	golint -set_exit_status ./...
 
 cover.out: gofmt vet ineffassign gocyclo golint
+	go clean -testcache
 	CGO_ENABLED=$(CGO_ENABLED) go test $(GOARGS) -coverprofile=cover-temp.out -covermode=$(GOCOVERMODE) ./...
 	@cat cover-temp.out | grep -v ".pb.go" > cover.out
 	@rm cover-temp.out
@@ -242,6 +252,7 @@ helm-deploy: kind pushdocker
 	helm upgrade --install mockgo-$(MOCKGO_VARIANT) $(PROJECT_DIR)/deployments/helm/mockgo-server \
 	--namespace mockgo --create-namespace -f $(PROJECT_DIR)/deployments/helm/$(MOCKGO_VARIANT)-values.yaml \
 	--wait --timeout $(HELM_DEPLOY_TIMEOUT) --atomic
+	sleep 20
 
 .PHONY: helm-delete
 helm-delete:
@@ -302,8 +313,8 @@ mod-release:
 ifeq ($(IS_REAL_RELEASE), "true")
 	@echo "tagging mockgo module with $(MOCKGO_MODULE)/$(MOCKGO_RELEASE) ..."
 	git tag -a "$(MOCKGO_MODULE)/$(MOCKGO_RELEASE)" -m "🔖 Tag mockgo module with $(MOCKGO_MODULE)/$(MOCKGO_RELEASE)"
-# git push origin "$(MOCKGO_MODULE)/$(MOCKGO_RELEASE)"#
-# GOPROXY=proxy.golang.org go list -m "github.com/alitari/mockgo-server/$(MOCKGO_MODULE)@$(MOCKGO_RELEASE)"
+	git push origin "$(MOCKGO_MODULE)/$(MOCKGO_RELEASE)"
+	GOPROXY=proxy.golang.org go list -m "github.com/alitari/mockgo-server/$(MOCKGO_MODULE)@$(MOCKGO_RELEASE)"
 else
 	@echo "not a real release, you must set MOCKGO_RELEASE to a real release version with semantic versioning"
 endif
