@@ -4,7 +4,8 @@ DELETE http://{{mockgo_host}}/__/matches/hello1
 mockgo: asecretPassword
 [Options]
 retry: true
-
+retry-interval: 3000
+retry-max-count: 10
 
 HTTP/1.1 200
 [Asserts]

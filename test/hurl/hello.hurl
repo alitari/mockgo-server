@@ -1,5 +1,7 @@
 # health
 GET http://{{mockgo_host}}/__/health
+[Options]
+retry: true
 
 HTTP/1.1 200
 [Asserts]
