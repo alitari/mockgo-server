@@ -2,6 +2,9 @@
 DELETE http://{{mockgo_host}}/__/matches/hello1
 [BasicAuth]
 mockgo: asecretPassword
+[Options]
+retry: true
+
 
 HTTP/1.1 200
 [Asserts]
