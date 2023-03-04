@@ -110,7 +110,7 @@ func (r *RequestHandler) handleDeleteMismatches(writer http.ResponseWriter, requ
 	if err := r.matchStore.DeleteMismatches(); err != nil {
 		r.logger.LogError("Error deleting mismatches", err)
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		} else {
+	} else {
 		writer.WriteHeader(http.StatusOK)
 	}
 }
