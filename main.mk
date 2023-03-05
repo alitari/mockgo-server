@@ -260,14 +260,14 @@ ifeq ($(MOCKGO_DEPLOYED), true)
 	helm delete mockgo-$(MOCKGO_VARIANT) --namespace mockgo
 endif
 
-.PHONY: clean-hurl
-clean-hurl:
+.PHONY: clean-acctest
+clean-acctest:
 	rm -rf $(PROJECT_DIR)/reports/hurl/mockgo-$(MOCKGO_VARIANT)
 
-.PHONY: hurl
-hurl: helm-deploy
+.PHONY: acctest
+acctest: helm-deploy
 	mkdir -p $(PROJECT_DIR)/reports/hurl/mockgo-$(MOCKGO_VARIANT)
-	hurl $(PROJECT_DIR)/test/hurl/hello.hurl $(PROJECT_DIR)/test/hurl/matches.hurl --variable mockgo_host=$(MOCKGO_HOST) --test --report-html $(PROJECT_DIR)/reports/hurl/mockgo-$(MOCKGO_VARIANT)
+	hurl $(PROJECT_DIR)/test/acceptance-test/hello.hurl $(PROJECT_DIR)/test/acceptance-test/matches.hurl --variable mockgo_host=$(MOCKGO_HOST) --test --report-html $(PROJECT_DIR)/reports/hurl/mockgo-$(MOCKGO_VARIANT)
 
 .PHONY: drop-dep-mockgo
 drop-dep-mockgo:

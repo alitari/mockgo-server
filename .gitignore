@@ -3,3 +3,4 @@ bin/
 reports/hurl
 .github/token
 *.sarif
+.mockgo_password

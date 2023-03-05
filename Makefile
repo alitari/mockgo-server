@@ -48,13 +48,13 @@ helm-deploy:
 helm-delete:
 	$(MAKE) -C $(MOCKGO_MODULE) helm-delete
 
-.PHONY: clean-hurl
-clean-hurl:
-	$(MAKE) -C $(MOCKGO_MODULE) clean-hurl
+.PHONY: clean-acctest
+clean-acctest:
+	$(MAKE) -C $(MOCKGO_MODULE) clean-acctest
 
-.PHONY: hurl
-hurl:
-	$(MAKE) -C $(MOCKGO_MODULE) hurl
+.PHONY: acctest
+acctest:
+	$(MAKE) -C $(MOCKGO_MODULE) acctest
 
 .PHONY: dep-dev
 dep-dev:
