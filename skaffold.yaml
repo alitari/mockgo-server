@@ -1,40 +1,40 @@
-apiVersion: skaffold/v2beta28
+apiVersion: skaffold/v4beta2
 kind: Config
 build:
+  tagPolicy:
+    sha256: {}
   artifacts:
     - image: dev.local/mockgo-standalone
       context: mockgo-standalone
       docker:
         dockerfile: build/mockgo-standalone.Dockerfile
-        buildArgs:
-          RELEASE: testversion
+      hooks:
+        before:
+          - command: [ go, build, -C, cmd, -o, ../bin/mockgo-standalone-linux-amd64 ]
+            os: [ linux ]
+            dir: mockgo-standalone
 
     - image: dev.local/mockgo-grpc
       context: mockgo-grpc
       docker:
         dockerfile: build/mockgo-grpc.Dockerfile
-        buildArgs:
-          RELEASE: testversion
+      hooks:
+        before:
+          - command: [ go, build, -C, cmd, -o, ../bin/mockgo-grpc-linux-amd64 ]
+            os: [ linux ]
+            dir: mockgo-standalone
 
 deploy:
   helm:
     releases:
       - name: mockgo-standalone
         chartPath: deployments/helm/mockgo-server
-        artifactOverrides:
-          image: dev.local/mockgo-standalone
         valuesFiles:
           - deployments/helm/standalone-values.yaml
-        setValueTemplates:
-          ingress.host: "mockgo-standalone.{{.CLUSTER_IP}}.nip.io"
       - name: mockgo-grpc
         chartPath: deployments/helm/mockgo-server
-        artifactOverrides:
-          image: dev.local/mockgo-grpc
         valuesFiles:
           - deployments/helm/grpc-values.yaml
-        setValueTemplates:
-          ingress.host: "mockgo-grpc.{{.CLUSTER_IP}}.nip.io"
       - name: prometheus
         remoteChart: prometheus-community/prometheus
         valuesFiles:
