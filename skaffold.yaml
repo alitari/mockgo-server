@@ -2,27 +2,26 @@ apiVersion: skaffold/v4beta2
 kind: Config
 build:
   tagPolicy:
-    sha256: {}
+    gitCommit:
+      variant: AbbrevCommitSha
+      ignoreChanges: true
   artifacts:
-    - image: dev.local/mockgo-standalone
-      context: mockgo-standalone
-      docker:
-        dockerfile: build/mockgo-standalone.Dockerfile
-      hooks:
-        before:
-          - command: [ go, build, -C, cmd, -o, ../bin/mockgo-standalone-linux-amd64 ]
-            os: [ linux ]
-            dir: mockgo-standalone
-
-    - image: dev.local/mockgo-grpc
-      context: mockgo-grpc
-      docker:
-        dockerfile: build/mockgo-grpc.Dockerfile
-      hooks:
-        before:
-          - command: [ go, build, -C, cmd, -o, ../bin/mockgo-grpc-linux-amd64 ]
-            os: [ linux ]
-            dir: mockgo-standalone
+    - image: mockgo-standalone
+      custom:
+        buildCommand: "make pushdocker MOCKGO_MODULE=mockgo-standalone MOCKGO_RELEASE=$(git rev-parse --short HEAD)"
+        dependencies:
+          paths:
+          - "mockgo/**"
+          - "mockgo-standalone/**"
+    - image: mockgo-grpc
+      custom:
+        buildCommand: "make pushdocker MOCKGO_MODULE=mockgo-grpc MOCKGO_RELEASE=$(git rev-parse --short HEAD)"
+        dependencies:
+          paths:
+          - "mockgo/**"
+          - "grpc-kvstore/**"
+          - "grpc-matchstore/**"
+          - "mockgo-grpc/**"
 
 deploy:
   helm:
@@ -31,10 +30,16 @@ deploy:
         chartPath: deployments/helm/mockgo-server
         valuesFiles:
           - deployments/helm/standalone-values.yaml
+        setValues:
+          image: mockgo-standalone
+          pullPolicy: Never
       - name: mockgo-grpc
         chartPath: deployments/helm/mockgo-server
         valuesFiles:
           - deployments/helm/grpc-values.yaml
+        setValues:
+          image: mockgo-grpc
+          pullPolicy: Never
       - name: prometheus
         remoteChart: prometheus-community/prometheus
         valuesFiles:
@@ -46,9 +51,13 @@ profiles:
         path: "/build/artifacts/1"
       - op: remove
         path: "/deploy/helm/releases/1"
+      - op: remove
+        path: "/deploy/helm/releases/1"
   - name: cluster
     patches:
       - op: remove
         path: "/build/artifacts/0"
       - op: remove
         path: "/deploy/helm/releases/0"
+      - op: remove
+        path: "/deploy/helm/releases/1"
