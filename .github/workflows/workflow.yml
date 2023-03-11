@@ -20,16 +20,16 @@ jobs:
 
     - name: install tools
       run: |
+        curl --location --remote-name https://github.com/Orange-OpenSource/hurl/releases/download/2.0.1/hurl_2.0.1_amd64.deb
         sudo apt update -y
-        sudo apt install -y protobuf-compiler
+        sudo apt install -y protobuf-compiler ./hurl_2.0.1_amd64.deb
         go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
         go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
         go install github.com/client9/misspell/cmd/misspell@latest
         go install github.com/gordonklaus/ineffassign@latest
         go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
         go install golang.org/x/lint/golint@latest
-        curl -silent --location https://github.com/Orange-OpenSource/hurl/releases/download/2.0.1/hurl-2.0.1-x86_64-linux.tar.gz | tar xvz -C ${HOME}/bin
-        export PATH=${HOME}/bin/hurl-2.0.1:$PATH
+
 
     - name: check tools
       run: make env 
