@@ -52,6 +52,10 @@ helm-deploy:
 helm-delete:
 	$(MAKE) -C $(MOCKGO_MODULE) helm-delete
 
+.PHONY: kind-delete
+kind-delete:
+	$(MAKE) -C $(MOCKGO_MODULE) kind-delete
+
 .PHONY: clean-acctest
 clean-acctest:
 	$(MAKE) -C $(MOCKGO_MODULE) clean-acctest
@@ -59,6 +63,10 @@ clean-acctest:
 .PHONY: acctest
 acctest:
 	$(MAKE) -C $(MOCKGO_MODULE) acctest
+
+.PHONY: loadtest
+loadtest:
+	$(MAKE) -C $(MOCKGO_MODULE) loadtest
 
 .PHONY: dep-dev
 dep-dev:
@@ -71,10 +79,6 @@ dep-release:
 .PHONY: mod-release
 mod-release:
 	$(MAKE) -C $(MOCKGO_MODULE) mod-release
-
-.PHONY: pushdocker
-pushdocker:
-	$(MAKE) -C $(MOCKGO_MODULE) pushdocker
 
 .PHONY: tidy
 tidy:

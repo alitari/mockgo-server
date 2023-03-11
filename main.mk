@@ -25,6 +25,9 @@ PROJECT_DIR ?= "$(shell dirname "${MODULE_DIR}")"
 MOCKGO_OS = ${OS}
 MOCKGO_ARCH ?= amd64
 MOCKGO_RELEASE ?= latest
+ifeq ($(MOCKGO_RELEASE),)
+MOCKGO_RELEASE = latest
+endif
 ifeq ($(MOCKGO_RELEASE),latest)
 IS_REAL_RELEASE = "false"
 else
@@ -53,6 +56,7 @@ ifeq ($(HELM_VERSION),)
 HELM_VERSION = $(ccred)"not installed$(ccend)"
 endif
 HELM_DEPLOY_TIMEOUT ?= 300s
+HELM_DEPLOY_WAIT ?= 60s
 
 KIND_VERSION ?= $(shell kind version | awk '{print $$2}')
 ifeq ($(KIND_VERSION),)
@@ -60,7 +64,7 @@ KIND_VERSION = $(ccred)"not installed$(ccend)"
 endif
 KIND_CLUSTER_CONFIG ?= $(PROJECT_DIR)/deployments/kind/cluster.yaml
 KIND_CLUSTER_RUNNING ?= $(shell kind get clusters -q | grep -q mockgo && echo "true" || echo "false")
-KIND_CLUSTER_WAIT ?= 10s
+KIND_CLUSTER_WAIT ?= 60s
 
 LOCAL_REGISTRY_NAME ?= kind-registry
 LOCAL_REGISTRY_PORT ?= 5001
@@ -71,6 +75,7 @@ ifeq ($(HURL_VERSION),)
 HURL_VERSION = $(ccred)"not installed$(ccend)"
 endif
 
+
 MOCKGO_DEPLOYED ?= $(shell helm --namespace mockgo list -q 2> /dev/null | grep -q mockgo-${MOCKGO_VARIANT} && echo "true" || echo "false")
 
 CLUSTER_IP ?= 127.0.0.1
@@ -79,7 +84,7 @@ MOCKGO_HOST ?= mockgo-$(MOCKGO_VARIANT).$(CLUSTER_IP).nip.io
 .PHONY: env-global
 env-global:
 	@echo "------------------ workstation --------------------"
-	@echo "OS - ARCH:  ${OS} -    ${ARCH}"
+	@echo "OS-ARCH:               ${OS}-${ARCH}"
 	@echo "------------------- golang ------------------------"
 	@echo "GO_VERSION:            ${GO_VERSION}"
 	@echo "CGO_ENABLED:           ${CGO_ENABLED}"
@@ -252,7 +257,7 @@ helm-deploy: kind pushdocker
 	helm upgrade --install mockgo-$(MOCKGO_VARIANT) $(PROJECT_DIR)/deployments/helm/mockgo-server \
 	--namespace mockgo --create-namespace -f $(PROJECT_DIR)/deployments/helm/$(MOCKGO_VARIANT)-values.yaml \
 	--wait --timeout $(HELM_DEPLOY_TIMEOUT) --atomic
-	sleep 20
+	sleep $(HELM_DEPLOY_WAIT)
 
 .PHONY: helm-delete
 helm-delete:
@@ -268,6 +273,10 @@ clean-acctest:
 acctest: helm-deploy
 	mkdir -p $(PROJECT_DIR)/reports/hurl/mockgo-$(MOCKGO_VARIANT)
 	hurl $(PROJECT_DIR)/test/acceptance-test/hello.hurl $(PROJECT_DIR)/test/acceptance-test/matches.hurl --variable mockgo_host=$(MOCKGO_HOST) --test --report-html $(PROJECT_DIR)/reports/hurl/mockgo-$(MOCKGO_VARIANT)
+
+.PHONY: loadtest
+loadtest: helm-deploy
+	./scripts/load-test.sh 100 10 2 mockgo-$(MOCKGO_VARIANT).127.0.0.1.nip.io GET /hello1 hello1 
 
 .PHONY: drop-dep-mockgo
 drop-dep-mockgo:
