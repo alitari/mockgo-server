@@ -1,6 +1,6 @@
 module github.com/alitari/mockgo-server/grpc-matchstore
 
-go 1.19
+go 1.20
 
 require (
 	github.com/alitari/mockgo-server/mockgo v0.0.0-00010101000000-000000000000
