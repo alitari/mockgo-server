@@ -116,6 +116,7 @@ env-global:
 	@echo "KIND_CLUSTER_WAIT:     ${KIND_CLUSTER_WAIT}"
 	@echo "HELM_VERSION:          ${HELM_VERSION}"
 	@echo "HELM_DEPLOY_TIMEOUT:   ${HELM_DEPLOY_TIMEOUT}"
+	@echo "HELM_DEPLOY_WAIT:      ${HELM_DEPLOY_WAIT}"
 	@echo "---------------- acceptance test ------------------"
 	@echo "HURL_VERSION:          ${HURL_VERSION}"
 	@echo "---------------------------------------------------"

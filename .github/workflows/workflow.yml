@@ -30,7 +30,8 @@ jobs:
         go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
         go install golang.org/x/lint/golint@latest
 
-
     - name: check tools
-      run: make env 
+      run: make env
 
+    - name: test release
+      run: ./scripts/create-release.sh
