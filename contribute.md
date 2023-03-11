@@ -4,39 +4,39 @@
 
 Development guides are applied on a linux amd64 system. Please understand that my support capatibilties are limited regarding other setups. Vscode was used as IDE, however this repo does not contain any relevant files regarding IDE usage.
 
-## tools
+## multi module repository
 
-As [go-workspaces](https://go.dev/blog/get-familiar-with-workspaces) are used development requires **go version 1.19++**. For kubernetes related work i recommend using [minikube](https://minikube.sigs.k8s.io/docs/), [helm](https://helm.sh/) and [skaffold](https://skaffold.dev/).
+The repository consists of 5 go modules with the following dependencies:
+
+![mockgo-server modules](docs/modules.png)
+
+In order to manage multi modules in one repo [go-workspaces](https://go.dev/blog/get-familiar-with-workspaces) are used for development, this requires at least **go version 1.19**.
+
+## make targets
+
+There are a lot of [make rules](https://www.gnu.org/software/make/) available to check your changes before a commit. Starting from:
+
+- `make env` : check your environment and the installed tools,
+
+and ending with:
+
+- `make acctest` : run acceptance test ( builds executable, create docker image, setup local kubernetes cluster, deploy the app with helm, run acceptance test)
+
+The whole spectrum of make targets can be found in the [Makefile](Makefile). 
+
 
 ## grpc
 
-As the [grpc]() variant is using [protobuf](https://developers.google.com/protocol-buffers), you need to install the protobuf compiler and its go tools:
+As the [grpc]() variant is using [protobuf](https://developers.google.com/protocol-buffers), you need to install the protobuf compiler and its go tools.
 
-```bash
-sudo apt update -y
-sudo apt install -y protobuf-compiler
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-```
 
-## building testing 
+## testing and releasing with `create-release.sh`
 
-For building and testing you can use the commands which are defined in the [github actions for a pull request](.github/workflows/workflow.yml).
-E.g. build a the mockgo-server grpc variant for linux amd64: `./scripts/go-build-mockgo-grpc.sh linux amd64`
+Executing the `create-release.sh` script will go through all steps of [test pyramid](https://martinfowler.com/articles/practical-test-pyramid.html) for each module. Without giving a tag as argument, it will stops at this point. This process is applied as check for each pull request.
 
-## releasing
-
-### github and dockerhub
-
-```bash
-./scripts/github-create-release.sh <release tag> # semver is used e.g. ( "v0.0.1")
-```
-### helm
-
-```bash
-git clone https://github.com/alitari/mockgo-server.git -b gh-pages
-cd mockgo-server
-# define tag/branch with arg
-./build.sh master
-# push new helm chart tgz in gh-pages branch
-```
+Providing a version will additionally:
+- create a branch with the version name,
+- tag to the remote
+- publish the go modules with under the version
+- create release on github
+- push the docker images with the version tag on dockerhub

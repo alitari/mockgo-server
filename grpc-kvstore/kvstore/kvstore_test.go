@@ -18,8 +18,7 @@ var startPort = 50151
 var grpcstorages []*grpcStorage
 
 func TestMain(m *testing.M) {
-	startStorageCluster()
-	time.Sleep(300 * time.Millisecond)
+	startStorageCluster()	
 	code := testutil.RunAndCheckCoverage("main", m, 0.4)
 	stopCluster()
 	os.Exit(code)
@@ -42,6 +41,7 @@ func startStorageCluster() {
 		}
 		grpcstorages = append(grpcstorages, kvStore.(*grpcStorage))
 	}
+	time.Sleep(2000 * time.Millisecond)
 }
 
 func stopCluster() {
@@ -61,6 +61,7 @@ func TestKVStore_Put(t *testing.T) {
 
 	storeVal := map[string]interface{}{"key1": []interface{}{"val11", "val22"}, "key2": []interface{}{"val21"}}
 	grpcstorages[0].PutVal(storeKey, storeVal)
+	time.Sleep(200 * time.Millisecond)
 	val, err = grpcstorages[0].GetVal(storeKey)
 	assert.NoError(t, err)
 	assert.EqualValues(t, storeVal, val)
@@ -71,6 +72,7 @@ func TestKVStore_Put(t *testing.T) {
 
 	storeVal2 := map[string]interface{}{"key1": "val1", "key2": "val2"}
 	grpcstorages[1].PutVal(storeKey, storeVal2)
+	time.Sleep(200 * time.Millisecond)
 	val, err = grpcstorages[1].GetVal(storeKey)
 	assert.NoError(t, err)
 	assert.Equal(t, storeVal2, val)

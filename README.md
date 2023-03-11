@@ -38,7 +38,7 @@ see [here](./deployments/helm/mockgo-server/README.md) for further helm configur
 If you prefer installing on a/your workstation, define first the environment :
 
 ```bash
-MOCKGO_RELEASE_VERSION="v0.0.5"
+MOCKGO_RELEASE_VERSION="v1.0.1"
 MOCKGO_VARIANT="standalone" # or "grpc"
 MOCKGO_OS="linux" # or "windows"
 MOCKGO_ARCH="amd64" # or "arm64"
@@ -63,7 +63,7 @@ git clone https://github.com/alitari/mockgo-server.git -b $MOCKGO_RELEASE_VERSIO
 cd mockgo-server
 # go version must be >= 1.19
 go version
-./scripts/go-build-mockgo-${MOCKGO_VARIANT}.sh $MOCKGO_OS $MOCKGO_ARCH
+./scripts/go-build-mockgo.sh $MOCKGO_OS $MOCKGO_ARCH $MOCKGO_VARIANT $MOCKGO_RELEASE_VERSION
 # MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
 MOCK_DIR=$(pwd) ./bin/${MOCKGO_NAME}
 ```

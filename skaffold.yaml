@@ -1,40 +1,45 @@
-apiVersion: skaffold/v2beta28
+apiVersion: skaffold/v4beta2
 kind: Config
 build:
+  tagPolicy:
+    gitCommit:
+      variant: AbbrevCommitSha
+      ignoreChanges: true
   artifacts:
-    - image: dev.local/mockgo-standalone
-      context: .
-      docker:
-        dockerfile: build/docker/mockgo-standalone.Dockerfile
-        buildArgs:
-          RELEASE: testversion
-
-    - image: dev.local/mockgo-grpc
-      context: .
-      docker:
-        dockerfile: build/docker/mockgo-grpc.Dockerfile
-        buildArgs:
-          RELEASE: testversion
+    - image: mockgo-standalone
+      custom:
+        buildCommand: "make pushdocker MOCKGO_MODULE=mockgo-standalone MOCKGO_RELEASE=$(git rev-parse --short HEAD)"
+        dependencies:
+          paths:
+          - "mockgo/**"
+          - "mockgo-standalone/**"
+    - image: mockgo-grpc
+      custom:
+        buildCommand: "make pushdocker MOCKGO_MODULE=mockgo-grpc MOCKGO_RELEASE=$(git rev-parse --short HEAD)"
+        dependencies:
+          paths:
+          - "mockgo/**"
+          - "grpc-kvstore/**"
+          - "grpc-matchstore/**"
+          - "mockgo-grpc/**"
 
 deploy:
   helm:
     releases:
       - name: mockgo-standalone
         chartPath: deployments/helm/mockgo-server
-        artifactOverrides:
-          image: dev.local/mockgo-standalone
         valuesFiles:
-          - deployments/helm/minikube-standalone-values.yaml
-        setValueTemplates:
-          ingress.host: "mockgo-standalone.{{.MINIKUBE_IP}}.nip.io"
+          - deployments/helm/standalone-values.yaml
+        setValues:
+          image: mockgo-standalone
+          pullPolicy: Never
       - name: mockgo-grpc
         chartPath: deployments/helm/mockgo-server
-        artifactOverrides:
-          image: dev.local/mockgo-grpc
         valuesFiles:
-          - deployments/helm/minikube-grpc-values.yaml
-        setValueTemplates:
-          ingress.host: "mockgo-grpc.{{.MINIKUBE_IP}}.nip.io"
+          - deployments/helm/grpc-values.yaml
+        setValues:
+          image: mockgo-grpc
+          pullPolicy: Never
       - name: prometheus
         remoteChart: prometheus-community/prometheus
         valuesFiles:
@@ -46,9 +51,13 @@ profiles:
         path: "/build/artifacts/1"
       - op: remove
         path: "/deploy/helm/releases/1"
+      - op: remove
+        path: "/deploy/helm/releases/1"
   - name: cluster
     patches:
       - op: remove
         path: "/build/artifacts/0"
       - op: remove
         path: "/deploy/helm/releases/0"
+      - op: remove
+        path: "/deploy/helm/releases/1"

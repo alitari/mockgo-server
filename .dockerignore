@@ -1,9 +1,0 @@
-*
-!mockgo/
-!grpc-kvstore/
-!grpc-matchstore/
-!mockgo-standalone/
-!mockgo-grpc/
-!scripts/
-!/bin/
-!go.work

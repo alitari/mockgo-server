@@ -1,6 +1,6 @@
 cover*.out
 bin/
-test/tavern/.pytest_cache
-reports/tavern.html
+reports/hurl
 .github/token
 *.sarif
+.mockgo_password

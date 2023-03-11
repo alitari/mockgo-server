@@ -61,6 +61,7 @@ func (r *RequestHandler) handleHealth(writer http.ResponseWriter, request *http.
 func (r *RequestHandler) handleGetMatches(writer http.ResponseWriter, request *http.Request) {
 	endpointID := mux.Vars(request)["endpointId"]
 	if matches, err := r.matchStore.GetMatches(endpointID); err != nil {
+		r.logger.LogError("Error getting matches", err)
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
 		util.WriteEntity(writer, matches)
@@ -70,6 +71,7 @@ func (r *RequestHandler) handleGetMatches(writer http.ResponseWriter, request *h
 func (r *RequestHandler) handleGetMatchesCount(writer http.ResponseWriter, request *http.Request) {
 	endpointID := mux.Vars(request)["endpointId"]
 	if matchesCount, err := r.matchStore.GetMatchesCount(endpointID); err != nil {
+		r.logger.LogError("Error getting matches count", err)
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
 		util.WriteEntity(writer, matchesCount)
@@ -78,6 +80,7 @@ func (r *RequestHandler) handleGetMatchesCount(writer http.ResponseWriter, reque
 
 func (r *RequestHandler) handleGetMismatches(writer http.ResponseWriter, request *http.Request) {
 	if mismatches, err := r.matchStore.GetMismatches(); err != nil {
+		r.logger.LogError("Error getting mismatches", err)
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
 		util.WriteEntity(writer, mismatches)
@@ -86,6 +89,7 @@ func (r *RequestHandler) handleGetMismatches(writer http.ResponseWriter, request
 
 func (r *RequestHandler) handleGetMismatchesCount(writer http.ResponseWriter, request *http.Request) {
 	if mismatchesCount, err := r.matchStore.GetMismatchesCount(); err != nil {
+		r.logger.LogError("Error getting mismatches count", err)
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
 		util.WriteEntity(writer, mismatchesCount)
@@ -95,6 +99,7 @@ func (r *RequestHandler) handleGetMismatchesCount(writer http.ResponseWriter, re
 func (r *RequestHandler) handleDeleteMatches(writer http.ResponseWriter, request *http.Request) {
 	endpointID := mux.Vars(request)["endpointId"]
 	if err := r.matchStore.DeleteMatches(endpointID); err != nil {
+		r.logger.LogError("Error deleting matches", err)
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
 		writer.WriteHeader(http.StatusOK)
@@ -103,6 +108,7 @@ func (r *RequestHandler) handleDeleteMatches(writer http.ResponseWriter, request
 
 func (r *RequestHandler) handleDeleteMismatches(writer http.ResponseWriter, request *http.Request) {
 	if err := r.matchStore.DeleteMismatches(); err != nil {
+		r.logger.LogError("Error deleting mismatches", err)
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
 		writer.WriteHeader(http.StatusOK)

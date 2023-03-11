@@ -1,0 +1,16 @@
+digraph D {
+
+
+    "mockgo-standalone" [shape=box ];
+    "mockgo-grpc" [shape=box];
+
+
+    "mockgo-standalone"  -> mockgo;
+    "grpc-matchstore" -> mockgo;
+    "grpc-kvstore" -> mockgo;
+    "mockgo-grpc" -> mockgo;
+    "mockgo-grpc" -> "grpc-kvstore";
+    "mockgo-grpc" -> "grpc-matchstore";
+
+
+}
