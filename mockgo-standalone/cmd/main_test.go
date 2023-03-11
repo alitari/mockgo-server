@@ -58,146 +58,164 @@ func TestMain_metrics(t *testing.T) {
 	}))
 }
 
-// func TestMain_templateFunctionsPutKVStore(t *testing.T) {
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/setkvstore/maintest", nil, `{ "mainTest1": "mainTest1Value" }`, 200, func(responseBody string, header map[string][]string) {
-// 		expectedResponseBody := `{
-//     "message": "set kvstore successfully",
-//     "key": "maintest",
-//     "value": "{ \"mainTest1\": \"mainTest1Value\" }"
-// }`
-// 		assert.Equal(t, expectedResponseBody, responseBody)
-// 	})
-// 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-// 		"", http.StatusOK, func(responseBody string, header map[string][]string) {
-// 			assert.Equal(t, `{ "mainTest1": "mainTest1Value" }`, responseBody)
-// 		})
-// }
+func TestMain_templateFunctionsPutKVStore(t *testing.T) {
+	putKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/setkvstore/maintest", testutil.CreateHeader(), `{ "mainTest1": "mainTest1Value" }`)
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, putKVStoreRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		expectedResponseBody := `{
+    "message": "set kvstore successfully",
+    "key": "maintest",
+    "value": "{ \"mainTest1\": \"mainTest1Value\" }"
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	}))
 
-// func TestMain_templateFunctionsGetKVStore(t *testing.T) {
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-// 		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
-// 		})
-// 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/getkvstore/maintest", nil, "", 200, func(responseBody string, header map[string][]string) {
-// 		expectedResponseBody := `{
-//     "message": "get kvstore successfully",
-//     "key": "maintest",
-//     "value": "{\"key\":\"value\"}"
-// }`
-// 		assert.Equal(t, expectedResponseBody, responseBody)
-// 	})
-// }
+	getKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/kvstore/maintest", testutil.CreateHeader().WithJSONAccept().WithAuth("mockgo", apiPassword), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getKVStoreRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, `{ "mainTest1": "mainTest1Value" }`, responseBody)
+	}))
 
-// func TestMain_templateFunctionsGetKVStoreInline(t *testing.T) {
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-// 		`{ "key": "valueInline" }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
-// 		})
-// 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/getkvstoreInline/maintest", nil, "", 200, func(responseBody string, header map[string][]string) {
-// 		expectedResponseBody := `{
-//     "message": "get kvstore successfully",
-//     "key": "maintest",
-//     "value": "{\"key\":\"valueInline\"}"
-// }`
-// 		assert.Equal(t, expectedResponseBody, responseBody)
-// 	})
-// }
+}
 
-// func TestMain_templateFunctionsAddKVStore(t *testing.T) {
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-// 		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
-// 		})
-// 	util.RequestCall(t, httpClient, http.MethodPost, urlPrefix+"/addkvstore/maintest", nil,
-// 		`{ "path": "/key2", "value": "value2" }`, 200, func(responseBody string, header map[string][]string) {
-// 			expectedResponseBody := `{
-//     "message": "add kvstore successfully",
-//     "key": "maintest",
-//     "body": "{ \"path\": \"/key2\", \"value\": \"value2\" }",
-//     "path": "/key2",
-//     "value": "value2"
-// }`
-// 			assert.Equal(t, expectedResponseBody, responseBody)
-// 		})
-// 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-// 		"", http.StatusOK, func(responseBody string, header map[string][]string) {
-// 			assert.Equal(t, `{"key":"value","key2":"value2"}`, responseBody)
-// 		})
-// }
+func TestMain_templateFunctionsGetKVStore(t *testing.T) {
+	putKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/__/kvstore/maintest", testutil.CreateHeader().WithJSONContentType().WithAuth("mockgo", apiPassword), `{ "key": "value" }`)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, putKVStoreRequest, http.StatusNoContent))
 
-// func TestMain_templateFunctionsRemoveKVStore(t *testing.T) {
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-// 		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
-// 		})
-// 	util.RequestCall(t, httpClient, http.MethodDelete, urlPrefix+"/removekvstore/maintest", nil,
-// 		`{ "path": "/key" }`, 200, func(responseBody string, header map[string][]string) {
-// 			expectedResponseBody := `{
-//     "message": "remove kvstore successfully",
-//     "key": "maintest",
-//     "body": "{ \"path\": \"/key\" }",
-//     "path": "/key"
-// }`
-// 			assert.Equal(t, expectedResponseBody, responseBody)
-// 		})
-// 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.Accept: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-// 		"", http.StatusOK, func(responseBody string, header map[string][]string) {
-// 			assert.Equal(t, `{}`, responseBody)
-// 		})
-// }
+	getKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/getkvstore/maintest", testutil.CreateHeader(), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getKVStoreRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		expectedResponseBody := `{
+    "message": "get kvstore successfully",
+    "key": "maintest",
+    "value": "{\"key\":\"value\"}"
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	}))
+}
 
-// func TestMain_templateFunctionsLookupKVStore(t *testing.T) {
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/maintest", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-// 		`{ "key": "value" }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
-// 		})
-// 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/lookupkvstore/maintest", nil,
-// 		`{ "jsonPath": "$.key" }`, 200, func(responseBody string, header map[string][]string) {
-// 			expectedResponseBody := `{
-//     "message": "lookup kvstore successfully",
-//     "key": "maintest",
-//     "body": "{ \"jsonPath\": \"$.key\" }",
-//     "jsonPath": "$.key",
-//     "value": "value"
-// }`
-// 			assert.Equal(t, expectedResponseBody, responseBody)
-// 		})
-// }
+func TestMain_templateFunctionsGetKVStoreInline(t *testing.T) {
+	putKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/__/kvstore/maintest", testutil.CreateHeader().WithJSONContentType().WithAuth("mockgo", apiPassword), `{ "key": "valueInline" }`)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, putKVStoreRequest, http.StatusNoContent))
 
-// func TestMain_templateFunctionsResponseCode(t *testing.T) {
-// 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/statusCode/201", nil, "Alex", 201, func(responseBody string, header map[string][]string) {
-// 		expectedResponseBody := `Alex`
-// 		assert.Equal(t, expectedResponseBody, responseBody)
-// 		assert.Equal(t, []string{"/statusCode/201"}, header["Header1"])
-// 	})
-// }
+	getKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/getkvstoreInline/maintest", testutil.CreateHeader(), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getKVStoreRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		expectedResponseBody := `{
+    "message": "get kvstore successfully",
+    "key": "maintest",
+    "value": "{\"key\":\"valueInline\"}"
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	}))
 
-// func TestMain_templateFunctionsQueryParams(t *testing.T) {
-// 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/queryParams?foo=bar&foo2=bar2", nil, "", 200, func(responseBody string, header map[string][]string) {
-// 		expectedResponseBody := `{
-//     "foo" : "bar",
-//     "foo2" : "bar2",
-// }`
-// 		assert.Equal(t, expectedResponseBody, responseBody)
-// 	})
-// }
+}
 
-// func TestMain_templateFunctionsPeople(t *testing.T) {
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/__/kvstore/people", map[string][]string{headers.ContentType: {"application/json"}, headers.Authorization: {util.BasicAuth("mockgo", apiPassword)}},
-// 		`{ "adults": [], "childs": [] }`, http.StatusNoContent, func(responseBody string, header map[string][]string) {
-// 		})
+func TestMain_templateFunctionsAddKVStore(t *testing.T) {
+	putKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/__/kvstore/maintest", testutil.CreateHeader().WithJSONContentType().WithAuth("mockgo", apiPassword), `{ "key": "value" }`)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, putKVStoreRequest, http.StatusNoContent))
 
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/storePeople", nil, `{ "wrongkey": "Alex", "age": 55 }`, 400, func(responseBody string, header map[string][]string) {
-// 	})
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/storePeople", nil, `{ "name": "Alex", "age": 55 }`, 200, func(responseBody string, header map[string][]string) {
-// 	})
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/storePeople", nil, `{ "name": "Dani", "age": 45 }`, 200, func(responseBody string, header map[string][]string) {
-// 	})
-// 	util.RequestCall(t, httpClient, http.MethodPut, urlPrefix+"/storePeople", nil, `{ "name": "Klara", "age": 16 }`, 200, func(responseBody string, header map[string][]string) {
-// 	})
+	addKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPost, "/addkvstore/maintest", testutil.CreateHeader(), `{ "path": "/key2", "value": "value2" }`)
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, addKVStoreRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		expectedResponseBody := `{
+    "message": "add kvstore successfully",
+    "key": "maintest",
+    "body": "{ \"path\": \"/key2\", \"value\": \"value2\" }",
+    "path": "/key2",
+    "value": "value2"
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	}))
 
-// 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/getPeople/childs", nil, "", 200,
-// 		func(responseBody string, header map[string][]string) {
-// 			assert.Equal(t, "[\n  {\n    \"age\": 16,\n    \"name\": \"Klara\"\n  }\n]", responseBody)
-// 		})
+	getKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/kvstore/maintest", testutil.CreateHeader().WithJSONAccept().WithAuth("mockgo", apiPassword), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getKVStoreRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, `{"key":"value","key2":"value2"}`, responseBody)
+	}))
+}
 
-// 	util.RequestCall(t, httpClient, http.MethodGet, urlPrefix+"/getPeople/adults", nil, "", 200,
-// 		func(responseBody string, header map[string][]string) {
-// 			assert.Equal(t, "[\n  {\n    \"age\": 55,\n    \"name\": \"Alex\"\n  },\n  {\n    \"age\": 45,\n    \"name\": \"Dani\"\n  }\n]", responseBody)
-// 		})
-// }
+func TestMain_templateFunctionsRemoveKVStore(t *testing.T) {
+	putKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/__/kvstore/maintest", testutil.CreateHeader().WithJSONContentType().WithAuth("mockgo", apiPassword), `{ "key": "value" }`)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, putKVStoreRequest, http.StatusNoContent))
+
+	removeKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodDelete, "/removekvstore/maintest", testutil.CreateHeader(), `{ "path": "/key" }`)
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, removeKVStoreRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		expectedResponseBody := `{
+    "message": "remove kvstore successfully",
+    "key": "maintest",
+    "body": "{ \"path\": \"/key\" }",
+    "path": "/key"
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	}))
+	getKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/kvstore/maintest", testutil.CreateHeader().WithJSONAccept().WithAuth("mockgo", apiPassword), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getKVStoreRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, `{}`, responseBody)
+	}))
+}
+
+func TestMain_templateFunctionsLookupKVStore(t *testing.T) {
+	putKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/__/kvstore/maintest", testutil.CreateHeader().WithJSONContentType().WithAuth("mockgo", apiPassword), `{ "key": "value" }`)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, putKVStoreRequest, http.StatusNoContent))
+
+	lookupKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/lookupkvstore/maintest", testutil.CreateHeader(), `{ "jsonPath": "$.key" }`)
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, lookupKVStoreRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		expectedResponseBody := `{
+    "message": "lookup kvstore successfully",
+    "key": "maintest",
+    "body": "{ \"jsonPath\": \"$.key\" }",
+    "jsonPath": "$.key",
+    "value": "value"
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	}))
+
+}
+
+func TestMain_templateFunctionsResponseCode(t *testing.T) {
+	getStatusCodeRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/statusCode/201", testutil.CreateHeader(), "Alex")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getStatusCodeRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusCreated, response.StatusCode)
+		assert.Equal(t, "Alex", responseBody)
+		assert.Equal(t, []string{"/statusCode/201"}, response.Header["Header1"])
+	}))
+}
+
+func TestMain_templateFunctionsQueryParams(t *testing.T) {
+	getQueryParamsRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/queryParams?foo=bar&foo2=bar2", testutil.CreateHeader(), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getQueryParamsRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		expectedResponseBody := `{
+    "foo" : "bar",
+    "foo2" : "bar2",
+}`
+		assert.Equal(t, expectedResponseBody, responseBody)
+	}))
+}
+
+func TestMain_templateFunctionsPeople(t *testing.T) {
+	setupStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/__/kvstore/people", testutil.CreateHeader().WithJSONContentType().WithAuth("mockgo", apiPassword), `{ "adults": [], "childs": [] }`)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, setupStoreRequest, http.StatusNoContent))
+	storeWrongAlexRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/storePeople", testutil.CreateHeader(), `{ "wrongkey": "Alex", "age": 55 }`)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, storeWrongAlexRequest, http.StatusBadRequest))
+	storeAlexRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/storePeople", testutil.CreateHeader(), `{ "name": "Alex", "age": 55 }`)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, storeAlexRequest, http.StatusOK))
+	storeDaniRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/storePeople", testutil.CreateHeader(), `{ "name": "Dani", "age": 45 }`)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, storeDaniRequest, http.StatusOK))
+	storeKlaraRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/storePeople", testutil.CreateHeader(), `{ "name": "Klara", "age": 16 }`)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, storeKlaraRequest, http.StatusOK))
+	getChildsRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/getPeople/childs", testutil.CreateHeader(), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getChildsRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, "[\n  {\n    \"age\": 16,\n    \"name\": \"Klara\"\n  }\n]", responseBody)
+	}))
+	getAdultsRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/getPeople/adults", testutil.CreateHeader(), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getAdultsRequest, func(response *http.Response, responseBody string) {
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, "[\n  {\n    \"age\": 55,\n    \"name\": \"Alex\"\n  },\n  {\n    \"age\": 45,\n    \"name\": \"Dani\"\n  }\n]", responseBody)
+	}))
+}
