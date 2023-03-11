@@ -18,8 +18,7 @@ var startPort = 50151
 var grpcstorages []*grpcStorage
 
 func TestMain(m *testing.M) {
-	startStorageCluster()
-	time.Sleep(300 * time.Millisecond)
+	startStorageCluster()	
 	code := testutil.RunAndCheckCoverage("main", m, 0.4)
 	stopCluster()
 	os.Exit(code)
@@ -42,7 +41,7 @@ func startStorageCluster() {
 		}
 		grpcstorages = append(grpcstorages, kvStore.(*grpcStorage))
 	}
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 }
 
 func stopCluster() {
