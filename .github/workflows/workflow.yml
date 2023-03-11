@@ -13,7 +13,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set up Go
+    - name: set up Go
       uses: actions/setup-go@v3
       with:
         go-version: '>=1.19.0'
@@ -28,6 +28,8 @@ jobs:
         go install github.com/gordonklaus/ineffassign@latest
         go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
         go install golang.org/x/lint/golint@latest
+        curl -silent --location https://github.com/Orange-OpenSource/hurl/releases/download/2.0.1/hurl-2.0.1-x86_64-linux.tar.gz | tar xvz -C ${HOME}/bin
+        export PATH=${HOME}/bin/hurl-2.0.1:$PATH
 
     - name: check tools
       run: make env 
