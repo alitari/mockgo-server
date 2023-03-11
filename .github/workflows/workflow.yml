@@ -8,7 +8,7 @@ on:
 
 jobs:
 
-  golang-builds:
+  release-check:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -29,9 +29,6 @@ jobs:
         go install github.com/gordonklaus/ineffassign@latest
         go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
         go install golang.org/x/lint/golint@latest
-
-    - name: check tools
-      run: make env
 
     - name: test release
       run: ./scripts/create-release.sh
