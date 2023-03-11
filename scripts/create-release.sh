@@ -41,6 +41,7 @@ make tidy MOCKGO_MODULE=mockgo-standalone
 make clean MOCKGO_MODULE=mockgo-standalone
 make cover MOCKGO_MODULE=mockgo-standalone
 make acctest MOCKGO_MODULE=mockgo-standalone
+make helm-delete MOCKGO_MODULE=mockgo-standalone
 
 make dep-dev MOCKGO_MODULE=grpc-kvstore
 make tidy MOCKGO_MODULE=grpc-kvstore
