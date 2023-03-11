@@ -4,3 +4,4 @@ reports/hurl
 .github/token
 *.sarif
 .mockgo_password
+test/mocks/dynamic-mock.yaml

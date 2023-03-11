@@ -31,6 +31,8 @@ const templateResponseHeader = "responseHeader"
 
 const headerKeyEndpointID = "endpoint-Id"
 
+const reloadPath = "/__/reload"
+
 type responseTemplateData struct {
 	RequestPathParams   map[string]string
 	RequestQueryParams  map[string]string
@@ -52,18 +54,20 @@ type RequestHandler struct {
 	logger          *logging.LoggerUtil
 	EpSearchNode    *epSearchNode
 	matchstore      matches.Matchstore
+	funcMap         template.FuncMap
 }
 
 /*
 NewRequestHandler creates an instance of RequestHandler
 */
-func NewRequestHandler(mockDir, mockFilepattern string, matchstore matches.Matchstore, logger *logging.LoggerUtil) *RequestHandler {
+func NewRequestHandler(mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logger *logging.LoggerUtil) *RequestHandler {
 	mockRouter := &RequestHandler{
 		mockDir:         mockDir,
 		mockFilepattern: mockFilepattern,
 		logger:          logger,
 		EpSearchNode:    &epSearchNode{},
 		matchstore:      matchstore,
+		funcMap:         funcMap,
 	}
 	return mockRouter
 }
@@ -84,7 +88,8 @@ var (
 	)
 )
 
-func (r *RequestHandler) registerMetrics() error {
+// RegisterMetrics registers the metrics for prometheus
+func RegisterMetrics() error {
 	if err := prometheus.Register(matchesMetric); err != nil {
 		return err
 	}
@@ -97,8 +102,8 @@ func (r *RequestHandler) registerMetrics() error {
 /*
 LoadFiles reads the mockfiles from the mockDir and creates the datamodel for serving mock endpoints for http requests
 */
-func (r *RequestHandler) LoadFiles(funcMap template.FuncMap) error {
-	r.EpSearchNode = &epSearchNode{}
+func (r *RequestHandler) LoadFiles() error {
+	tmpSearchNode := &epSearchNode{}
 	endPointCounter := 0
 	mockFiles, err := walkMatch(r.mockDir, r.mockFilepattern)
 	if err != nil {
@@ -116,16 +121,15 @@ func (r *RequestHandler) LoadFiles(funcMap template.FuncMap) error {
 				endpoint.ID = strconv.Itoa(endPointCounter)
 			}
 			endpoint.Mock = mock
-			err := r.initResponseTemplates(endpoint, funcMap)
+			err := r.initResponseTemplates(endpoint, r.funcMap)
 			if err != nil {
 				return err
 			}
-			r.registerEndpoint(endpoint)
+			r.registerEndpoint(endpoint, tmpSearchNode)
 		}
 	}
-	if err := r.registerMetrics(); err != nil {
-		return err
-	}
+
+	r.EpSearchNode = tmpSearchNode
 	return nil
 }
 
@@ -204,6 +208,16 @@ func (r *RequestHandler) AddRoutes(router *mux.Router) {
 	var requestPathParam map[string]string
 	var queryParams map[string]string
 	route := router.MatcherFunc(func(request *http.Request, routematch *mux.RouteMatch) bool {
+		if request.Method == http.MethodGet && request.URL.Path == reloadPath {
+			r.logger.LogWhenVerbose("Reloading mock files...")
+			err := r.LoadFiles()
+			if err != nil {
+				r.logger.LogError("Error reloading mock files", err)
+				return false
+			}
+			r.logger.LogWhenVerbose("Reloaded mock files.")
+			return true
+		}
 		endPoint, match, requestPathParam, queryParams = r.matchRequestToEndpoint(request)
 		return endPoint != nil
 	})
@@ -212,19 +226,23 @@ func (r *RequestHandler) AddRoutes(router *mux.Router) {
 		if r.logger.Level >= logging.Debug {
 			writer = logging.NewResponseWriter(writer, r.logger, 2)
 		}
-		r.renderResponse(writer, request, endPoint, match, requestPathParam, queryParams)
+		if request.Method == http.MethodGet && request.URL.Path == reloadPath {
+			writer.WriteHeader(http.StatusOK)
+		} else {
+			r.renderResponse(writer, request, endPoint, match, requestPathParam, queryParams)
+		}
 		if r.logger.Level >= logging.Debug {
 			writer.(*logging.ResponseWriter).Log()
 		}
 	})
+
 }
 
-func (r *RequestHandler) registerEndpoint(endpoint *Endpoint) {
+func (r *RequestHandler) registerEndpoint(endpoint *Endpoint, sn *epSearchNode) {
 	if endpoint.Request.Method == "" {
 		endpoint.Request.Method = "GET"
 	}
 
-	sn := r.EpSearchNode
 	pathSegments := strings.Split(endpoint.Request.Path, "/")
 	for _, pathSegment := range pathSegments[1:] {
 		if sn.searchNodes == nil {

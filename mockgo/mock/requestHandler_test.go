@@ -2,6 +2,7 @@ package mock
 
 import (
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -31,8 +32,11 @@ type mockTestCase struct {
 var router = mux.NewRouter()
 
 func TestMain(m *testing.M) {
-	mockRequestHandler := NewRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-	if err := mockRequestHandler.LoadFiles(nil); err != nil {
+	mockRequestHandler := NewRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+	if err := mockRequestHandler.LoadFiles(); err != nil {
+		log.Fatal(err)
+	}
+	if err := RegisterMetrics(); err != nil {
 		log.Fatal(err)
 	}
 	mockRequestHandler.AddRoutes(router)
@@ -45,53 +49,53 @@ func TestMain(m *testing.M) {
 }
 
 func TestMockRequestHandler_LoadFiles_dir_not_exists(t *testing.T) {
-	mockRequestHandlerWithError := NewRequestHandler("pathnotexists", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "lstat pathnotexists: no such file or directory")
+	mockRequestHandlerWithError := NewRequestHandler("pathnotexists", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "lstat pathnotexists: no such file or directory")
 }
 
 func TestMockRequestHandler_ReadMockfile_wrong_requestBody(t *testing.T) {
-	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongRequestBodyRegexp", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "error parsing regexp: missing closing ]: `[a`")
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongRequestBodyRegexp", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "error parsing regexp: missing closing ]: `[a`")
 }
 
 func TestMockRequestHandler_ReadMockfile_wrong_yaml(t *testing.T) {
-	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongYaml", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "yaml: line 3: mapping values are not allowed in this context")
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongYaml", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "yaml: line 3: mapping values are not allowed in this context")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_doubleBody(t *testing.T) {
-	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/doubleResponseBody", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "error parsing endpoint id 'doubleResponseBody' , response.body and response.bodyFilename can't be defined both")
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/doubleResponseBody", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "error parsing endpoint id 'doubleResponseBody' , response.body and response.bodyFilename can't be defined both")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_bodyfilename_not_exists(t *testing.T) {
-	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/bodyfilenameDoesNotExist", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "open ../../test/mocksWithError/bodyfilenameDoesNotExist/notexistingfile.json: no such file or directory")
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/bodyfilenameDoesNotExist", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "open ../../test/mocksWithError/bodyfilenameDoesNotExist/notexistingfile.json: no such file or directory")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseBodyTemplate(t *testing.T) {
-	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongResponseBodyTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "template: responseBody:1: unclosed action")
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongResponseBodyTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "template: responseBody:1: unclosed action")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseStatusTemplate(t *testing.T) {
-	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongResponseStatusTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "template: responseStatus:1: unclosed action")
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongResponseStatusTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "template: responseStatus:1: unclosed action")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseHeaderTemplate(t *testing.T) {
-	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongResponseHeaderTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(nil), "template: responseHeader:1: unclosed action")
+	mockRequestHandlerWithError := NewRequestHandler("../../test/mocksWithError/wrongResponseHeaderTemplate", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "template: responseHeader:1: unclosed action")
 }
 
 func TestMockRequestHandler_matchBody_readerror(t *testing.T) {
-	mockRequestHandler := NewRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandler := NewRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
 	errorRequest := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodGet, "/path", testutil.CreateHeader())
 	assert.False(t, mockRequestHandler.matchBody(&MatchRequest{BodyRegexp: regexp.MustCompile(`^`)}, errorRequest))
 }
 
 func TestMockRequestHandler_renderResponse_readerror(t *testing.T) {
-	mockRequestHandler := NewRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandler := NewRequestHandler("../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
 	errorRequest := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodGet, "/path", testutil.CreateHeader())
 	recorder := httptest.NewRecorder()
 	mockRequestHandler.renderResponse(recorder, errorRequest, &Endpoint{ID: "myId"}, nil, nil, nil)
@@ -101,6 +105,43 @@ func TestMockRequestHandler_renderResponse_readerror(t *testing.T) {
 	respBytes, err := io.ReadAll(response.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, "Error rendering response: error reading bytes", string(respBytes))
+}
+
+func TestMockRequestHandler_reload(t *testing.T) {
+	// create a dynamic mock file "test/mocks/dynamic-mock.yaml"
+	dynamicMockFile := "../../test/mocks/dynamic-mock.yaml"
+	dynamicMockFileContent := `endpoints:
+  - id: dynamic
+    request:
+      path: /dynamic
+    response:
+      statusCode: 200
+      body: "dynamic"
+`
+	err := ioutil.WriteFile(dynamicMockFile, []byte(dynamicMockFileContent), 0644)
+	assert.NoError(t, err)
+
+	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/dynamic", testutil.CreateHeader(), "")
+	testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNotFound)
+
+	reloadRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/reload", testutil.CreateHeader(), "")
+	testutil.AssertResponseStatusOfRequestCall(t, reloadRequest, http.StatusOK)
+
+	request = testutil.CreateOutgoingRequest(t, http.MethodGet, "/dynamic", testutil.CreateHeader(), "")
+	testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
+		assert.Equal(t, response.StatusCode, http.StatusOK)
+		assert.Equal(t, response.Header.Get("Endpoint-Id"), "dynamic")
+		assert.Equal(t, "dynamic", responseBody)
+	})
+	// delete the dynamic mock file
+	err = os.Remove(dynamicMockFile)
+	assert.NoError(t, err)
+
+	reloadRequest = testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/reload", testutil.CreateHeader(), "")
+	testutil.AssertResponseStatusOfRequestCall(t, reloadRequest, http.StatusOK)
+
+	request = testutil.CreateOutgoingRequest(t, http.MethodGet, "/dynamic", testutil.CreateHeader(), "")
+	testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNotFound)
 }
 
 func TestMockRequestHandler_serving_matches(t *testing.T) {
