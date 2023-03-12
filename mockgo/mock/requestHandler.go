@@ -2,6 +2,7 @@ package mock
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -49,6 +50,9 @@ type responseTemplateData struct {
 RequestHandler implements an http server for mock endpoints
 */
 type RequestHandler struct {
+	pathPrefix      string
+	username        string
+	password        string
 	mockDir         string
 	mockFilepattern string
 	logger          *logging.LoggerUtil
@@ -60,8 +64,11 @@ type RequestHandler struct {
 /*
 NewRequestHandler creates an instance of RequestHandler
 */
-func NewRequestHandler(mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logger *logging.LoggerUtil) *RequestHandler {
+func NewRequestHandler(pathPrefix, username, password, mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logger *logging.LoggerUtil) *RequestHandler {
 	mockRouter := &RequestHandler{
+		pathPrefix:      pathPrefix,
+		username:        username,
+		password:        password,
 		mockDir:         mockDir,
 		mockFilepattern: mockFilepattern,
 		logger:          logger,
@@ -203,19 +210,15 @@ func (r *RequestHandler) initResponseTemplates(endpoint *Endpoint, funcMap templ
 AddRoutes adds mux.Routes for the http API to a given mux.Router
 */
 func (r *RequestHandler) AddRoutes(router *mux.Router) {
+	var matchReload bool
+	var reloadResponseStatusCode int
 	var endPoint *Endpoint
 	var match *matches.Match
 	var requestPathParam map[string]string
 	var queryParams map[string]string
 	route := router.MatcherFunc(func(request *http.Request, routematch *mux.RouteMatch) bool {
-		if request.Method == http.MethodGet && request.URL.Path == reloadPath {
-			r.logger.LogWhenVerbose("Reloading mock files...")
-			err := r.LoadFiles()
-			if err != nil {
-				r.logger.LogError("Error reloading mock files", err)
-				return false
-			}
-			r.logger.LogWhenVerbose("Reloaded mock files.")
+		matchReload, reloadResponseStatusCode = r.matchReloadRequest(request)
+		if matchReload {
 			return true
 		}
 		endPoint, match, requestPathParam, queryParams = r.matchRequestToEndpoint(request)
@@ -226,8 +229,18 @@ func (r *RequestHandler) AddRoutes(router *mux.Router) {
 		if r.logger.Level >= logging.Debug {
 			writer = logging.NewResponseWriter(writer, r.logger, 2)
 		}
-		if request.Method == http.MethodGet && request.URL.Path == reloadPath {
-			writer.WriteHeader(http.StatusOK)
+		if matchReload {
+			if reloadResponseStatusCode == http.StatusOK {
+				r.logger.LogWhenVerbose("Reloading mock files...")
+				err := r.LoadFiles()
+				if err != nil {
+					r.logger.LogError("Error reloading mock files", err)
+					reloadResponseStatusCode = http.StatusInternalServerError
+				} else {
+					r.logger.LogWhenVerbose("Reloaded mock files successfully.")
+				}
+			}
+			writer.WriteHeader(reloadResponseStatusCode)
 		} else {
 			r.renderResponse(writer, request, endPoint, match, requestPathParam, queryParams)
 		}
@@ -235,7 +248,22 @@ func (r *RequestHandler) AddRoutes(router *mux.Router) {
 			writer.(*logging.ResponseWriter).Log()
 		}
 	})
+}
 
+func (r *RequestHandler) matchReloadRequest(request *http.Request) (bool, int) {
+	if request.Method == http.MethodPost && request.URL.Path == r.pathPrefix+"/reload" {
+		username, password, ok := request.BasicAuth()
+		if ok {
+			usernameMatch := username == r.username
+			passwordMatch := subtle.ConstantTimeCompare([]byte(password), []byte(r.password)) == 1
+			if usernameMatch && passwordMatch {
+				return true, http.StatusOK
+			}
+			return true, http.StatusUnauthorized
+		}
+		return true, http.StatusUnauthorized
+	}
+	return false, -1
 }
 
 func (r *RequestHandler) registerEndpoint(endpoint *Endpoint, sn *epSearchNode) {

@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"text/template"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 
 	grpckvstore "github.com/alitari/mockgo-server/grpc-kvstore/kvstore"
 	"github.com/alitari/mockgo-server/grpc-matchstore/matchstore"
@@ -176,7 +176,8 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler 
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore, funcMap template.FuncMap) *mock.RequestHandler {
 	mockLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMock))
-	mockHandler := mock.NewRequestHandler(configuration.MockDir, configuration.MockFilepattern, matchstore, funcMap, mockLogger)
+	mockHandler := mock.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
+		configuration.MockDir, configuration.MockFilepattern, matchstore, funcMap, mockLogger)
 	return mockHandler
 }
 
