@@ -40,9 +40,9 @@ logging:
     level: 1
 
 files:
-  hello83-mock.yaml: |
+  hello-mock.yaml: |
     endpoints:
-    - id: hello
+    - id: hello1
       request:
         path: '/hello1'
       response:
