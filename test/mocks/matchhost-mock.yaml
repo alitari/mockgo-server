@@ -1,0 +1,13 @@
+endpoints:
+  - id: "matchhost"
+    request:
+      host: "127.0.0.1"
+      path: "/matchhost"
+    response:
+      statusCode: 204
+  - id: "unmatchhost"
+    request:
+      host: "lalilu"
+      path: "/unmatchhost"
+    response:
+      statusCode: 204

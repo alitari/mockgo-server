@@ -241,25 +241,29 @@ func (r *RequestHandler) registerEndpoint(endpoint *Endpoint) {
 		sn = sn.searchNodes[pathSegment]
 		sn.pathParamName = pathParamName
 	}
+	endpointKey := endpoint.Request.Method
+	if len(endpoint.Request.Host) > 0 {
+		endpointKey = "+" + endpointKey + "-" + endpoint.Request.Host
+	}
 	if sn.endpoints == nil {
 		sn.endpoints = make(map[string][]*Endpoint)
 	}
 
-	if sn.endpoints[endpoint.Request.Method] == nil {
-		sn.endpoints[endpoint.Request.Method] = []*Endpoint{}
+	if sn.endpoints[endpointKey] == nil {
+		sn.endpoints[endpointKey] = []*Endpoint{}
 	}
 	insertIndex := 0
-	for i, ep := range sn.endpoints[endpoint.Request.Method] {
+	for i, ep := range sn.endpoints[endpointKey] {
 		if endpoint.Prio > ep.Prio {
 			insertIndex = i
 			break
 		}
 	}
-	if len(sn.endpoints[endpoint.Request.Method]) == insertIndex {
-		sn.endpoints[endpoint.Request.Method] = append(sn.endpoints[endpoint.Request.Method], endpoint)
+	if len(sn.endpoints[endpointKey]) == insertIndex {
+		sn.endpoints[endpointKey] = append(sn.endpoints[endpointKey], endpoint)
 	} else {
-		sn.endpoints[endpoint.Request.Method] = append(sn.endpoints[endpoint.Request.Method][:insertIndex+1], sn.endpoints[endpoint.Request.Method][insertIndex:]...)
-		sn.endpoints[endpoint.Request.Method][insertIndex] = endpoint
+		sn.endpoints[endpointKey] = append(sn.endpoints[endpointKey][:insertIndex+1], sn.endpoints[endpointKey][insertIndex:]...)
+		sn.endpoints[endpointKey][insertIndex] = endpoint
 	}
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.ID, endpoint.Request.Path, endpoint.Request.Method))
 }
@@ -323,9 +327,11 @@ func (r *RequestHandler) matchRequestToEndpoint(request *http.Request) (*Endpoin
 		}
 	}
 	if sn != nil && sn.endpoints != nil {
-		if sn.endpoints[request.Method] != nil {
-			ep, match := r.matchEndPointsAttributes(sn.endpoints[request.Method], request)
-			return ep, match, requestPathParams, queryParams
+		for endpointKey, endpoint := range sn.endpoints {
+			if request.Method == endpointKey || "+"+request.Method+"-"+strings.Split(request.Host, ":")[0] == endpointKey {
+				ep, match := r.matchEndPointsAttributes(endpoint, request)
+				return ep, match, requestPathParams, queryParams
+			}
 		}
 		r.addMismatch(nil, -1, fmt.Sprintf("no endpoint found with method '%s'", request.Method), request)
 		return nil, nil, requestPathParams, queryParams
