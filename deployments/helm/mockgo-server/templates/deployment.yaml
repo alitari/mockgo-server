@@ -18,8 +18,10 @@ spec:
   template:
     metadata:
       annotations:
+      {{- if not .Values.config.reload }}
         checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      {{- end }}
         {{- include "mockgoserver.prometheusAnnotations" . | nindent 8 }}
       {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}
@@ -57,11 +59,16 @@ spec:
       # Common volumes for the containers.
       volumes:
       - name: config-volume
-        configMap:
-        {{- if .Values.existingConfigmap }}
-          name: {{ .Values.existingConfigmap }}
+        {{- if .Values.config.existingPVC }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.config.existingPVC }}
         {{- else }}
+        configMap:
+          {{- if .Values.config.existingConfigmap }}
+          name: {{ .Values.config.existingConfigmap }}
+          {{- else }}
           name: {{ include "mockgoserver.fullname" . }}
+          {{- end }}
         {{- end }}
       serviceAccountName: {{ include "mockgoserver.serviceAccountName" . }}
 
@@ -70,6 +77,25 @@ spec:
       shareProcessNamespace: true
 
       containers:
+      {{- if .Values.config.reload }}
+      - name: config-reloader
+        image: {{ .Values.config.reloadImage }}
+        imagePullPolicy: {{ .Values.pullPolicy }}
+        args:
+        - /etc/mockgoserver-config
+        - --webhook-url=http://{{ .Values.api.username }}:{{ .Values.api.password }}@localhost:{{ .Values.port }}{{ .Values.api.pathPrefix }}/reload
+        env:
+        - name: COMMAND
+          value: "curl -s -u {{ .Values.api.username }}:$API_PASSWORD -X POST http://localhost:{{ .Values.port }}{{ .Values.api.pathPrefix }}/reload"
+        - name: API_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "mockgoserver.fullname" . }}
+              key: apiPassword
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/mockgoserver-config
+      {{- end }}
       - name: mockgo-standalone
         image: {{ .Values.image | default (printf "%s:%s" "alitari/mockgo-standalone" .Chart.AppVersion) }}
         imagePullPolicy: {{ .Values.pullPolicy }}

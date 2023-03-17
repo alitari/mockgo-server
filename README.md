@@ -203,7 +203,18 @@ See extensive example, how to use it.
 
 ## mockgo-server api
 
-The *mockgo-server* stores 2 kinds of state. The first one is the storage of incoming requests. The second state is the build-in *key-value store* which can be utilized for creating dynamic responses. Both states can be checked and changed through an [REST](https://en.wikipedia.org/wiki/Representational_state_transfer) api. The api is secured with basic auth which can be configured with the environment variables `API_USERNAME` and `API_PASSWORD`.
+The *mockgo-server* holds multiple kinds of state: 
+- current configuration (mock endpoints, logging , etc.)
+- storage of incoming requests
+- key-value store
+
+All states can be accessed through an [REST](https://en.wikipedia.org/wiki/Representational_state_transfer) api. The api is secured with basic auth which can be configured with the environment variables `API_USERNAME` and `API_PASSWORD`. In order to avoid conflicts with the mock endpoints, the api is exposed under the path prefix `/__`. This can be changed with the environment variable `API_PATH_PREFIX`.
+
+### configuration api
+
+| method | path         | description |
+| ------ | ------------ | ----------- |
+| `POST` | `/__/reload` | reload the mock files from the mock dir |
 
 ### matching api
 
@@ -211,21 +222,21 @@ The request storage has a limited capacity which can be configured with `MATCHES
 
 | method | path  | description |
 | ------ | ----- | ----------- |
-| `GET` | `/matches/{endpointId}` | returns all requests which matched to an endpoint |
-| `GET` | `/matchesCount/{endpointId}` | returns the count of requests which matched to an endpoint, is not limited through capacity |
-| `GET` | `/mismatches` | returns all requests which didn't match to an endpoint |
-| `GET` | `/mismatchesCount` | returns the count of all requests which didn't match to an endpoint, is not limited through capacity |
-| `DELETE` | `/matches/{endpointId}` | deletes storage of all requests which matched to an endpoint |
-| `DELETE` | `/mismatches` | deletes storage of all requests which didn't match to an endpoint |
+| `GET` | `/__/matches/{endpointId}` | returns all requests which matched to an endpoint |
+| `GET` | `/__/matchesCount/{endpointId}` | returns the count of requests which matched to an endpoint, is not limited through capacity |
+| `GET` | `/__/mismatches` | returns all requests which didn't match to an endpoint |
+| `GET` | `/__/mismatchesCount` | returns the count of all requests which didn't match to an endpoint, is not limited through capacity |
+| `DELETE` | `/__/matches/{endpointId}` | deletes storage of all requests which matched to an endpoint |
+| `DELETE` | `/__/mismatches` | deletes storage of all requests which didn't match to an endpoint |
 
 ### key-value store api
 
 | method | path  | description |
 | ------ | ----- | ----------- |
-| `PUT`  | `/kvstore/{key}`| store content of request body under a key |
-| `GET` | `/kvstore/{key}` | get content of key |
-| `POST` | `/kvstore/{key}/add` | add content to kvstore with a [json patch](https://jsonpatch.com/) "add" operation. The json format of the request payload is `{ "path": json path, "value": json value }` |
-| `POST` | `/kvstore/{key}/remove` | remove content to kvstore with a [json patch](https://jsonpatch.com/) "remove" operation. The json format of the request payload is `{ "path": json path }` |
+| `PUT`  | `/__/kvstore/{key}`| store content of request body under a key |
+| `GET` | `/__/kvstore/{key}` | get content of key |
+| `POST` | `/__/kvstore/{key}/add` | add content to kvstore with a [json patch](https://jsonpatch.com/) "add" operation. The json format of the request payload is `{ "path": json path, "value": json value }` |
+| `POST` | `/__kvstore/{key}/remove` | remove content to kvstore with a [json patch](https://jsonpatch.com/) "remove" operation. The json format of the request payload is `{ "path": json path }` |
 
 
 ## An extensive example
@@ -306,6 +317,16 @@ The *mockgo-server* exposes besides of the standard go metrics the following app
 
 - `matches{"endpoint":"<endpointId>"}`: Number of matches of an endpoint
 - `mismatches`: Number of requests which did not match to on endpoint
+
+## using reload feature
+
+For local development it is useful to have a way to reload the mock files without restarting the *mockgo-server*. This can be achieved by sending a `POST` request to the reload endpoint. This functionality can be combined with a file watcher to automatically reload the mock files when they change. The script `scripts/watchmocks.sh` implements this functionality. 
+
+```bash
+# watch for changes in test/main and reload the mock files
+./scripts/watchmocks.sh test/main
+```
+
 
 ## contribute
 

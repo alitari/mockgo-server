@@ -32,9 +32,9 @@ As the [grpc]() variant is using [protobuf](https://developers.google.com/protoc
 
 ## testing and releasing with `create-release.sh`
 
-Executing the `create-release.sh` script will go through all steps of [test pyramid](https://martinfowler.com/articles/practical-test-pyramid.html) for each module. Without giving a tag as argument, it will stops at this point. This process is applied as check for each pull request.
+Executing the `create-release.sh` script will go through all steps of [test pyramid](https://martinfowler.com/articles/practical-test-pyramid.html) for each module. Without giving a tag as argument, the script stops at this point. This process is applied as check for each pull request.
 
-Providing a version will additionally:
+Providing a version as argument will create a release. The basic steps are:
 - create a branch with the version name,
 - tag to the remote
 - publish the go modules with under the version

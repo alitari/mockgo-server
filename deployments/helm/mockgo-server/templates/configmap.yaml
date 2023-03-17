@@ -1,11 +1,10 @@
-{{- if not .Values.existingConfigmap -}}
+{{- if not .Values.config.existingConfigmap -}}
+{{- if not .Values.config.existingPVC -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "mockgoserver.fullname" . }}
 data:
-{{- range .Values.files }}
-{{ .name | indent 2 }}: |-
-{{ .config | indent 4 }}
+{{- toYaml .Values.files | nindent 2 }}
 {{- end }}
 {{- end }}

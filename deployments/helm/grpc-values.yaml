@@ -1,3 +1,7 @@
+config:
+## if true a side car container will be added to the pod to reload the config on changes
+  reload: true
+
 image: localhost:5001/alitari/mockgo-grpc:latest
 pullPolicy: Always
 ingress:
@@ -38,8 +42,7 @@ logging:
     level: 2
 
 files:
-- name: hello-mock.yaml
-  config: |
+  hello-mock.yaml: |
     endpoints:
     - id: hello1
       request:
@@ -101,21 +104,18 @@ files:
           Content-Type: "application/json"
         bodyFilename: "hello6-response.json"
 
-- name: hello1-response.json
-  config: |
+  hello1-response.json: |
     {
       "hello": "World"
     }
-- name: hello3-response.txt
-  config: |
+  hello3-response.txt: |
     hello, world, {{ .RequestPathParams.name }} !
-- name: hello4-response.json
-  config: |
+  hello4-response.json: |
     {
       "message" :"Hello world, {{ .RequestPathParams.name }} !"
     }
-- name: hello6-response.json
-  config: |
+
+  hello6-response.json: |
     {
       "{{ .RequestPathParams.sender }}": "says 'hello' to {{ .RequestPathParams.receiver }} !"
     }

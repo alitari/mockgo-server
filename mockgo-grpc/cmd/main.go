@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 
 	grpckvstore "github.com/alitari/mockgo-server/grpc-kvstore/kvstore"
 	"github.com/alitari/mockgo-server/grpc-matchstore/matchstore"
@@ -114,8 +115,8 @@ func main() {
 	matchstore := createMatchstore(configuration)
 	matchHandler := createMatchHandler(configuration, matchstore)
 	kvStoreHandler := createKVStoreHandler(configuration)
-	mockHandler := createMockHandler(configuration, matchstore)
-	if err := mockHandler.LoadFiles(nil); err != nil {
+	mockHandler := createMockHandler(configuration, matchstore, kvStoreHandler.GetFuncMap())
+	if err := mockHandler.LoadFiles(); err != nil {
 		log.Fatalf("can't load mock files: %v", err)
 	}
 	startServing(configuration, matchHandler, kvStoreHandler, mockHandler)
@@ -173,9 +174,10 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler 
 	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvs, kvstoreLogger)
 }
 
-func createMockHandler(configuration *Configuration, matchstore matches.Matchstore) *mock.RequestHandler {
+func createMockHandler(configuration *Configuration, matchstore matches.Matchstore, funcMap template.FuncMap) *mock.RequestHandler {
 	mockLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMock))
-	mockHandler := mock.NewRequestHandler(configuration.MockDir, configuration.MockFilepattern, matchstore, mockLogger)
+	mockHandler := mock.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
+		configuration.MockDir, configuration.MockFilepattern, matchstore, funcMap, mockLogger)
 	return mockHandler
 }
 

@@ -34,7 +34,7 @@ HTTP/1.1 200
 header "Content-Type" exists
 header "Content-Type" contains "application/text"
 header "endpoint-id" == "hello3"
-bytes count == 20
+bytes count == 21
 
 # hello4
 GET http://{{mockgo_host}}/hello4/go/joe

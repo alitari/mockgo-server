@@ -1,21 +1,27 @@
+config:
+## if true a side car container will be added to the pod to reload the config on changes
+  reload: false
+  reloadImage: alitari/dir-watcher:latest
+##  read config from existing configmap
+#   existingConfigmap: myconfig
+##  read config from existing pvc
+#   existingPVC: myconfigClaim
+
+
 # files only valid if no existingConfigmap is defined
 files:
-- name: hello-mock.yaml
-  config: |
+  hello-mock.yaml: |
     endpoints:
     - request:
         path: '/hello'
       response:
         bodyFilename: "hello-response.json"
 
-- name: hello-response.json
-  config: |
+  hello-response.json: |
     {
       "hello": "World"
     }
 
-# read config from existing configmap, replaces thr files
-# existingConfigmap: myconfig
 
 matches:
   capacity: 1000
