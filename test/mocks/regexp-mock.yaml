@@ -1,7 +1,6 @@
 endpoints:
   - id: "regexpmock1"
     request:
-      scheme: "https"
       method: "POST"
       path: "/regexp1"
       body:   "^{.*}$"
@@ -9,7 +8,6 @@ endpoints:
       statusCode: 204
   - id: "regexpmock2"
     request:
-      scheme: "https"
       method: "POST"
       path: "/regexp2"
       body:   "^{\n.*\n}$"
@@ -17,7 +15,6 @@ endpoints:
       statusCode: 204
   - id: "regexpmock3"
     request:
-      scheme: "https"
       method: "POST"
       path: "/regexp3"
       body: "^{ \"email\": \"[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,24}\\\" }$"

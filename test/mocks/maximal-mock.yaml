@@ -1,7 +1,6 @@
 endpoints:
   - id: "maximal"
     request:
-      scheme: "https"
       method: "POST"
       path: "/maximal"
       query:
