@@ -287,25 +287,29 @@ func (r *RequestHandler) registerEndpoint(endpoint *Endpoint, sn *epSearchNode) 
 		sn = sn.searchNodes[pathSegment]
 		sn.pathParamName = pathParamName
 	}
+	endpointKey := endpoint.Request.Method
+	if len(endpoint.Request.Host) > 0 {
+		endpointKey = "+" + endpointKey + "-" + endpoint.Request.Host
+	}
 	if sn.endpoints == nil {
 		sn.endpoints = make(map[string][]*Endpoint)
 	}
 
-	if sn.endpoints[endpoint.Request.Method] == nil {
-		sn.endpoints[endpoint.Request.Method] = []*Endpoint{}
+	if sn.endpoints[endpointKey] == nil {
+		sn.endpoints[endpointKey] = []*Endpoint{}
 	}
 	insertIndex := 0
-	for i, ep := range sn.endpoints[endpoint.Request.Method] {
+	for i, ep := range sn.endpoints[endpointKey] {
 		if endpoint.Prio > ep.Prio {
 			insertIndex = i
 			break
 		}
 	}
-	if len(sn.endpoints[endpoint.Request.Method]) == insertIndex {
-		sn.endpoints[endpoint.Request.Method] = append(sn.endpoints[endpoint.Request.Method], endpoint)
+	if len(sn.endpoints[endpointKey]) == insertIndex {
+		sn.endpoints[endpointKey] = append(sn.endpoints[endpointKey], endpoint)
 	} else {
-		sn.endpoints[endpoint.Request.Method] = append(sn.endpoints[endpoint.Request.Method][:insertIndex+1], sn.endpoints[endpoint.Request.Method][insertIndex:]...)
-		sn.endpoints[endpoint.Request.Method][insertIndex] = endpoint
+		sn.endpoints[endpointKey] = append(sn.endpoints[endpointKey][:insertIndex+1], sn.endpoints[endpointKey][insertIndex:]...)
+		sn.endpoints[endpointKey][insertIndex] = endpoint
 	}
 	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.ID, endpoint.Request.Path, endpoint.Request.Method))
 }
@@ -368,9 +372,16 @@ func (r *RequestHandler) matchRequestToEndpoint(request *http.Request) (*Endpoin
 			pathSegment = getPathSegment(pathSegments, pos)
 		}
 	}
+	return r.matchSearchNode(sn, request, requestPathParams, queryParams)
+
+}
+
+func (r *RequestHandler) matchSearchNode(sn *epSearchNode, request *http.Request, requestPathParams map[string]string, queryParams map[string]string) (*Endpoint, *matches.Match, map[string]string, map[string]string) {
 	if sn != nil && sn.endpoints != nil {
-		if sn.endpoints[request.Method] != nil {
-			ep, match := r.matchEndPointsAttributes(sn.endpoints[request.Method], request)
+		endpoints := sn.endpoints["+"+request.Method+"-"+strings.Split(request.Host, ":")[0]]
+		endpoints = append(endpoints, sn.endpoints[request.Method]...)
+		if endpoints != nil && len(endpoints) > 0 {
+			ep, match := r.matchEndPointsAttributes(endpoints, request)
 			return ep, match, requestPathParams, queryParams
 		}
 		r.addMismatch(nil, -1, fmt.Sprintf("no endpoint found with method '%s'", request.Method), request)
@@ -382,9 +393,6 @@ func (r *RequestHandler) matchRequestToEndpoint(request *http.Request) (*Endpoin
 
 func (r *RequestHandler) matchEndPointsAttributes(endPoints []*Endpoint, request *http.Request) (*Endpoint, *matches.Match) {
 	mismatchMessage := ""
-	// sort.SliceStable(endPoints, func(i, j int) bool {
-	// 	return endPoints[i].Prio > endPoints[j].Prio
-	// })
 	for _, ep := range endPoints {
 		if !r.matchQueryParams(ep.Request, request) {
 			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted query params: %v", ep.ID, ep.Request.Query)

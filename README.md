@@ -84,7 +84,6 @@ endpoints:
   - id: "id" # [OPTIONAL] unique string to identify endpoint
     prio: 1  # [OPTIONAL] integer to define precedence of endpoints if more than one endpoint matches
     request: # request defines the matching
-      scheme: "https" # [OPTIONAL], match to http schema, possible values: "http" or "https"
       host: "alexkrieg.com" # [OPTIONAL], match to http host
       method: "POST" # [OPTIONAL], match to http method, default is "GET"
       path: "/mypath" # [MANDATORY], match to http request path

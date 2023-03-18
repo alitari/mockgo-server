@@ -1,7 +1,6 @@
 endpoints:
   - id: basicauth
     request:
-      scheme: "http"
       method: "GET"
       path: "/auth"
       headers:

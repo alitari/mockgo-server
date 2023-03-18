@@ -9,7 +9,6 @@ import (
 MatchRequest configuration model for a http request
 */
 type MatchRequest struct {
-	Scheme     string            `yaml:"scheme" json:"scheme"`
 	Host       string            `yaml:"host" json:"host"`
 	Method     string            `yaml:"method" json:"method"`
 	Path       string            `yaml:"path" json:"path"`
