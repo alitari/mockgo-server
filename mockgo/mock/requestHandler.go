@@ -326,12 +326,17 @@ func (r *RequestHandler) matchRequestToEndpoint(request *http.Request) (*Endpoin
 			pathSegment = getPathSegment(pathSegments, pos)
 		}
 	}
+	return r.matchSearchNode(sn, request, requestPathParams, queryParams)
+
+}
+
+func (r *RequestHandler) matchSearchNode(sn *epSearchNode, request *http.Request, requestPathParams map[string]string, queryParams map[string]string) (*Endpoint, *matches.Match, map[string]string, map[string]string) {
 	if sn != nil && sn.endpoints != nil {
-		for endpointKey, endpoint := range sn.endpoints {
-			if request.Method == endpointKey || "+"+request.Method+"-"+strings.Split(request.Host, ":")[0] == endpointKey {
-				ep, match := r.matchEndPointsAttributes(endpoint, request)
-				return ep, match, requestPathParams, queryParams
-			}
+		endpoints := sn.endpoints["+"+request.Method+"-"+strings.Split(request.Host, ":")[0]]
+		endpoints = append(endpoints, sn.endpoints[request.Method]...)
+		if endpoints != nil && len(endpoints) > 0 {
+			ep, match := r.matchEndPointsAttributes(endpoints, request)
+			return ep, match, requestPathParams, queryParams
 		}
 		r.addMismatch(nil, -1, fmt.Sprintf("no endpoint found with method '%s'", request.Method), request)
 		return nil, nil, requestPathParams, queryParams
@@ -342,9 +347,6 @@ func (r *RequestHandler) matchRequestToEndpoint(request *http.Request) (*Endpoin
 
 func (r *RequestHandler) matchEndPointsAttributes(endPoints []*Endpoint, request *http.Request) (*Endpoint, *matches.Match) {
 	mismatchMessage := ""
-	// sort.SliceStable(endPoints, func(i, j int) bool {
-	// 	return endPoints[i].Prio > endPoints[j].Prio
-	// })
 	for _, ep := range endPoints {
 		if !r.matchQueryParams(ep.Request, request) {
 			mismatchMessage = mismatchMessage + fmt.Sprintf(", endpointId '%s' not matched because of wanted query params: %v", ep.ID, ep.Request.Query)
