@@ -18,7 +18,7 @@ var startPort = 50151
 var grpcstorages []*grpcStorage
 
 func TestMain(m *testing.M) {
-	startStorageCluster()	
+	startStorageCluster()
 	code := testutil.RunAndCheckCoverage("main", m, 0.4)
 	stopCluster()
 	os.Exit(code)
