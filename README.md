@@ -50,10 +50,10 @@ MOCKGO_NAME=mockgo-${MOCKGO_VARIANT}-${MOCKGO_OS}-${MOCKGO_ARCH}
 ### option 1: download binary excutable
 
 ```bash
-wget https://github.com/alitari/mockgo-server/releases/download/$MOCKGO_RELEASE_VERSION/$MOCKGO_NAME.tgz
-tar xvf $MOCKGO_NAME.tgz
+wget https://github.com/alitari/mockgo-server/releases/download/$MOCKGO_RELEASE_VERSION/$MOCKGO_NAME
+chmod +x $MOCKGO_NAME
 # MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
-MOCK_DIR=$(pwd)/test/mocks ./bin/$MOCKGO_NAME
+MOCK_DIR=$(pwd)/test/mocks ./$MOCKGO_NAME
 ```
 
 ### option 2: run with docker
