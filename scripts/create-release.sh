@@ -89,7 +89,7 @@ if [[ ! -z $MOCKGO_RELEASE ]]; then
     gh config set prompt disabled
 
     # create release with tgz as assets
-    gh release create $MOCKGO_RELEASE mockgo-standalone/bin/* mockgo-grpc/bin/* --title "mockgo-server $MOCKGO_RELEASE" --notes "mockgo-server $MOCKGO_RELEASE"
+    gh release create $MOCKGO_RELEASE mockgo-standalone/cmd/bin/* mockgo-grpc/cmd/bin/* --title "mockgo-server $MOCKGO_RELEASE" --notes "mockgo-server $MOCKGO_RELEASE"
     gh auth logout -h github.com
 
     # push to dockerhub
