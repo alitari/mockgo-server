@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "mockgo-standalone/cmd/main.go",
+            "program": "mockgo-standalone/cmd/mockgo/main.go",
             "env": {
                 "MOCK_DIR": "./test/main",
                 "RESPONSE_DIR": "./test/main/responses"

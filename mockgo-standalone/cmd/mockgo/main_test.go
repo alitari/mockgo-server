@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("LOGLEVEL_API", "2")
 	os.Setenv("LOGLEVEL_MOCK", "2")
 	os.Setenv("API_PASSWORD", apiPassword)
-	os.Setenv("MOCK_DIR", "../../test/main")
+	os.Setenv("MOCK_DIR", "../../../test/main")
 	os.Setenv("MATCHES_RECORD_REQUESTS", "true")
 	os.Setenv("MISMATCHES_RECORD_REQUESTS", "true")
 	router, _, err := setupRouter()

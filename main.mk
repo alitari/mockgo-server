@@ -13,8 +13,8 @@ ifeq ($(GO_VERSION),)
 GO_VERSION = $(ccred)"not installed$(ccend)"
 endif
 CGO_ENABLED ?= 0
-MAIN_DIR ?= cmd
-BUILD_DIR ?= bin
+MAIN_DIR ?= cmd/mockgo
+BUILD_DIR = cmd/bin
 
 GIT_TAG ?= $(shell git fetch --all --tags && git tag | tail -1)
 GIT_COMMIT_HASH ?= $(shell git rev-parse --short HEAD 2>/dev/null)
@@ -154,9 +154,9 @@ gen-proto:
 .PHONY: buildexe
 buildexe:
 	@sed -i "s/const versionTag = .*/const versionTag = \"$(MOCKGO_RELEASE)\"/g" $(MAIN_DIR)/main.go
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=amd64 go build -C $(MAIN_DIR) $(GOARGS) -o ../$(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-amd64
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=arm64 go build -C $(MAIN_DIR) $(GOARGS) -o ../$(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-arm64
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=windows GOARCH=amd64 go build -C $(MAIN_DIR) $(GOARGS) -o ../$(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-windows-amd64
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=amd64 go build $(GOARGS) -o $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-amd64 $(MAIN_DIR)/main.go
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=arm64 go build -o $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-linux-arm64 $(MAIN_DIR)/main.go
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=windows GOARCH=amd64 go build -o $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-windows-amd64 $(MAIN_DIR)/main.go
 	sha256sum $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-*
 	@echo "files:"
 	@ls -l $(BUILD_DIR)/mockgo-$(MOCKGO_VARIANT)-*

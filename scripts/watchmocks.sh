@@ -13,7 +13,7 @@ if [[ -z $1 ]]; then
 fi
 mockdir=$1
 if [[ -z $2 ]]; then
-    mockgo_executable="./mockgo-standalone/bin/mockgo-standalone-linux-amd64"
+    mockgo_executable="./mockgo-standalone/cmd/bin/mockgo-standalone-linux-amd64"
 else
     mockgo_executable=$2
 fi
