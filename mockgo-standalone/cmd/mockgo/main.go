@@ -24,7 +24,7 @@ const banner = `
 Standalone         |___/  %s
 `
 
-const versionTag = "latest"
+const versionTag = "v1.1.1"
 
 /*
 RequestHandler abstraction of a set of http handler funcs
