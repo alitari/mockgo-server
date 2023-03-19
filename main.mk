@@ -321,6 +321,9 @@ require-dep-grpc-matchstore-release: drop-dep-grpc-matchstore
 .PHONY: mod-release
 mod-release:
 ifeq ($(IS_REAL_RELEASE), "true")
+	git add -A
+	git commit -m "🔖 Setup dependencies for module $(MOCKGO_MODULE) release-$(MOCKGO_RELEASE)"
+	git push --set-upstream origin "release-$(MOCKGO_RELEASE)"
 	@echo "tagging mockgo module with $(MOCKGO_MODULE)/$(MOCKGO_RELEASE) ..."
 	git tag -a "$(MOCKGO_MODULE)/$(MOCKGO_RELEASE)" -m "🔖 Tag mockgo module with $(MOCKGO_MODULE)/$(MOCKGO_RELEASE)"
 	git push origin "$(MOCKGO_MODULE)/$(MOCKGO_RELEASE)"

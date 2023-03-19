@@ -79,9 +79,7 @@ if [[ ! -z $MOCKGO_RELEASE ]]; then
     make dep-release MOCKGO_MODULE=mockgo-grpc
     make mod-release MOCKGO_MODULE=mockgo-grpc
 
-    git add -A
-    git commit -m "🔖 Setup dependencies for release-$MOCKGO_RELEASE"
-    git push --set-upstream origin "release-$MOCKGO_RELEASE"
+    
 
     # login in github
     gh auth login --with-token < .github/token
