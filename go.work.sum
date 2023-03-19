@@ -229,6 +229,9 @@ cloud.google.com/go/websecurityscanner v1.4.0/go.mod h1:ebit/Fp0a+FWu5j4JOmJEV8S
 cloud.google.com/go/workflows v1.8.0/go.mod h1:ysGhmEajwZxGn1OhGOGKsTXc5PyxOc0vfKf5Af+to4M=
 cloud.google.com/go/workflows v1.9.0/go.mod h1:ZGkj1aFIOd9c8Gerkjjq7OW7I5+l6cSvT3ujaO/WwSA=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
+github.com/alitari/mockgo-server/grpc-kvstore v1.1.2/go.mod h1:UblLeaDzM6Y3rrzQNB0Ix6nmUQFvhMSdZ9JEbg68eQ8=
+github.com/alitari/mockgo-server/grpc-matchstore v1.1.2/go.mod h1:yuhi7/ch3Y63f4kI+7oPe9aH+oBHp+vN18ytdLgAubk=
+github.com/alitari/mockgo-server/mockgo v1.1.2/go.mod h1:RMnu5nsJg70vb/UPXoOatcLO4NLSo2T7gs1kAYL8CtY=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/cespare/xxhash v1.1.0 h1:a6HrQnmkObjyL+Gs60czilIUGqrzKutQD6XZog3p+ko=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
