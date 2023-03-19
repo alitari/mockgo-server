@@ -25,7 +25,7 @@
 - `mockgo-standalone` : for non-cluster setups, use this when you don't need to scale, usually this variant is the starting point
 - `mockgo-grpc` : for cluster setups, use this when you have to deal with high incoming traffic. In order to share state between the cluster pods [grpc](https://grpc.io/) is used as protocol.
 
-## install
+## install on kubernetes
 
 Kubernetes is the first class environment for *mockgo-server*. So, if you have kubernetes cluster available, you can start right away with [helm](https://helm.sh/) charts:
 
@@ -35,44 +35,39 @@ helm upgrade mymock mockgo-server/mockgo-server --install
 ```
 see [here](./deployments/helm/mockgo-server/README.md) for further helm configuration options.
 
+## install on local machine
+
 If you prefer installing on a/your workstation, define first the environment :
 
 ```bash
-MOCKGO_RELEASE_VERSION="v1.0.1"
+MOCKGO_RELEASE_VERSION="v1.1.0"
 MOCKGO_VARIANT="standalone" # or "grpc"
 MOCKGO_OS="linux" # or "windows"
 MOCKGO_ARCH="amd64" # or "arm64"
 MOCKGO_NAME=mockgo-${MOCKGO_VARIANT}-${MOCKGO_OS}-${MOCKGO_ARCH}
 ```
 
-Now, you have the following options:
-
-### downloading binary excutable
+### option 1: download binary excutable
 
 ```bash
-wget https://github.com/alitari/mockgo-server/releases/download/${MOCKGO_RELEASE_VERSION}/${MOCKGO_NAME}.tgz
-tar xvf ${MOCKGO_NAME}.tgz
+wget https://github.com/alitari/mockgo-server/releases/download/$MOCKGO_RELEASE_VERSION/$MOCKGO_NAME.tgz
+tar xvf $MOCKGO_NAME.tgz
 # MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
-MOCK_DIR=$(pwd) ./bin/${MOCKGO_NAME} 
+MOCK_DIR=$(pwd)/test/mocks ./bin/$MOCKGO_NAME
 ```
 
-### building binary executable
+### option 2: run with docker
 
 ```bash
-git clone https://github.com/alitari/mockgo-server.git -b $MOCKGO_RELEASE_VERSION
-cd mockgo-server
-# go version must be >= 1.19
-go version
-./scripts/go-build-mockgo.sh $MOCKGO_OS $MOCKGO_ARCH $MOCKGO_VARIANT $MOCKGO_RELEASE_VERSION
-# MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
-MOCK_DIR=$(pwd) ./bin/${MOCKGO_NAME}
+MOCK_DIR=$(pwd)/test/mocks
+docker run -it -v $MOCK_DIR:/mocks -e MOCK_DIR=/mocks alitari/mockgo-$MOCKGO_VARIANT:$MOCKGO_RELEASE_VERSION 
 ```
 
-### run with docker
+### option 3: go install
 
 ```bash
-MOCK_DIR=$(pwd) # MOCK_DIR is the path for looking for mockfiles, per default this are files with names matching "*-mock.*"
-docker run -it -v ${MOCK_DIR}:/mocks -e MOCK_DIR=/mocks alitari/mockgo-${MOCKGO_VARIANT}:$MOCKGO_RELEASE_VERSION 
+go install github.com/alitari/mockgo-server/mockgo-$MOCKGO_VARIANT/cmd/mockgo@latest
+MOCK_DIR=$(pwd)/test/mocks mockgo
 ```
 
 ## mockfiles and endpoints
@@ -317,7 +312,7 @@ The *mockgo-server* exposes besides of the standard go metrics the following app
 - `matches{"endpoint":"<endpointId>"}`: Number of matches of an endpoint
 - `mismatches`: Number of requests which did not match to on endpoint
 
-## using reload feature
+## using config reload feature
 
 For local development it is useful to have a way to reload the mock files without restarting the *mockgo-server*. This can be achieved by sending a `POST` request to the reload endpoint. This functionality can be combined with a file watcher to automatically reload the mock files when they change. The script `scripts/watchmocks.sh` implements this functionality. 
 
