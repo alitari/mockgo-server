@@ -24,7 +24,7 @@ else
         exit 1
     fi
 
-    create a release branch
+    # create a release branch
     git checkout -b "release-$MOCKGO_RELEASE"
 fi
 
