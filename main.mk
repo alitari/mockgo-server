@@ -182,6 +182,8 @@ builddocker: buildexe buildchecksum
 .PHONY: pushdocker
 pushdocker: builddocker
 	docker push $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE)
+	docker tag $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):$(MOCKGO_RELEASE) $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):latest
+	docker push $(MOCKGO_IMAGE_REGISTRY)/$(MOCKGO_IMAGE_REPO)/mockgo-$(MOCKGO_VARIANT):latest
 
 .PHONY: rundocker
 rundocker: builddocker
