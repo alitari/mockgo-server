@@ -1,9 +1,16 @@
 # helm repo mockgo-server
 
-## how to create
+## create
 
 ```bash
 # define tag/branch with arg
 ./build.sh master
 ```
 
+## commit and push to branch `gh-pages`
+
+```bash
+git add README.md index.yaml *.tgz
+git commit -m "⬆️ Update helm charts to version 1.1.0"
+git push origin gh-pages
+```
