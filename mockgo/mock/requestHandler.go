@@ -138,7 +138,8 @@ func (r *RequestHandler) LoadFiles() error {
 			endpoint.Mock = mock
 			err := r.initResponseTemplates(endpoint, r.funcMap)
 			if err != nil {
-				return err
+				r.logger.LogError(fmt.Sprintf("Can't initialize response templates of endpoint id '%s', skipping endpoint ", endpoint.ID), err)
+				continue
 			}
 			r.registerEndpoint(endpoint, tmpSearchNode)
 		}
