@@ -100,7 +100,7 @@ func setupRouter() (*mux.Router, int, error) {
 	kvStoreHandler := createKVStoreHandler(configuration)
 	mockHandler := createMockHandler(configuration, matchStore, kvStoreHandler.GetFuncMap())
 	if err := mockHandler.LoadFiles(); err != nil {
-		return nil, -1, err
+		return nil, -1, fmt.Errorf("can't load mockfiles: %v", err)
 	}
 	if err := mock.RegisterMetrics(); err != nil {
 		return nil, -1, err
