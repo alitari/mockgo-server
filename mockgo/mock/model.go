@@ -9,12 +9,12 @@ import (
 MatchRequest configuration model for a http request
 */
 type MatchRequest struct {
-	Host       string            `yaml:"host" json:"host"`
-	Method     string            `yaml:"method" json:"method"`
-	Path       string            `yaml:"path" json:"path"`
-	Query      map[string]string `yaml:"query" json:"query"`
-	Headers    map[string]string `yaml:"headers" json:"headers"`
-	Body       string            `yaml:"body" json:"body"`
+	Host       string            `yaml:"host,omitempty" json:"host"`
+	Method     string            `yaml:"method,omitempty" json:"method"`
+	Path       string            `yaml:"path,omitempty" json:"path"`
+	Query      map[string]string `yaml:"query,omitempty" json:"query"`
+	Headers    map[string]string `yaml:"headers,omitempty" json:"headers"`
+	Body       string            `yaml:"body,omitempty" json:"body"`
 	BodyRegexp *regexp.Regexp    `yaml:"-" json:"-" `
 }
 
@@ -23,10 +23,10 @@ Response configuration model for a http response
 */
 type Response struct {
 	Template     *template.Template `yaml:"-" json:"-"`
-	StatusCode   string             `yaml:"statusCode" json:"statusCode"`
-	Headers      string             `yaml:"headers" json:"headers"`
-	Body         string             `yaml:"body" json:"body"`
-	BodyFilename string             `yaml:"bodyFilename" json:"bodyFilename"`
+	StatusCode   string             `yaml:"statusCode,omitempty" json:"statusCode"`
+	Headers      string             `yaml:"headers,omitempty" json:"headers"`
+	Body         string             `yaml:"body,omitempty" json:"body"`
+	BodyFilename string             `yaml:"bodyFilename,omitempty" json:"bodyFilename"`
 }
 
 /*
