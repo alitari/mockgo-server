@@ -86,6 +86,10 @@ func (r *RequestHandler) handleGetKVStore(writer http.ResponseWriter, request *h
 	if val, err := r.storage.Get(vars[pathParamStore], vars[pathParamKey]); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
+		if val == nil {
+			writer.WriteHeader(http.StatusNotFound)
+			return
+		}
 		util.WriteEntity(writer, val)
 	}
 }
@@ -95,6 +99,10 @@ func (r *RequestHandler) handleGetAllKVStore(writer http.ResponseWriter, request
 	if val, err := r.storage.GetAll(vars[pathParamStore]); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	} else {
+		if val == nil {
+			writer.WriteHeader(http.StatusNotFound)
+			return
+		}
 		util.WriteEntity(writer, val)
 	}
 }

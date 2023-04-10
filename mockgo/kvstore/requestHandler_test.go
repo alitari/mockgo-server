@@ -1,6 +1,8 @@
 package kvstore
 
 import (
+	"encoding/json"
+	"math/rand"
 	"net/http"
 	"os"
 	"testing"
@@ -88,7 +90,33 @@ func TestKVStoreRequestHandler_serving_getKVStore(t *testing.T) {
 	}))
 }
 
-func TestKVStoreRequestHandler_removeKVStore(t *testing.T) {
+func TestKVStoreRequestHandler_serving_getAllKVStore(t *testing.T) {
+	store := randString(5)
+	count := 1 + rand.Intn(5)
+	var values []string
+	var keys []string
+	for i := 0; i < count; i++ {
+		key := randString(5)
+		keys = append(keys, key)
+		value := randString(5)
+		values = append(values, value)
+		err := kvstoreHandler.storage.Put(store, key, value)
+		assert.NoError(t, err)
+	}
+	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/kvstore/"+store,
+		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
+		var responseMap map[string]interface{}
+		err := json.Unmarshal([]byte(responseBody), &responseMap)
+		assert.NoError(t, err)
+		assert.Equal(t, count, len(responseMap))
+		for i, key := range keys {
+			assert.Equal(t, values[i], responseMap[key])
+		}
+	}))
+}
+
+func TestKVStoreRequestHandler_serving_removeKVStore(t *testing.T) {
 	store := randString(5)
 	key := randString(5)
 	err := kvstoreHandler.storage.Put(store, key, map[string]string{"deletepath": "deletzevalue"})

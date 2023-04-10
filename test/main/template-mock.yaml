@@ -2,46 +2,36 @@ endpoints:
   - id: "setKVStore"
     request:
       method: "PUT"
-      path: '/setkvstore/{key}'
+      path: '/setkvstore/{store}/{key}'
     response:
       bodyFilename: "setkvstoreresponse.json"
   - id: "getKVStore"
     request:
       method: "GET"
-      path: '/getkvstore/{key}'
+      path: '/getkvstore/{store}/{key}'
     response:
       bodyFilename: "getkvstoreresponse.json"
   - id: "getKVStoreInline"
     request:
       method: "GET"
-      path: '/getkvstoreInline/{key}'
+      path: '/getkvstoreInline/{store}/{key}'
     response:
       body: |-
+        {{ $store := .RequestPathParams.store -}}
         {{ $key := .RequestPathParams.key -}}
-        {{ $value := kvStoreGet $key -}}
+        {{ $value := kvStoreGet $store $key -}}
         {
             "message": "get kvstore successfully",
+            "store": {{ $store | quote }},
             "key": {{ $key | quote }},
             "value": {{ $value | toJson | quote }}
         }
-  - id: "addKVStore"
-    request:
-      method: "POST"
-      path: '/addkvstore/{key}'
-    response:
-      bodyFilename: "addkvstoreresponse.json"
   - id: "removeKVStore"
     request:
       method: "DELETE"
-      path: '/removekvstore/{key}'
+      path: '/removekvstore/{store}/{key}'
     response:
       bodyFilename: "removekvstoreresponse.json"
-  - id: "lookupKVStore"
-    request:
-      method: "GET"
-      path: '/lookupkvstore/{key}'
-    response:
-      bodyFilename: "lookupkvstoreresponse.json"
   - id: "statusCode"
     request:
       method: "GET"

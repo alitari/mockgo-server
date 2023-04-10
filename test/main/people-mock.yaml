@@ -15,10 +15,10 @@ endpoints:
         {{ $payload := .RequestBodyJSONData -}}
         {{ if and $payload.name $payload.age -}}
         {{ if gt ( int $payload.age) 17 -}}
-        {{ kvStoreAdd "people" "/adults/-" .RequestBody -}}
-        stored '{{ .RequestBody }}'' as adult
+        {{ kvStorePut "adults" $payload.name $payload -}}
+        stored '{{ .RequestBody }}' as adult
         {{- else -}}
-        {{ kvStoreAdd "people" "/childs/-" .RequestBody -}}
+        {{ kvStorePut "children" $payload.name $payload -}}
         stored '{{ .RequestBody }}' as child
         {{- end -}}
         {{- end -}}
@@ -29,13 +29,13 @@ endpoints:
     response:
       statusCode: |-
         {{ $category := .RequestPathParams.category -}}
-        {{ if or ( eq $category "childs") ( eq $category "adults") -}}
+        {{ if or ( eq $category "children") ( eq $category "adults") -}}
         200
         {{- else -}}
         400
         {{- end -}}
       body: |-
         {{ $category := .RequestPathParams.category -}}
-        {{ if or ( eq $category "childs") ( eq $category "adults") -}}
-        {{ kvStoreJsonPath "people" ( printf "$.%s" $category ) | toPrettyJson -}}
+        {{ if or ( eq $category "children") ( eq $category "adults") -}}
+        {{ kvStoreGetAll $category | toPrettyJson -}}
         {{- end -}}
