@@ -1,6 +1,7 @@
-MAIN_DIR = cmd/mockgo
-MOCKGO_MODULE = mockgo-standalone
-MOCKGO_VARIANT = standalone
+MAIN_DIR = cmd/mockgo-gen
+MOCKGO_MODULE = mockgo-gen
+MOCKGO_VARIANT = none
+MOCKGO_HOST = none
 
 include ../main.mk
 
@@ -8,7 +9,7 @@ include ../main.mk
 env-module: env-exe
 
 .PHONY: clean
-clean: helm-delete cleanexe cleancover
+clean: cleanexe cleancover
 
 .PHONY: build
 build: buildexe buildchecksum

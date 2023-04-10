@@ -1,3 +1,4 @@
+MAIN_DIR = cmd/mockgo
 MOCKGO_MODULE = mockgo-grpc
 MOCKGO_VARIANT = grpc
 

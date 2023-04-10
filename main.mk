@@ -13,7 +13,6 @@ ifeq ($(GO_VERSION),)
 GO_VERSION = $(ccred)"not installed$(ccend)"
 endif
 CGO_ENABLED ?= 0
-MAIN_DIR ?= cmd/mockgo
 BUILD_DIR = cmd/bin
 
 GIT_TAG ?= $(shell git fetch --all --tags && git tag | tail -1)
@@ -88,7 +87,6 @@ env-global:
 	@echo "------------------- golang ------------------------"
 	@echo "GO_VERSION:            ${GO_VERSION}"
 	@echo "CGO_ENABLED:           ${CGO_ENABLED}"
-	@echo "MAIN_DIR:              ${MAIN_DIR}"
 	@echo "BUILD_DIR:             ${BUILD_DIR}"
 	@echo "------------------- git ---------------------------"
 	@echo "GIT_TAG:               ${GIT_TAG}"
@@ -124,6 +122,7 @@ env-global:
 .PHONY: env-exe
 env-exe:
 	@echo "------- MOCKGO MODULE: $(MOCKGO_MODULE) -----------"
+	@echo "MAIN_DIR:              ${MAIN_DIR}"
 	@echo "MOCKGO_VARIANT:        ${MOCKGO_VARIANT}"
 	@echo "MOCKGO_DEPLOYED:       ${MOCKGO_DEPLOYED}"
 	@echo "MOCKGO_HOST:           ${MOCKGO_HOST}"
