@@ -49,35 +49,45 @@ func stopCluster() {
 		kvstore.StopServe()
 	}
 }
+
 func TestKVStore_Put(t *testing.T) {
-	storeKey := "mystore"
-	val, err := grpcstorages[0].GetVal(storeKey)
+	store := "mystore"
+	key := "mystorekey"
+	val, err := grpcstorages[0].Get(store, key)
 	assert.NoError(t, err)
 	assert.Nil(t, val)
 
-	val, err = grpcstorages[1].GetVal(storeKey)
+	val, err = grpcstorages[1].Get(store, key)
 	assert.NoError(t, err)
 	assert.Nil(t, val)
 
-	storeVal := map[string]interface{}{"key1": []interface{}{"val11", "val22"}, "key2": []interface{}{"val21"}}
-	grpcstorages[0].PutVal(storeKey, storeVal)
+	val = map[string]interface{}{"key1": []interface{}{"val11", "val22"}, "key2": []interface{}{"val21"}}
+	grpcstorages[0].Put(store, key, val)
 	time.Sleep(200 * time.Millisecond)
-	val, err = grpcstorages[0].GetVal(storeKey)
+	getval, err := grpcstorages[0].Get(store, key)
 	assert.NoError(t, err)
-	assert.EqualValues(t, storeVal, val)
+	assert.EqualValues(t, val, getval)
 
-	val, err = grpcstorages[1].GetVal(storeKey)
+	getval, err = grpcstorages[1].Get(store, key)
 	assert.NoError(t, err)
-	assert.EqualValues(t, storeVal, val)
+	assert.EqualValues(t, val, getval)
 
-	storeVal2 := map[string]interface{}{"key1": "val1", "key2": "val2"}
-	grpcstorages[1].PutVal(storeKey, storeVal2)
+	val2 := map[string]interface{}{"key1": "val1", "key2": "val2"}
+	grpcstorages[1].Put(store, key, val2)
 	time.Sleep(200 * time.Millisecond)
-	val, err = grpcstorages[1].GetVal(storeKey)
+	getVal2, err := grpcstorages[1].Get(store, key)
 	assert.NoError(t, err)
-	assert.Equal(t, storeVal2, val)
+	assert.Equal(t, val2, getVal2)
 
-	val, err = grpcstorages[0].GetVal(storeKey)
+	getVal2, err = grpcstorages[0].Get(store, key)
 	assert.NoError(t, err)
-	assert.Equal(t, storeVal2, val)
+	assert.Equal(t, val2, getVal2)
+
+	val, err = grpcstorages[0].Get(store+"changed", key)
+	assert.NoError(t, err)
+	assert.Nil(t, val)
+
+	val, err = grpcstorages[1].Get(store+"changed", key)
+	assert.NoError(t, err)
+	assert.Nil(t, val)
 }

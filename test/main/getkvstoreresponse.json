@@ -1,7 +1,9 @@
+{{ $store := .RequestPathParams.store -}}
 {{ $key := .RequestPathParams.key -}}
-{{ $value := kvStoreGet $key -}}
+{{ $value := kvStoreGet $store $key -}}
 {
     "message": "get kvstore successfully",
+    "store": {{ $store | quote }},
     "key": {{ $key | quote }},
     "value": {{ $value | toJson | quote }}
 }

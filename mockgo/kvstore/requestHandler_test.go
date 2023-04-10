@@ -1,6 +1,8 @@
 package kvstore
 
 import (
+	"encoding/json"
+	"math/rand"
 	"net/http"
 	"os"
 	"testing"
@@ -42,124 +44,87 @@ func TestKVStoreRequestHandler_serving_health(t *testing.T) {
 		testutil.CreateOutgoingRequest(t, http.MethodGet, "/health", testutil.CreateHeader(), ""), http.StatusOK))
 }
 
-func TestKVStoreRequestHandler_serving_setKVStore(t *testing.T) {
+func TestKVStoreRequestHandler_serving_putKVStore(t *testing.T) {
+	store := randString(5)
 	key := randString(5)
-	err := kvstoreHandler.jsonStorage.put(key, nil)
+	err := kvstoreHandler.storage.Put(store, key, nil)
 	assert.NoError(t, err)
-	request := testutil.CreateOutgoingRequest(t, http.MethodPut, "/kvstore/"+key,
+	request := testutil.CreateOutgoingRequest(t, http.MethodPut, "/kvstore/"+store+"/"+key,
 		testutil.CreateHeader().WithAuth(username, password).WithJSONContentType(),
 		`{ "testkey":"testvalue"}`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNoContent))
-	val, err := kvstoreHandler.jsonStorage.get(key)
+	val, err := kvstoreHandler.storage.Get(store, key)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]interface{}{"testkey": "testvalue"}, val)
 }
-func TestKVStoreRequestHandler_setKVStore_readingBytesError(t *testing.T) {
+
+func TestKVStoreRequestHandler_putKVStore_readingBytesError(t *testing.T) {
 	request := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodPut, "", testutil.CreateHeader())
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handleSetKVStore, func(response *http.Response, responseBody string) {
+	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handlePutKVStore, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusInternalServerError, response.StatusCode)
 		assert.Equal(t, "Problem reading request body: error reading bytes\n", responseBody)
 	},
 	))
 }
 
-func TestKVStoreRequestHandler_setKVStore_NoJsonError(t *testing.T) {
+func TestKVStoreRequestHandler_putKVStore_NoJsonError(t *testing.T) {
 	request := testutil.CreateIncomingRequest(http.MethodPut, "", testutil.CreateHeader(), `{ invalid json`)
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handleSetKVStore, func(response *http.Response, responseBody string) {
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
-		assert.Equal(t, "Problem with kvstore value, ( is it valid JSON?): invalid character 'i' looking for beginning of object key string\n", responseBody)
-	},
-	))
-}
-
-func TestKVStoreRequestHandler_serving_getKVStore(t *testing.T) {
-	key := randString(5)
-	err := kvstoreHandler.jsonStorage.put(key, "expectedVal")
-	assert.NoError(t, err)
-	err = kvstoreHandler.jsonStorage.put("key2", "val2 not expected")
-	assert.NoError(t, err)
-	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/kvstore/"+key,
-		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
-	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
-		assert.Equal(t, "expectedVal", responseBody)
-	}))
-}
-
-func TestKVStoreRequestHandler_serving_addKVStore(t *testing.T) {
-	key := randString(5)
-	err := kvstoreHandler.jsonStorage.put(key, nil)
-	assert.NoError(t, err)
-	request := testutil.CreateOutgoingRequest(t, http.MethodPost, "/kvstore/"+key+"/add",
-		testutil.CreateHeader().WithAuth(username, password).WithJSONContentType(),
-		`{ "path": "/testpath", "value": "testvalue" }`)
-	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNoContent))
-	val, err := kvstoreHandler.jsonStorage.get(key)
-	assert.NoError(t, err)
-	assert.Equal(t, map[string]interface{}{"testpath": "testvalue"}, val)
-}
-
-func TestKVStoreRequestHandler_addKVStore_readingBytesError(t *testing.T) {
-	request := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodPost, "", testutil.CreateHeader())
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handleAddKVStore, func(response *http.Response, responseBody string) {
-		assert.Equal(t, http.StatusInternalServerError, response.StatusCode)
-		assert.Equal(t, "Problem reading request body: error reading bytes\n", responseBody)
-	},
-	))
-}
-
-func TestKVStoreRequestHandler_addKVStore_NoJsonError(t *testing.T) {
-	request := testutil.CreateIncomingRequest(http.MethodPost, "", testutil.CreateHeader(), `{ invalid json`)
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handleAddKVStore, func(response *http.Response, responseBody string) {
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
-		assert.Equal(t, "Can't parse request body '{ invalid json' : invalid character 'i' looking for beginning of object key string\n", responseBody)
-	},
-	))
-}
-
-func TestKVStoreRequestHandler_addKVStore_WrongPatchFormatError(t *testing.T) {
-	request := testutil.CreateIncomingRequest(http.MethodPost, "", testutil.CreateHeader(), `{ "path": "missingslash", "value": "testvalue" }`)
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handleAddKVStore, func(response *http.Response, responseBody string) {
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
-		assert.Equal(t, "Problem adding kvstore path: 'missingslash' value: 'testvalue', : add operation does not apply: doc is missing path: \"missingslash\": missing value \n", responseBody)
-	},
-	))
-}
-
-func TestKVStoreRequestHandler_removeKVStore(t *testing.T) {
-	key := randString(5)
-	err := kvstoreHandler.jsonStorage.put(key, map[string]string{"deletepath": "deletzevalue"})
-	assert.NoError(t, err)
-	request := testutil.CreateOutgoingRequest(t, http.MethodPost, "/kvstore/"+key+"/remove",
-		testutil.CreateHeader().WithAuth(username, password).WithJSONContentType(), `{ "path": "/deletepath"}`)
-	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNoContent))
-	all, err := kvstoreHandler.jsonStorage.get(key)
-	assert.NoError(t, err)
-	assert.Equal(t, map[string]interface{}{}, all)
-}
-
-func TestKVStoreRequestHandler_removeKVStore_readingBytesError(t *testing.T) {
-	request := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodPost, "", testutil.CreateHeader())
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handleRemoveKVStore, func(response *http.Response, responseBody string) {
-		assert.Equal(t, http.StatusInternalServerError, response.StatusCode)
-		assert.Equal(t, "Problem reading request body: error reading bytes\n", responseBody)
-	},
-	))
-}
-
-func TestKVStoreRequestHandler_removeKVStore_NoJsonError(t *testing.T) {
-	request := testutil.CreateIncomingRequest(http.MethodPost, "", testutil.CreateHeader(), `{ invalid json`)
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handleRemoveKVStore, func(response *http.Response, responseBody string) {
+	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handlePutKVStore, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
 		assert.Equal(t, "Can't parse request body: invalid character 'i' looking for beginning of object key string\n", responseBody)
 	},
 	))
 }
 
-func TestKVStoreRequestHandler_removeKVStore_WrongPatchFormatError(t *testing.T) {
-	request := testutil.CreateIncomingRequest(http.MethodPost, "", testutil.CreateHeader(), `{ "path": "missingslash" }`)
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handleRemoveKVStore, func(response *http.Response, responseBody string) {
-		assert.Equal(t, http.StatusBadRequest, response.StatusCode)
-		assert.Equal(t, "Problem removing kvstore '', path: 'missingslash' : remove operation does not apply: doc is missing path: \"missingslash\": missing value \n", responseBody)
-	},
-	))
+func TestKVStoreRequestHandler_serving_getKVStore(t *testing.T) {
+	store := randString(5)
+	key := randString(5)
+	err := kvstoreHandler.storage.Put(store, key, "expectedVal")
+	assert.NoError(t, err)
+	err = kvstoreHandler.storage.Put(store, "key2", "val2 not expected")
+	assert.NoError(t, err)
+	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/kvstore/"+store+"/"+key,
+		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
+		assert.Equal(t, "expectedVal", responseBody)
+	}))
+}
+
+func TestKVStoreRequestHandler_serving_getAllKVStore(t *testing.T) {
+	store := randString(5)
+	count := 1 + rand.Intn(5)
+	var values []string
+	var keys []string
+	for i := 0; i < count; i++ {
+		key := randString(5)
+		keys = append(keys, key)
+		value := randString(5)
+		values = append(values, value)
+		err := kvstoreHandler.storage.Put(store, key, value)
+		assert.NoError(t, err)
+	}
+	request := testutil.CreateOutgoingRequest(t, http.MethodGet, "/kvstore/"+store,
+		testutil.CreateHeader().WithAuth(username, password).WithJSONAccept(), "")
+	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, request, func(response *http.Response, responseBody string) {
+		var responseMap map[string]interface{}
+		err := json.Unmarshal([]byte(responseBody), &responseMap)
+		assert.NoError(t, err)
+		assert.Equal(t, count, len(responseMap))
+		for i, key := range keys {
+			assert.Equal(t, values[i], responseMap[key])
+		}
+	}))
+}
+
+func TestKVStoreRequestHandler_serving_removeKVStore(t *testing.T) {
+	store := randString(5)
+	key := randString(5)
+	err := kvstoreHandler.storage.Put(store, key, map[string]string{"deletepath": "deletzevalue"})
+	assert.NoError(t, err)
+	request := testutil.CreateOutgoingRequest(t, http.MethodDelete, "/kvstore/"+store+"/"+key,
+		testutil.CreateHeader().WithAuth(username, password).WithJSONContentType(), "")
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, request, http.StatusNoContent))
+	val, err := kvstoreHandler.storage.Get(store, key)
+	assert.NoError(t, err)
+	assert.Nil(t, val)
 }

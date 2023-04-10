@@ -66,23 +66,23 @@ func (g *grpcStorage) StoreVal(ctx context.Context, storeValRequest *StoreValReq
 		return nil, err
 	}
 
-	err = g.InmemoryStorage.PutVal(storeValRequest.Key, val)
+	err = g.InmemoryStorage.Put(storeValRequest.Storage, storeValRequest.Key, val)
 	if err != nil {
 		return nil, err
 	}
-	g.logger.LogWhenDebug(fmt.Sprintf("kvstore: %s : %d bytes stored with key '%s'", g.id, len(storeValRequest.Value), storeValRequest.Key))
+	g.logger.LogWhenDebug(fmt.Sprintf("grpc storage: %s : %d bytes stored in %s with key '%s' ", g.id, len(storeValRequest.Value), storeValRequest.Storage, storeValRequest.Key))
 	return &StoreValResponse{}, nil
 }
 
-func (g *grpcStorage) PutVal(key string, storeVal interface{}) error {
-	json, err := json.Marshal(storeVal)
+func (g *grpcStorage) Put(store, key string, val interface{}) error {
+	json, err := json.Marshal(val)
 	if err != nil {
 		return err
 	}
 
 	for _, client := range g.clients {
 		ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-		_, err := client.StoreVal(ctx, &StoreValRequest{Key: key, Value: string(json)})
+		_, err := client.StoreVal(ctx, &StoreValRequest{Storage: store, Key: key, Value: string(json)})
 		defer cancel()
 		if err != nil {
 			return err

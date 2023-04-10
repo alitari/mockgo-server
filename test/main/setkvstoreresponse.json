@@ -1,9 +1,11 @@
 {{ $value := .RequestBody -}}
+{{ $store := .RequestPathParams.store -}}
 {{ $key := .RequestPathParams.key -}}
-{{ kvStorePut $key $value -}}
+{{ kvStorePut $store $key $value -}}
 
 {
     "message": "set kvstore successfully",
+    "store": {{ $store | quote }},
     "key": {{ $key | quote }},
     "value": {{ $value | quote }}
 }
