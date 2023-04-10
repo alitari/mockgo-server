@@ -19,6 +19,10 @@
 - **Scalability** : mockgo-server is designed for horizontal scaling. Therefore it can be used in environments with high http traffic ( e.g. for performance/load tests )
 - **Flexibility** : sometimes requirements for mocking requests goes beyond static responses. With templating mechanism and state management it is possible to implement particular logic for building responses.
 
+## TL;DR
+
+See [Examples.md](./Examples.md).
+
 ## variants
 
 *mockgo-server* currently comes in 2 variants:
@@ -37,7 +41,7 @@ see [here](./deployments/helm/mockgo-server/README.md) for further helm configur
 
 ## install on local machine
 
-If you prefer installing on a/your workstation, define first the environment :
+Define the environment :
 
 ```bash
 MOCKGO_RELEASE_VERSION="v1.1.3"
@@ -56,23 +60,26 @@ chmod +x $MOCKGO_NAME
 MOCK_DIR=$(pwd)/test/mocks ./$MOCKGO_NAME
 ```
 
-### option 2: run with docker
-
-```bash
-MOCK_DIR=$(pwd)/test/mocks
-docker run -it -v $MOCK_DIR:/mocks -e MOCK_DIR=/mocks alitari/mockgo-$MOCKGO_VARIANT:$MOCKGO_RELEASE_VERSION 
-```
-
-### option 3: go install
+### option 2: go install
 
 ```bash
 go install github.com/alitari/mockgo-server/mockgo-$MOCKGO_VARIANT/cmd/mockgo@latest
 MOCK_DIR=$(pwd)/test/mocks mockgo
 ```
 
+### option 3: run with docker
+
+```bash
+MOCK_DIR=$(pwd)/test/mocks
+docker run -it -v $MOCK_DIR:/mocks -e MOCK_DIR=/mocks alitari/mockgo-$MOCKGO_VARIANT:$MOCKGO_RELEASE_VERSION 
+```
+
 ## mockfiles and endpoints
 
-A mockgo-server configuration consist of one or multiple files in yaml format, the so called *mockfiles*. Each *mockfile* contains one or multiple *endpoints*. The *endpoint* defines criteria which qualify the endpoint to serve an incoming request. This process is called *matching*. The second configuration part of an *endpoint* is the definition of the http response. 
+A mockgo-server configuration consist of one or multiple files in yaml format, the so called *mockfiles*.
+Each *mockfile* contains one or multiple *endpoints*.
+The *endpoint* defines criteria which qualify the endpoint to serve an incoming request. This process is called *matching*.
+The second configuration part of an *endpoint* is the definition of the http response. 
 
 ```yaml
 endpoints:
@@ -91,30 +98,10 @@ endpoints:
       body: "^{.*}$" # [OPTIONAL] regular expression which match to the request body
     response: # defines the response
       statusCode: 204 # [OPTIONAL], http response code ( see RFC 7231), defaults to "200"
-      body: "hello" # [OPTIONAL], response body as string
-      bodyFilename: "response.json" # [OPTIONAL], refers to a file which contains the response body
+      body: "hello" # [OPTIONAL], response body as string, templates can be used
+      bodyFilename: "response.json" # [OPTIONAL], refers to a file which contains the response body, templates can be used in the file
       headers: | # [OPTIONAL],multiline string in form of key: value, templates can be used
         Content-Type: "application/text"
-```
-
-### example
-
-```bash
-# create a mockfile
-cat <<EOF > minimal-mock.yaml
-endpoints:
-- request:
-    path: "/minimal"
-  response:
-    statusCode: 204
-EOF
-# per default mockgo-server looks in the current dir for files with names matching "*-mock.*"
-./bin/mockgo-standalone-linux-amd64
-
-# match
-curl http://localhost:8081/minimal
-# no match 404
-curl http://localhost:8081/wrong
 ```
 
 ## path matching
@@ -127,73 +114,55 @@ The form of a http request can be described as a sequence of *pathsegments* whic
 
 ### examples
 
-| `request.path` | incoming request path | match |
-| -------------- | --------------------- | ----- |
-| `/foo/*` | `/bar` | ➖ |
-| `/foo/*` | `/foo` | ➖ |
-| `/foo/*` | `/foo/bar` | ✅ |
-| `/foo/*` | `/foo/bar/foo` | ➖ |
-| `/foo/*/bar` | `/foo/bar` | ➖ |
-| `/foo/*/bar` | `/foo/bar/bar` | ✅ |
-| `/foo/{foo}/bar` | `/foo/bar/bar` | ✅ `{{ RequestPathParams.foo }}` resolves to `bar` |
-| `/foo/*/{bar}` | `/foo/bar/bar/foo` | ➖ |
-| `/foo/*/{bar}` | `/foo/bar/bar` | ✅ `{{ RequestPathParams.bar }}` resolves to `bar` |
-| `/foo/**` | `/foo/` | ➖ |
-| `/foo/**` | `/foo/bar` | ✅ |
-| `/foo/**` | `/foo/bar/1/2/3` | ✅ |
-| `/foo/**/{bar}` | `/foo/bar/1` | ✅ matches but `{{ RequestPathParams.bar }}` does not resolve |
-| `/foo/**/foo/{bar}` | `/foo/bar/foo` | ➖ |
-| `/foo/**/foo/{bar}` | `/foo/bar/1/2/foo/3` | ✅ `{{ RequestPathParams.bar }}` resolves to `3` |
+| `request.path`      | incoming request path | match                                                        |
+|---------------------|-----------------------|--------------------------------------------------------------|
+| `/foo/*`            | `/bar`                | ➖                                                            |
+| `/foo/*`            | `/foo`                | ➖                                                            |
+| `/foo/*`            | `/foo/bar`            | ✅                                                            |
+| `/foo/*`            | `/foo/bar/foo`        | ➖                                                            |
+| `/foo/*/bar`        | `/foo/bar`            | ➖                                                            |
+| `/foo/*/bar`        | `/foo/bar/bar`        | ✅                                                            |
+| `/foo/{foo}/bar`    | `/foo/bar/bar`        | ✅ `{{ RequestPathParams.foo }}` resolves to `bar`            |
+| `/foo/*/{bar}`      | `/foo/bar/bar/foo`    | ➖                                                            |
+| `/foo/*/{bar}`      | `/foo/bar/bar`        | ✅ `{{ RequestPathParams.bar }}` resolves to `bar`            |
+| `/foo/**`           | `/foo/`               | ➖                                                            |
+| `/foo/**`           | `/foo/bar`            | ✅                                                            |
+| `/foo/**`           | `/foo/bar/1/2/3`      | ✅                                                            |
+| `/foo/**/{bar}`     | `/foo/bar/1`          | ✅ matches but `{{ RequestPathParams.bar }}` does not resolve |
+| `/foo/**/foo/{bar}` | `/foo/bar/foo`        | ➖                                                            |
+| `/foo/**/foo/{bar}` | `/foo/bar/1/2/foo/3`  | ✅ `{{ RequestPathParams.bar }}` resolves to `3`              |
 
 ## creating dynamic responses with go templates
 
-[*go templates*](https://blog.gopheracademy.com/advent-2017/using-go-templates/) can be used for creating dynamic responses. You can refer to following attributes of the incoming request:
+In order to implement program logic, you can use [*go templates*](https://blog.gopheracademy.com/advent-2017/using-go-templates/) for creating dynamic responses.
+The templating mechanism is available for the `response.body` and `response.headers` attributes and provides following additional functions for:
 
-| variable | type |
-| -------- | ---- |
-| `RequestPathParams` | `   map[string]string`|
-| `RequestUrl` | `          string`|
-| `RequestPath` | `         string`|
-| `RequestHost` | `         string`|
-| `RequestBody` | `         string`|
-| `RequestBodyJSONData` | ` map[string]interface{}`|
+- common template functionality through the [sprig library](https://masterminds.github.io/sprig/)
+- access to the incoming request through the `Request` variables
+- using the key-value store
 
-### example
+### access attributes of the incoming request
 
-```bash
-cat <<EOF > template-mock.yaml
-endpoints:
-  - id: "statusCode"
-    request:
-      method: "POST"
-      path: /statusCode/{statusCode}
-    response:
-      statusCode: "{{.RequestPathParams.statusCode }}"
-      body: |-
-        {{ .RequestBody -}}
-      headers: |
-        Header1: "{{ .RequestURL }}"
-EOF
-# per default mockgo-server looks in the current dir for files with names matching "*-mock.*"
-./bin/mockgo-standalone-linux-amd64
-# ok response
-curl -v http://localhost:8081/statusCode/200 -d "Alex"
-# internal server error
-curl -v http://localhost:8081/statusCode/500 -d "An error"
-```
+| template variable     | type                     |
+|-----------------------|--------------------------|
+| `RequestPathParams`   | `map[string]string`      |
+| `RequestUrl`          | `string`                 |
+| `RequestPath`         | `string`                 |
+| `RequestHost`         | `string`                 |
+| `RequestBody`         | `string`                 |
+| `RequestBodyJSONData` | `map[string]interface{}` |
 
-In order to use a state when creating responses, you have access to a **key-value store** in your template:
+### access the key-value store
 
-| function name | signature | description |
-| ------------- | --------- | ----------- |
-| `kvStoreGet` | `func(key string) interface{}` | get the value stored under this key |
-| `kvStorePut` | `func(key string, value string) string` | store a value with this key |
-| `kvStoreAdd` | `func(key, path, value string) string` | modify a value with an [json patch](https://jsonpatch.com/) "add" operation |
-| `kvStoreRemove` | `func(key, path string) string` | modify a value with an [json patch](https://jsonpatch.com/) "remove" operation |
-| `kvStoreJsonPath` | `func(key, jsonPath string) interface{}` | get a value with a [json path](https://goessner.net/articles/JsonPath/) expression |
+There are 2 parameters which identifies a value in the key-value store:
+- `store` is a string which identifies the store
+- `key` is a string which identifies the value in the store
 
-See extensive example, how to use it.
-
+| template function name | signature                                    | description                                                           |
+|------------------------|----------------------------------------------|-----------------------------------------------------------------------|
+| `kvStoreGet`           | `func(store, key string) interface{}`        | get the value from store `store`, which is stored under the key `key` |
+| `kvStorePut`           | `func(store, key string, value interface{})` | store value `value` under the key `key` in the store `store`          |
+| `kvStoreRemove`        | `func(store, key string)`                    | remove the value under the key `key` from store `store`               |
 
 ## mockgo-server api
 
@@ -202,108 +171,37 @@ The *mockgo-server* holds multiple kinds of state:
 - storage of incoming requests
 - key-value store
 
-All states can be accessed through an [REST](https://en.wikipedia.org/wiki/Representational_state_transfer) api. The api is secured with basic auth which can be configured with the environment variables `API_USERNAME` and `API_PASSWORD`. In order to avoid conflicts with the mock endpoints, the api is exposed under the path prefix `/__`. This can be changed with the environment variable `API_PATH_PREFIX`.
+All states can be accessed through an [REST](https://en.wikipedia.org/wiki/Representational_state_transfer) api. 
+The api is secured with basic auth which can be configured with the environment variables `API_USERNAME` and `API_PASSWORD`.
+In order to avoid conflicts with the mock endpoints, the api is exposed under the path prefix `/__`.
+This can be changed with the environment variable `API_PATH_PREFIX`.
 
 ### configuration api
 
-| method | path         | description |
-| ------ | ------------ | ----------- |
-| `POST` | `/__/reload` | reload the mock files from the mock dir |
+| method  | path         | description                             |
+|---------|--------------|-----------------------------------------|
+| `POST`  | `/__/reload` | reload the mock files from the mock dir |
 
 ### matching api
 
 The request storage has a limited capacity which can be configured with `MATCHES_CAPACITY`.
 
-| method | path  | description |
-| ------ | ----- | ----------- |
-| `GET` | `/__/matches/{endpointId}` | returns all requests which matched to an endpoint |
-| `GET` | `/__/matchesCount/{endpointId}` | returns the count of requests which matched to an endpoint, is not limited through capacity |
-| `GET` | `/__/mismatches` | returns all requests which didn't match to an endpoint |
-| `GET` | `/__/mismatchesCount` | returns the count of all requests which didn't match to an endpoint, is not limited through capacity |
-| `DELETE` | `/__/matches/{endpointId}` | deletes storage of all requests which matched to an endpoint |
-| `DELETE` | `/__/mismatches` | deletes storage of all requests which didn't match to an endpoint |
+| method   | path                            | description                                                                                          |
+|----------|---------------------------------|------------------------------------------------------------------------------------------------------|
+| `GET`    | `/__/matches/{endpointId}`      | returns all requests which matched to an endpoint                                                    |
+| `GET`    | `/__/matchesCount/{endpointId}` | returns the count of requests which matched to an endpoint, is not limited through capacity          |
+| `GET`    | `/__/mismatches`                | returns all requests which didn't match to an endpoint                                               |
+| `GET`    | `/__/mismatchesCount`           | returns the count of all requests which didn't match to an endpoint, is not limited through capacity |
+| `DELETE` | `/__/matches/{endpointId}`      | deletes storage of all requests which matched to an endpoint                                         |
+| `DELETE` | `/__/mismatches`                | deletes storage of all requests which didn't match to an endpoint                                    |
 
 ### key-value store api
 
-| method | path  | description |
-| ------ | ----- | ----------- |
-| `PUT`  | `/__/kvstore/{key}`| store content of request body under a key |
-| `GET` | `/__/kvstore/{key}` | get content of key |
-| `POST` | `/__/kvstore/{key}/add` | add content to kvstore with a [json patch](https://jsonpatch.com/) "add" operation. The json format of the request payload is `{ "path": json path, "value": json value }` |
-| `POST` | `/__kvstore/{key}/remove` | remove content to kvstore with a [json patch](https://jsonpatch.com/) "remove" operation. The json format of the request payload is `{ "path": json path }` |
+Using the path `/__/kvstore/{store}/{key}` you can access the key-value store with the following methods:
 
-
-## An extensive example
-
-Create a file ( e.g. `people-mock.yaml`) with this content:
-
-```yaml
-endpoints:
-  - id: "addPeople"
-    request:
-      method: "PUT"
-      path: '/storePeople'
-    response:
-      statusCode: |-
-        {{ $payload := .RequestBodyJSONData -}}
-        {{ if and $payload.name $payload.age -}}
-          200
-        {{- else -}}
-          400
-        {{- end -}}
-      body: |-
-        {{ $payload := .RequestBodyJSONData -}}
-        {{ if and $payload.name $payload.age -}}
-          {{ if gt ( int $payload.age) 17 -}}
-            {{ kvStoreAdd "people" "/adults/-" .RequestBody -}}
-            stored '{{ .RequestBody }}'' as adult
-          {{- else -}}
-            {{ kvStoreAdd "people" "/childs/-" .RequestBody -}}
-            stored '{{ .RequestBody }}' as child
-          {{- end -}}
-        {{- end -}}
-  - id: "getPeople"
-    request:
-      method: "GET"
-      path: '/getPeople/{category}'
-    response:
-      statusCode: |-
-        {{ $category := .RequestPathParams.category -}}
-        {{ if or ( eq $category "childs") ( eq $category "adults") -}}
-          200
-        {{- else -}}
-          400
-        {{- end -}}
-      body: |-
-        {{ $category := .RequestPathParams.category -}}
-        {{ if or ( eq $category "childs") ( eq $category "adults") -}}
-          {{ kvStoreJsonPath "people" ( printf "$.%s" $category ) | toPrettyJson -}}
-        {{- end -}}
-```
-
-```bash
-# per default mockgo-server looks in the current dir for files with names matching "*-mock.*"
-./bin/mockgo-standalone-linux-amd64
-
-# setup kvstore with api
-curl -v -u mockgo:password -H "Content-Type: application/json" -X PUT http://localhost:8081/__/kvstore/people -d '{ "adults": [], "childs": [] }'
-
-# payload must have right attributes, -> bad request
-curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Dani" }'
-
-# store some adults
-curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Alex", "age": 55 }'
-curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Dani", "age": 45 }'
-
-# store some childs
-curl -v -X PUT http://localhost:8081/storePeople -d '{ "name": "Klara", "age": 16 }'
-
-# get adults
-curl -v http://localhost:8081/getPeople/adults
-
-# get childs
-curl -v http://localhost:8081/getPeople/childs
-```
+- `PUT` stores the content of the request body under the key `key` in the store `store`
+- `GET` returns the content which is stored under the key `key` in the store `store`
+- `DELETE` removes the content which is stored under the key `key` in the store `store`
 
 ## prometheus metrics
 
@@ -320,7 +218,6 @@ For local development it is useful to have a way to reload the mock files withou
 # watch for changes in test/main and reload the mock files
 ./scripts/watchmocks.sh test/main
 ```
-
 
 ## contribute
 
