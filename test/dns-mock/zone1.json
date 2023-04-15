@@ -1,0 +1,17 @@
+{
+  "name": "zone1.de",
+  "type": "NATIVE",
+  "masterNameServerIps": [
+    "111.111.111.111"
+  ],
+  "records": [
+    {
+      "name": "record1.zone1.de",
+      "disabled": false,
+      "type": "A",
+      "content": "11.11.11.11",
+      "ttl": 0,
+      "prio": 0
+    }
+  ]
+}

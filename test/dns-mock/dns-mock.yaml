@@ -1,0 +1,157 @@
+name: DNS API
+
+endpoints:
+
+- id: getZoneNames
+  prio: 0
+  request:
+    method: GET
+    path: /{tenantId}/zones
+  response:
+    statusCode: "200"
+    body: |
+      {{- $zones := kvStoreGetAll "zones" -}}
+      {{- $names := list -}}
+      {{- range $i, $zone := $zones -}}
+      {{- $names = append $names $zone.name -}}
+      {{- end -}}
+      {{ $names | toPrettyJson }}
+
+- id: createZone
+  prio: 0
+  request:
+    method: POST
+    path: /{tenantId}/zones
+  response:
+    statusCode: |
+      {{- $zone := .RequestBodyJSONData -}}
+      {{- if and $zone.name $zone.type -}}
+      201
+      {{- else -}}
+      400
+      {{- end -}}
+    body: |
+      {{- if eq .ResponseStatus 201 -}}
+        {{- $zone := .RequestBodyJSONData -}}
+        {{- $id := randAlphaNum 10 -}}
+        {{- $_ := set $zone "id" $id -}}
+        {{- $_ := set $zone "dnssecStatus" "DISABLED" -}}
+        {{- kvStorePut "zones" $zone.id $zone -}}
+        {{ $zone | toPrettyJson }}
+      {{- else -}}
+      no zone name or type
+      {{- end -}}
+- id: createZoneWithZoneIdentifier
+  prio: 0
+  request:
+    method: POST
+    path: /{tenantId}/zones/{zoneId}
+  response:
+    statusCode: |
+      {{- $id := .RequestPathParams.zoneId -}}
+      {{- if kvStoreHasKey "zones" $id -}}
+      409
+      {{- else -}}
+        {{- $zone := .RequestBodyJSONData -}}
+        {{- if and $zone.name $zone.type -}}
+      201
+        {{- else -}}
+      400
+        {{- end -}}
+      {{- end -}}
+    body: |
+      {{- if eq .ResponseStatus 201 -}}
+        {{- $zone := .RequestBodyJSONData -}}
+        {{- $id := .RequestPathParams.zoneId -}}
+        {{- $_ := set $zone "id" $id -}}
+        {{- $_ := set $zone "dnssecStatus" "DISABLED" -}}
+        {{- kvStorePut "zones" $zone.id $zone -}}
+        {{ $zone | toPrettyJson }}
+      {{- end -}}
+
+- id: getZone
+  prio: 0
+  request:
+    method: GET
+    path: /{tenantId}/zones/{zoneId}
+  response:
+    statusCode: |
+      {{- $id := .RequestPathParams.zoneId -}}
+      {{- if kvStoreHasKey "zones" $id -}}
+      200
+      {{- else -}}
+      404
+      {{- end -}}
+    body: |
+      {{ if eq .ResponseStatus 200 -}}
+        {{- $id := .RequestPathParams.zoneId -}}
+        {{ kvStoreGet "zones" $id | toPrettyJson }}
+      {{- end -}}
+- id: deleteZone
+  prio: 0
+  request:
+    method: DELETE
+    path: /{tenantId}/zones/{zoneId}
+  response:
+    statusCode: |
+      {{- $id := .RequestPathParams.zoneId -}}
+      {{- if kvStoreHasKey "zones" $id -}}
+      200
+      {{- else -}}
+      404
+      {{- end -}}
+    body: |
+      {{ if eq .ResponseStatus 200 -}}
+      {{- kvStoreRemove "zones" .RequestPathParams.zoneId -}}
+      {{- end -}}
+
+- id: getZoneRecords
+  prio: 0
+  request:
+    method: GET
+    path: /{tenantId}/zones/{zoneId}/records
+  response:
+    statusCode: |
+      {{- $id := .RequestPathParams.zoneId -}}
+      {{- if kvStoreHasKey "zones" $id -}}
+      200
+      {{- else -}}
+      404
+      {{- end -}}
+    body: |
+      {{- if eq .ResponseStatus 200 -}}
+        {{- $zoneId := .RequestPathParams.zoneId -}}
+        {{- $records := kvStoreGetAll ( printf "%s-records" $zoneId ) -}}
+        {{- $recordList := list -}}
+        {{- range $i, $record := $records -}}
+          {{- $recordList = append $recordList $record -}}
+        {{- end -}}
+        {{- $recordList | toPrettyJson -}}
+      {{- end -}}
+- id: createZoneRecords
+  prio: 0
+  request:
+    method: POST
+    path: /{tenantId}/zones/{zoneId}/records
+  response:
+    statusCode: |
+      {{- $zoneId := .RequestPathParams.zoneId -}}
+      {{- $record := .RequestBodyJSONData -}}
+      {{- if kvStoreHasKey "zones" $zoneId -}}
+        {{- if and $record.name $record.type -}}
+      201
+        {{- else -}}
+      400
+        {{- end -}}
+      {{- else -}}
+      404
+      {{- end -}}
+    body: |
+      {{- if eq .ResponseStatus 201 -}}
+        {{- $zoneId := .RequestPathParams.zoneId -}}
+        {{- $record := .RequestBodyJSONData -}}
+        {{- $id := randAlphaNum 10 -}}
+        {{- $_ := set $record "id" $id -}}
+        {{- kvStorePut ( printf "%s-records" $zoneId ) $record.id $record -}}
+        {{ $record | toPrettyJson }}
+      {{- end -}}

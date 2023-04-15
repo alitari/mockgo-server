@@ -85,6 +85,13 @@ func NewKVStoreTemplateFuncMap(storage Storage) template.FuncMap {
 			}
 			return val
 		},
+		"kvStoreHasKey": func(store, key string) bool {
+			val, err := storage.Get(store, key)
+			if err != nil {
+				return false
+			}
+			return val != nil
+		},
 		"kvStorePut": func(store, key string, val interface{}) string {
 			if err := storage.Put(store, key, val); err != nil {
 				return err.Error()

@@ -44,6 +44,7 @@ type responseTemplateData struct {
 	RequestHost         string
 	RequestBody         string
 	RequestBodyJSONData map[string]interface{}
+	ResponseStatus      int
 }
 
 /*
@@ -65,6 +66,7 @@ type RequestHandler struct {
 NewRequestHandler creates an instance of RequestHandler
 */
 func NewRequestHandler(pathPrefix, username, password, mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logger *logging.LoggerUtil) *RequestHandler {
+
 	mockRouter := &RequestHandler{
 		pathPrefix:      pathPrefix,
 		username:        username,
@@ -77,6 +79,12 @@ func NewRequestHandler(pathPrefix, username, password, mockDir, mockFilepattern 
 		funcMap:         funcMap,
 	}
 	return mockRouter
+}
+
+func (r *RequestHandler) addFuncMap() {
+	r.funcMap["getStatusCode"] = func() int {
+		return 0
+	}
 }
 
 var (
@@ -521,6 +529,7 @@ func (r *RequestHandler) renderResponse(writer http.ResponseWriter, request *htt
 		fmt.Fprintf(writer, "Error converting response status: %v", err)
 		return
 	}
+	responseTemplateData.ResponseStatus = responseStatus
 
 	var renderedBody bytes.Buffer
 	err = endpoint.Response.Template.ExecuteTemplate(&renderedBody, templateResponseBody, responseTemplateData)
@@ -544,6 +553,7 @@ func (r *RequestHandler) createResponseTemplateData(request *http.Request, reque
 		RequestQueryParams: queryParams,
 		RequestPath:        request.URL.Path,
 		RequestHost:        request.URL.Host,
+		ResponseStatus:     0,
 	}
 
 	for k, v := range request.Header {
