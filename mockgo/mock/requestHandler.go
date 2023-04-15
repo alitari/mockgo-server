@@ -44,6 +44,7 @@ type responseTemplateData struct {
 	RequestHost         string
 	RequestBody         string
 	RequestBodyJSONData map[string]interface{}
+	ResponseStatus      int
 }
 
 /*
@@ -65,6 +66,7 @@ type RequestHandler struct {
 NewRequestHandler creates an instance of RequestHandler
 */
 func NewRequestHandler(pathPrefix, username, password, mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logger *logging.LoggerUtil) *RequestHandler {
+
 	mockRouter := &RequestHandler{
 		pathPrefix:      pathPrefix,
 		username:        username,
@@ -130,7 +132,8 @@ func (r *RequestHandler) LoadFiles() error {
 			endpoint.Mock = mock
 			err := r.initResponseTemplates(endpoint, r.funcMap)
 			if err != nil {
-				return err
+				r.logger.LogError(fmt.Sprintf("Can't initialize response templates of endpoint id '%s', skipping endpoint ", endpoint.ID), err)
+				continue
 			}
 			r.registerEndpoint(endpoint, tmpSearchNode)
 		}
@@ -521,6 +524,7 @@ func (r *RequestHandler) renderResponse(writer http.ResponseWriter, request *htt
 		fmt.Fprintf(writer, "Error converting response status: %v", err)
 		return
 	}
+	responseTemplateData.ResponseStatus = responseStatus
 
 	var renderedBody bytes.Buffer
 	err = endpoint.Response.Template.ExecuteTemplate(&renderedBody, templateResponseBody, responseTemplateData)
@@ -544,6 +548,7 @@ func (r *RequestHandler) createResponseTemplateData(request *http.Request, reque
 		RequestQueryParams: queryParams,
 		RequestPath:        request.URL.Path,
 		RequestHost:        request.URL.Host,
+		ResponseStatus:     0,
 	}
 
 	for k, v := range request.Header {

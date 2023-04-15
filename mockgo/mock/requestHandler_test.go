@@ -74,31 +74,46 @@ func TestMockRequestHandler_ReadMockfile_wrong_yaml(t *testing.T) {
 func TestMockRequestHandler_InitResponseTemplates_doubleBody(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/doubleResponseBody", "*-mock.yaml",
 		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "error parsing endpoint id 'doubleResponseBody' , response.body and response.bodyFilename can't be defined both")
+	err := mockRequestHandlerWithError.LoadFiles()
+	assert.NoError(t, err)
+	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
+	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.endpoints, 0)
 }
 
 func TestMockRequestHandler_InitResponseTemplates_bodyfilename_not_exists(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/bodyfilenameDoesNotExist", "*-mock.yaml",
 		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "open ../../test/mocksWithError/bodyfilenameDoesNotExist/notexistingfile.json: no such file or directory")
+	err := mockRequestHandlerWithError.LoadFiles()
+	assert.NoError(t, err)
+	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
+	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.endpoints, 0)
 }
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseBodyTemplate(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/wrongResponseBodyTemplate", "*-mock.yaml",
 		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "template: responseBody:1: unclosed action")
+	err := mockRequestHandlerWithError.LoadFiles()
+	assert.NoError(t, err)
+	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
+	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.endpoints, 0)
 }
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseStatusTemplate(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/wrongResponseStatusTemplate", "*-mock.yaml",
 		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "template: responseStatus:1: unclosed action")
+	err := mockRequestHandlerWithError.LoadFiles()
+	assert.NoError(t, err)
+	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
+	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.endpoints, 0)
 }
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseHeaderTemplate(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/wrongResponseHeaderTemplate", "*-mock.yaml",
 		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
-	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "template: responseHeader:1: unclosed action")
+	err := mockRequestHandlerWithError.LoadFiles()
+	assert.NoError(t, err)
+	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
+	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.endpoints, 0)
 }
 
 func TestMockRequestHandler_matchBody_readerror(t *testing.T) {

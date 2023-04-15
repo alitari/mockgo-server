@@ -1,0 +1,7 @@
+{
+  "name": "record1.example.com",
+  "type": "CNAME",
+  "content": "record1.cname.com",
+  "ttl": 3600,
+  "disabled": true
+}

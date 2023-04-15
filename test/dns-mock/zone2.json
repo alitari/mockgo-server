@@ -1,0 +1,17 @@
+{
+  "name": "zone2.de",
+  "type": "NATIVE",
+  "masterNameServerIps": [
+    "222.222.222.222"
+  ],
+  "records": [
+    {
+      "name": "record1.zone2.de",
+      "disabled": false,
+      "type": "A",
+      "content": "12.12.12.12",
+      "ttl": 0,
+      "prio": 0
+    }
+  ]
+}
