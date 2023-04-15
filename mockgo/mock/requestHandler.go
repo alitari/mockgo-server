@@ -81,12 +81,6 @@ func NewRequestHandler(pathPrefix, username, password, mockDir, mockFilepattern 
 	return mockRouter
 }
 
-func (r *RequestHandler) addFuncMap() {
-	r.funcMap["getStatusCode"] = func() int {
-		return 0
-	}
-}
-
 var (
 	matchesMetric = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
