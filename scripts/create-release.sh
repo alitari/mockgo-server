@@ -18,11 +18,11 @@ else
         echo "you must be in 'master' branch, but you are in '$branch'!"
         exit 1
     fi
-    gitstatus=$(git status --short)
-    if [[ "$gitstatus" != "" ]]; then
-        echo "the workspace is dirty: $gitstatus !"
-        exit 1
-    fi
+#    gitstatus=$(git status --short)
+#    if [[ "$gitstatus" != "" ]]; then
+#        echo "the workspace is dirty: $gitstatus !"
+#        exit 1
+#    fi
 
     # create a release branch
     git checkout -b "release-$MOCKGO_RELEASE"
@@ -66,6 +66,12 @@ echo "release test ended successfully "
 # execute when release tag is supplied
 if [[ ! -z $MOCKGO_RELEASE ]]; then
     echo "start release $MOCKGO_RELEASE ..."
+
+    # login in github
+    gh auth login --with-token < .github/token
+    gh auth status
+    gh config set prompt disabled
+
     make mod-release MOCKGO_MODULE=mockgo
     make dep-release MOCKGO_MODULE=mockgo-standalone
     make mod-release MOCKGO_MODULE=mockgo-standalone
@@ -78,13 +84,6 @@ if [[ ! -z $MOCKGO_RELEASE ]]; then
 
     make dep-release MOCKGO_MODULE=mockgo-grpc
     make mod-release MOCKGO_MODULE=mockgo-grpc
-
-    
-
-    # login in github
-    gh auth login --with-token < .github/token
-    gh auth status
-    gh config set prompt disabled
 
     # create release with tgz as assets
     gh release create $MOCKGO_RELEASE mockgo-standalone/cmd/bin/* mockgo-grpc/cmd/bin/* --title "mockgo-server $MOCKGO_RELEASE" --notes "mockgo-server $MOCKGO_RELEASE"
