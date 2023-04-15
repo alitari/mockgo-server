@@ -5,3 +5,4 @@ reports/hurl
 *.sarif
 .mockgo_password
 test/mocks/dynamic-mock.yaml
+.idea/
