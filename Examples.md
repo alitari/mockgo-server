@@ -50,7 +50,7 @@ curl -v http://localhost:8081/statusCode/200 -d "Alex"
 # internal server error
 curl -v http://localhost:8081/statusCode/500 -d "An error"
 ```
-## using template functions and key-value store
+## people mock
 
 ```bash
 mkdir template-functions-example && cd template-functions-example
@@ -76,3 +76,19 @@ curl -v http://localhost:8081/getPeople/adults
 curl -v http://localhost:8081/getPeople/children
 ```
 
+## dns mock
+
+```bash
+cd test/dns-mock
+mockgo-standalone
+# create a zone
+curl -v -X POST http://localhost:8081/tenant/zones/myzone -d '@zone1.json' 
+# get zone
+curl -v -X GET http://localhost:8081/tenant/zones/myzone
+# create a record
+curl -v -X POST http://localhost:8081/tenant/zones/myzone/records -d '@record1.json'
+# get record names
+curl -v -X GET http://localhost:8081/tenant/zones/myzone/records
+
+
+```

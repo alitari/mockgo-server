@@ -61,11 +61,20 @@ endpoints:
       {{- end -}}
     body: |
       {{- if eq .ResponseStatus 201 -}}
-        {{- $zone := .RequestBodyJSONData -}}
-        {{- $id := .RequestPathParams.zoneId -}}
-        {{- $_ := set $zone "id" $id -}}
+        {{- $zoneRequest := .RequestBodyJSONData -}}
+        {{- $zone := dict -}}
+        {{- $_ := set $zone "id" .RequestPathParams.zoneId -}}
+        {{- $_ := set $zone "name" $zoneRequest.name -}}
+        {{- $_ := set $zone "type" $zoneRequest.type -}}
         {{- $_ := set $zone "dnssecStatus" "DISABLED" -}}
+        {{- $_ := set $zone "masterNameServerIps" $zoneRequest.masterNameServerIps -}}
         {{- kvStorePut "zones" $zone.id $zone -}}
+        {{ range $i,$record :=  $zoneRequest.records -}}
+          {{- $id := randAlphaNum 10 -}}
+          {{- $_ := set $record "id" $id -}}
+          {{- kvStorePut ( printf "%s-records" $zone.id ) $record.id $record -}}
+        {{- end -}}
+        {{- $_ := set $zone "records" $zoneRequest.records -}}
         {{ $zone | toPrettyJson }}
       {{- end -}}
 
