@@ -1,6 +1,6 @@
 MAIN_DIR = cmd/mockgo-gen
 MOCKGO_MODULE = mockgo-gen
-MOCKGO_VARIANT = none
+MOCKGO_VARIANT = gen
 MOCKGO_HOST = none
 
 include ../main.mk
