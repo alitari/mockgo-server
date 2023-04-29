@@ -6,4 +6,5 @@ use (
 	./mockgo-grpc
 	./grpc-matchstore
 	./grpc-kvstore
+	./redis-kvstore
 )

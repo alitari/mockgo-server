@@ -122,6 +122,7 @@ func main() {
 	startServing(configuration, matchHandler, kvStoreHandler, mockHandler)
 }
 
+// a change
 func createConfiguration() *Configuration {
 	configuration := Configuration{}
 	if err := envconfig.Process("", &configuration); err != nil {
