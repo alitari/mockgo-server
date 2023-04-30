@@ -7,4 +7,5 @@ use (
 	./grpc-matchstore
 	./grpc-kvstore
 	./redis-kvstore
+	./redis-matchstore
 )
