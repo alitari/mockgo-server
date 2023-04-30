@@ -60,6 +60,26 @@ make tidy MOCKGO_MODULE=mockgo-grpc
 make clean MOCKGO_MODULE=mockgo-grpc
 make cover MOCKGO_MODULE=mockgo-grpc
 make acctest MOCKGO_MODULE=mockgo-grpc
+make helm-delete MOCKGO_MODULE=mockgo-grpc
+
+
+make dep-dev MOCKGO_MODULE=redis-kvstore
+make tidy MOCKGO_MODULE=redis-kvstore
+make clean MOCKGO_MODULE=redis-kvstore
+make build MOCKGO_MODULE=redis-kvstore
+make cover MOCKGO_MODULE=redis-kvstore
+
+make dep-dev MOCKGO_MODULE=redis-matchstore
+make tidy MOCKGO_MODULE=redis-matchstore
+make clean MOCKGO_MODULE=redis-matchstore
+make build MOCKGO_MODULE=redis-matchstore
+make cover MOCKGO_MODULE=redis-matchstore
+
+make dep-dev MOCKGO_MODULE=mockgo-redis
+make tidy MOCKGO_MODULE=mockgo-redis
+make clean MOCKGO_MODULE=mockgo-redis
+make cover MOCKGO_MODULE=mockgo-redis
+#make acctest MOCKGO_MODULE=mockgo-redis
 
 echo "release test ended successfully "
 
@@ -79,7 +99,15 @@ if [[ ! -z $MOCKGO_RELEASE ]]; then
     make dep-release MOCKGO_MODULE=mockgo-grpc
     make mod-release MOCKGO_MODULE=mockgo-grpc
 
-    
+
+    make dep-release MOCKGO_MODULE=redis-kvstore
+    make mod-release MOCKGO_MODULE=redis-kvst
+
+    make dep-release MOCKGO_MODULE=redis-matchstore
+    make mod-release MOCKGO_MODULE=redis-matchst
+
+    make dep-release MOCKGO_MODULE=mockgo-redis
+    make mod-release MOCKGO_MODULE=mockgo-redis
 
     # login in github
     gh auth login --with-token < .github/token
@@ -87,7 +115,7 @@ if [[ ! -z $MOCKGO_RELEASE ]]; then
     gh config set prompt disabled
 
     # create release with tgz as assets
-    gh release create $MOCKGO_RELEASE mockgo-standalone/cmd/bin/* mockgo-grpc/cmd/bin/* --title "mockgo-server $MOCKGO_RELEASE" --notes "mockgo-server $MOCKGO_RELEASE"
+    gh release create $MOCKGO_RELEASE mockgo-standalone/cmd/bin/* mockgo-grpc/cmd/bin/* mockgo-redis/cmd/bin/* --title "mockgo-server $MOCKGO_RELEASE" --notes "mockgo-server $MOCKGO_RELEASE"
     gh auth logout -h github.com
 
     # push to dockerhub
@@ -95,4 +123,5 @@ if [[ ! -z $MOCKGO_RELEASE ]]; then
     docker login $MOCKGO_IMAGE_REGISTRY
     make pushdocker MOCKGO_MODULE=mockgo-standalone
     make pushdocker MOCKGO_MODULE=mockgo-grpc
+    make pushdocker MOCKGO_MODULE=mockgo-redis
 fi

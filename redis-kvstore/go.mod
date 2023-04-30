@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/alicebob/miniredis/v2 v2.30.2
-	github.com/alitari/mockgo-server/mockgo v0.0.0-00010101000000-000000000000
 	github.com/go-redis/redismock/v9 v9.0.3
 	github.com/redis/go-redis/v9 v9.0.3
 	github.com/stretchr/testify v1.8.1

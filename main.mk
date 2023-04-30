@@ -320,6 +320,33 @@ require-dep-grpc-matchstore-dev: drop-dep-grpc-matchstore
 require-dep-grpc-matchstore-release: drop-dep-grpc-matchstore
 	go mod edit -require=github.com/alitari/mockgo-server/grpc-matchstore@$(MOCKGO_RELEASE)
 
+
+.PHONY: drop-dep-redis-kvstore
+drop-dep-redis-kvstore:
+	go mod edit -droprequire github.com/alitari/mockgo-server/redis-kvstore
+	go mod edit -dropreplace github.com/alitari/mockgo-server/redis-kvstore
+
+.PHONY: drop-dep-redis-matchstore
+drop-dep-redis-matchstore:
+	go mod edit -droprequire github.com/alitari/mockgo-server/redis-matchstore
+	go mod edit -dropreplace github.com/alitari/mockgo-server/redis-matchstore
+
+.PHONY: require-dep-redis-kvstore-dev
+require-dep-redis-kvstore-dev: drop-dep-redis-kvstore
+	go mod edit -replace=github.com/alitari/mockgo-server/redis-kvstore=../redis-kvstore
+
+.PHONY: require-dep-redis-kvstore-release
+require-dep-redis-kvstore-release: drop-dep-redis-kvstore
+	go mod edit -require=github.com/alitari/mockgo-server/redis-kvstore@$(MOCKGO_RELEASE)
+
+.PHONY: require-dep-redis-matchstore-dev
+require-dep-redis-matchstore-dev: drop-dep-redis-matchstore
+	go mod edit -replace=github.com/alitari/mockgo-server/redis-matchstore=../redis-matchstore
+
+.PHONY: require-dep-redis-matchstore-release
+require-dep-redis-matchstore-release: drop-dep-redis-matchstore
+	go mod edit -require=github.com/alitari/mockgo-server/redis-matchstore@$(MOCKGO_RELEASE)
+
 .PHONY: mod-release
 mod-release:
 ifeq ($(IS_REAL_RELEASE), "true")

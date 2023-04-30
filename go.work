@@ -8,4 +8,5 @@ use (
 	./grpc-kvstore
 	./redis-kvstore
 	./redis-matchstore
+	./mockgo-redis
 )
