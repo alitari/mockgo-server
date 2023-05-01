@@ -25,9 +25,14 @@ See [Examples.md](./Examples.md).
 
 ## variants
 
-*mockgo-server* currently comes in 2 variants:
-- `mockgo-standalone` : for non-cluster setups, use this when you don't need to scale, usually this variant is the starting point
-- `mockgo-grpc` : for cluster setups, use this when you have to deal with high incoming traffic. In order to share state between the cluster pods [grpc](https://grpc.io/) is used as protocol.
+*mockgo-server* is built with different variants which have their own use cases. The following table gives an overview:
+
+| variant             | can scale | persistence | use this when you ...                                                                         |
+|---------------------|-----------|-------------|-----------------------------------------------------------------------------------------------|
+| `mockgo-standalone` | no        | no          | want a simple setup and you don't need to scale, usually this variant is the starting point   |
+| `mockgo-grpc`       | yes       | no          | have to deal with high incoming traffic, but you don't need durability for states and results |
+| `mockgo-redis`      | yes       | yes         | have to deal with high incoming traffic and you want a durable storage for states and results |
+
 
 ## install on kubernetes
 
