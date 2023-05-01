@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/redis/go-redis/v9"
+	"time"
 )
 
 // RedisStorage is a kvstore.Storage implementation using redis as backend.
@@ -15,9 +16,12 @@ type RedisStorage struct {
 func NewRedisStorage(address, password string, db int) (*RedisStorage, error) {
 	storage := &RedisStorage{
 		client: redis.NewClient(&redis.Options{
-			Addr:     address,
-			Password: password,
-			DB:       db,
+			Addr:            address,
+			Password:        password,
+			DB:              db,
+			MaxRetries:      30,
+			MinRetryBackoff: 500 * time.Millisecond,
+			MaxRetryBackoff: 2 * time.Second,
 		}),
 	}
 	if err := storage.checkConnectivity(); err != nil {
