@@ -43,6 +43,7 @@ make cover MOCKGO_MODULE=mockgo-standalone
 make acctest MOCKGO_MODULE=mockgo-standalone
 make helm-delete MOCKGO_MODULE=mockgo-standalone
 
+
 make dep-dev MOCKGO_MODULE=grpc-kvstore
 make tidy MOCKGO_MODULE=grpc-kvstore
 make clean MOCKGO_MODULE=grpc-kvstore
@@ -79,7 +80,7 @@ make dep-dev MOCKGO_MODULE=mockgo-redis
 make tidy MOCKGO_MODULE=mockgo-redis
 make clean MOCKGO_MODULE=mockgo-redis
 make cover MOCKGO_MODULE=mockgo-redis
-#make acctest MOCKGO_MODULE=mockgo-redis
+make acctest MOCKGO_MODULE=mockgo-redis
 
 echo "release test ended successfully "
 
