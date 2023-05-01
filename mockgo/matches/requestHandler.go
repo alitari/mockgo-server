@@ -39,7 +39,7 @@ AddRoutes adds mux.Routes for the http API to a given mux.Router
 */
 func (r *RequestHandler) AddRoutes(router *mux.Router) {
 	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
-		HandlerFunc(util.LoggingRequest(r.logger, r.handleHealth))
+		HandlerFunc(r.handleHealth)
 	router.NewRoute().Name("getMatches").Path(r.pathPrefix + "/matches/{endpointId}").Methods(http.MethodGet).
 		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(util.PathParamRequest([]string{"endpointId"}, r.handleGetMatches)))))
 	router.NewRoute().Name("getMatchesCount").Path(r.pathPrefix + "/matchesCount/{endpointId}").Methods(http.MethodGet).

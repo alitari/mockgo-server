@@ -84,12 +84,12 @@ LoggingRequest writes details of request and response
 */
 func LoggingRequest(loggerUtil *logging.LoggerUtil, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
 	f := func(w http.ResponseWriter, r *http.Request) {
-		loggerUtil.LogIncomingRequest(r)
-		if loggerUtil.Level >= logging.Debug {
+		if loggerUtil.IsHTTPLogging(r) {
+			loggerUtil.LogIncomingRequest(r)
 			w = logging.NewResponseWriter(w, loggerUtil, 2)
 		}
 		impl(w, r)
-		if loggerUtil.Level >= logging.Debug {
+		if loggerUtil.IsHTTPLogging(r) {
 			w.(*logging.ResponseWriter).Log()
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path"
 	"runtime"
+	"strings"
 )
 
 // LogLevel level of log output
@@ -93,19 +94,24 @@ func (l *LoggerUtil) LogWhenDebug(formattedMessage string) {
 }
 
 /*
+IsHTTPLogging checks if http logging is enabled
+*/
+func (l *LoggerUtil) IsHTTPLogging(request *http.Request) bool {
+	return l.Level >= Debug && !strings.HasSuffix(request.URL.Path, "/health")
+}
+
+/*
 LogIncomingRequest helper for logging http requests
 */
 func (l *LoggerUtil) LogIncomingRequest(request *http.Request) {
-	if l.Level >= Debug {
-		body, err := io.ReadAll(request.Body)
-		if err != nil {
-			l.logger.Printf("error LogIncomingRequest: %v", err)
-			return
-		}
-		requestStr := fmt.Sprintf("method: %s\nurl: '%s'\nbody: '%s'", request.Method, request.URL.String(), string(body))
-		l.logger.Printf("%s (DEBUG) incoming request:\n%s", l.callerInfo(2), requestStr)
-		request.Body = io.NopCloser(bytes.NewBuffer(body))
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		l.logger.Printf("error LogIncomingRequest: %v", err)
+		return
 	}
+	requestStr := fmt.Sprintf("method: %s\nurl: '%s'\nbody: '%s'", request.Method, request.URL.String(), string(body))
+	l.logger.Printf("%s (DEBUG) incoming request:\n%s", l.callerInfo(2), requestStr)
+	request.Body = io.NopCloser(bytes.NewBuffer(body))
 }
 
 func (l *LoggerUtil) callerInfo(skip int) (info string) {
@@ -151,9 +157,7 @@ func (lrw *ResponseWriter) WriteHeader(code int) {
 
 // Log logs the response body
 func (lrw *ResponseWriter) Log() {
-	if lrw.loggerUtil.Level >= Debug {
-		lrw.loggerUtil.logger.Printf("%s (DEBUG) Sending response with status %d :\nbody:'%s'", lrw.loggerUtil.callerInfo(lrw.skip), lrw.responseCode, lrw.buf.String())
-	}
+	lrw.loggerUtil.logger.Printf("%s (DEBUG) Sending response with status %d :\nbody:'%s'", lrw.loggerUtil.callerInfo(lrw.skip), lrw.responseCode, lrw.buf.String())
 	_, err := io.Copy(lrw.ResponseWriter, lrw.buf)
 	if err != nil {
 		lrw.loggerUtil.logger.Printf("LoggingResponseWriter: Failed to send out response: %v", err)

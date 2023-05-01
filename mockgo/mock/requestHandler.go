@@ -228,8 +228,8 @@ func (r *RequestHandler) AddRoutes(router *mux.Router) {
 		return endPoint != nil
 	})
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		r.logger.LogIncomingRequest(request)
-		if r.logger.Level >= logging.Debug {
+		if r.logger.IsHTTPLogging(request) {
+			r.logger.LogIncomingRequest(request)
 			writer = logging.NewResponseWriter(writer, r.logger, 2)
 		}
 		if matchReload {
@@ -247,7 +247,7 @@ func (r *RequestHandler) AddRoutes(router *mux.Router) {
 		} else {
 			r.renderResponse(writer, request, endPoint, match, requestPathParam, queryParams)
 		}
-		if r.logger.Level >= logging.Debug {
+		if r.logger.IsHTTPLogging(request) {
 			writer.(*logging.ResponseWriter).Log()
 		}
 	})
