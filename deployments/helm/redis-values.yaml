@@ -1,12 +1,12 @@
 config:
 ## if true a side car container will be added to the pod to reload the config on changes
-  reload: true
+  reload: false
 
-image: localhost:5001/alitari/mockgo-grpc:latest
+image: localhost:5001/alitari/mockgo-redis:latest
 pullPolicy: Always
 ingress:
   enabled: true
-  host: "mockgo-grpc.127.0.0.1.nip.io"
+  host: "mockgo-redis.127.0.0.1.nip.io"
 
 scraping: true
 
@@ -20,25 +20,31 @@ resources:
 
 replicas: 3
 
-cluster:
+redis:
   enabled: true
+  internal: true
+  master:
+    persistence:
+      enabled: false
+  replica:
+    replicaCount: 0
 
 api:
   password: asecretPassword
 
 healthcheck:
   liveness:
-    initialDelaySeconds: 1
+    initialDelaySeconds: 25
   readiness:
-    initialDelaySeconds: 2
+    initialDelaySeconds: 15
 
 logging:
   api:
-    level: 1
+    level: 2
   mock:
-    level: 1
+    level: 2
   kvstore:
-    level: 1
+    level: 2
   matchstore:
     level: 2
 

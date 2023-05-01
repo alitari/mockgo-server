@@ -76,7 +76,7 @@ Return the mockgoserver cluster routes.
 {{- $name := (include "mockgoserver.fullname" . ) -}}
 {{- $namespace := (include "mockgoserver.namespace" . ) -}}
 {{- $clusterDomain := .Values.k8sClusterDomain -}}
-{{- range $i, $e := until (.Values.cluster.replicas | int) -}}
+{{- range $i, $e := until (.Values.replicas | int) -}}
 {{- if $.Values.cluster.useFQDN }}
 {{- printf "%s-%d.%s.%s.svc.%s," $name $i $name $namespace $clusterDomain -}}
 {{- else }}
