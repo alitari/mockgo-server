@@ -113,7 +113,7 @@ func TestRedisMatchstore_GetMatchesCount(t *testing.T) {
 func TestRedisMatchstore_GetMismatches(t *testing.T) {
 	createRedisMatchstore()
 	mismatch := createMismatch()
-	clientmock.ExpectLRange(matchstore.(*redisMatchstore).mismatchesKey, 0, -1).SetVal([]string{createMismatchString(mismatch)})
+	clientmock.ExpectLRange(mismatchesKey, 0, -1).SetVal([]string{createMismatchString(mismatch)})
 	getMismatches, err := matchstore.GetMismatches()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []*matches.Mismatch{mismatch}, getMismatches)
@@ -122,7 +122,7 @@ func TestRedisMatchstore_GetMismatches(t *testing.T) {
 func TestRedisMatchstore_GetMisMatchesCount(t *testing.T) {
 	createRedisMatchstore()
 	length := int64(76)
-	clientmock.ExpectLLen(matchstore.(*redisMatchstore).mismatchesKey).SetVal(length)
+	clientmock.ExpectLLen(mismatchesKey).SetVal(length)
 	getMismatchesCount, err := matchstore.GetMismatchesCount()
 	assert.NoError(t, err)
 	assert.EqualValues(t, uint64(length), getMismatchesCount)
@@ -140,7 +140,7 @@ func TestRedisMatchstore_AddMatch(t *testing.T) {
 func TestRedisMatchstore_AddMismatch(t *testing.T) {
 	createRedisMatchstore()
 	mismatch := createMismatch()
-	clientmock.ExpectRPush(matchstore.(*redisMatchstore).mismatchesKey, []byte(createMismatchString(mismatch))).SetVal(0)
+	clientmock.ExpectRPush(mismatchesKey, []byte(createMismatchString(mismatch))).SetVal(0)
 	err := matchstore.AddMismatch(mismatch)
 	assert.NoError(t, err)
 }
@@ -155,7 +155,7 @@ func TestRedisMatchstore_DeleteMatches(t *testing.T) {
 
 func TestRedisMatchstore_DeleteMismatches(t *testing.T) {
 	createRedisMatchstore()
-	clientmock.ExpectDel(matchstore.(*redisMatchstore).mismatchesKey).SetVal(0)
+	clientmock.ExpectDel(mismatchesKey).SetVal(0)
 	err := matchstore.DeleteMismatches()
 	assert.NoError(t, err)
 }

@@ -4,18 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/alitari/mockgo-server/mockgo/matches"
-	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"time"
 )
 
+const mismatchesKey = "__mismatches__"
+
 type redisMatchstore struct {
-	client        *redis.Client
-	capacity      uint16
-	mismatchesKey string
+	client   *redis.Client
+	capacity uint16
 }
 
 func (r *redisMatchstore) checkConnectivity() error {
-	ctx := context.Background()
+	var ctx = context.Background()
 	status := r.client.Ping(ctx)
 	return status.Err()
 }
@@ -49,7 +50,7 @@ func (r *redisMatchstore) GetMatchesCount(endpointID string) (uint64, error) {
 
 func (r *redisMatchstore) GetMismatches() ([]*matches.Mismatch, error) {
 	ctx := context.Background()
-	lrange := r.client.LRange(ctx, r.mismatchesKey, 0, -1)
+	lrange := r.client.LRange(ctx, mismatchesKey, 0, -1)
 	if lrange.Err() != nil {
 		return nil, lrange.Err()
 	}
@@ -86,7 +87,7 @@ func (r *redisMatchstore) AddMismatch(mismatch *matches.Mismatch) error {
 	if err != nil {
 		return err
 	}
-	lpush := r.client.RPush(ctx, r.mismatchesKey, mval)
+	lpush := r.client.RPush(ctx, mismatchesKey, mval)
 	if lpush.Err() != nil {
 		return lpush.Err()
 	}
@@ -95,7 +96,7 @@ func (r *redisMatchstore) AddMismatch(mismatch *matches.Mismatch) error {
 
 func (r *redisMatchstore) GetMismatchesCount() (uint64, error) {
 	ctx := context.Background()
-	llen := r.client.LLen(ctx, r.mismatchesKey)
+	llen := r.client.LLen(ctx, mismatchesKey)
 	if llen.Err() != nil {
 		return 0, llen.Err()
 	}
@@ -113,7 +114,7 @@ func (r *redisMatchstore) DeleteMatches(endpointID string) error {
 
 func (r *redisMatchstore) DeleteMismatches() error {
 	ctx := context.Background()
-	del := r.client.Del(ctx, r.mismatchesKey)
+	del := r.client.Del(ctx, mismatchesKey)
 	if del.Err() != nil {
 		return del.Err()
 	}
@@ -122,20 +123,16 @@ func (r *redisMatchstore) DeleteMismatches() error {
 
 // NewRedisMatchstore creates a new redis matchstore
 func NewRedisMatchstore(address, password string, db int, capacity uint16) (matches.Matchstore, error) {
-	// create uuid string
-	uuid, err := uuid.NewUUID()
-	if err != nil {
-		return nil, err
-	}
-	mismatchesKey := "mismatches_" + uuid.String()
 	matchstore := &redisMatchstore{
 		client: redis.NewClient(&redis.Options{
-			Addr:     address,
-			Password: password,
-			DB:       db,
+			Addr:            address,
+			Password:        password,
+			DB:              db,
+			MaxRetries:      30,
+			MinRetryBackoff: 500 * time.Millisecond,
+			MaxRetryBackoff: 2 * time.Second,
 		}),
-		capacity:      capacity,
-		mismatchesKey: mismatchesKey,
+		capacity: capacity,
 	}
 	if err := matchstore.checkConnectivity(); err != nil {
 		return nil, err
