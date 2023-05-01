@@ -127,7 +127,6 @@ func createConfiguration() *Configuration {
 }
 
 func createMatchstore(configuration *Configuration) matches.Matchstore {
-
 	matchStore, err := redismatchstore.NewRedisMatchstore(configuration.RedisAddress, configuration.RedisPassword,
 		configuration.MatchstoreRedisDB, 1000)
 	if err != nil {
