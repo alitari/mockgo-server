@@ -2,11 +2,11 @@ package matches
 
 import (
 	"fmt"
+	"go.uber.org/zap/zapcore"
 	"net/http"
 	"os"
 	"testing"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -45,8 +45,8 @@ func (s *ErrorMatchstore) DeleteMismatches() error {
 	return fmt.Errorf("error in delete mismatches")
 }
 
-var matchesRequestHandler = NewRequestHandler("", username, password, NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-var matchesRequestHandlerErroneous = NewRequestHandler("", username, password, &ErrorMatchstore{}, logging.NewLoggerUtil(logging.Debug))
+var matchesRequestHandler = NewRequestHandler("", username, password, NewInMemoryMatchstore(uint16(100)), int(zapcore.DebugLevel))
+var matchesRequestHandlerErroneous = NewRequestHandler("", username, password, &ErrorMatchstore{}, int(zapcore.DebugLevel))
 
 func TestMain(m *testing.M) {
 	router := mux.NewRouter()

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	sprig "github.com/Masterminds/sprig/v3"
+	"github.com/alitari/mockgo-server/mockgo/util"
+	"go.uber.org/zap"
 	"io"
 	"math"
 	"net/http"
@@ -17,7 +19,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -56,7 +57,7 @@ type RequestHandler struct {
 	password        string
 	mockDir         string
 	mockFilepattern string
-	logger          *logging.LoggerUtil
+	logger          *zap.Logger
 	EpSearchNode    *epSearchNode
 	matchstore      matches.Matchstore
 	funcMap         template.FuncMap
@@ -65,15 +66,14 @@ type RequestHandler struct {
 /*
 NewRequestHandler creates an instance of RequestHandler
 */
-func NewRequestHandler(pathPrefix, username, password, mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logger *logging.LoggerUtil) *RequestHandler {
-
+func NewRequestHandler(pathPrefix, username, password, mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logLevel int) *RequestHandler {
 	mockRouter := &RequestHandler{
 		pathPrefix:      pathPrefix,
 		username:        username,
 		password:        password,
 		mockDir:         mockDir,
 		mockFilepattern: mockFilepattern,
-		logger:          logger,
+		logger:          util.CreateLogger(logLevel),
 		EpSearchNode:    &epSearchNode{},
 		matchstore:      matchstore,
 		funcMap:         funcMap,
@@ -118,7 +118,7 @@ func (r *RequestHandler) LoadFiles() error {
 	if err != nil {
 		return err
 	}
-	r.logger.LogWhenVerbose(fmt.Sprintf("Found %v mock file(s):", len(mockFiles)))
+	r.logger.Info(fmt.Sprintf("Found %v mock file(s):", len(mockFiles)))
 	for _, mockFile := range mockFiles {
 		mock, err := r.readMockFile(mockFile)
 		if err != nil {
@@ -132,7 +132,7 @@ func (r *RequestHandler) LoadFiles() error {
 			endpoint.Mock = mock
 			err := r.initResponseTemplates(endpoint, r.funcMap)
 			if err != nil {
-				r.logger.LogError(fmt.Sprintf("Can't initialize response templates of endpoint id '%s', skipping endpoint ", endpoint.ID), err)
+				r.logger.Error(fmt.Sprintf("Can't initialize response templates of endpoint id '%s', skipping endpoint ", endpoint.ID), zap.Error(err))
 				continue
 			}
 			r.registerEndpoint(endpoint, tmpSearchNode)
@@ -144,7 +144,7 @@ func (r *RequestHandler) LoadFiles() error {
 }
 
 func (r *RequestHandler) readMockFile(mockFile string) (*Mock, error) {
-	r.logger.LogWhenVerbose(fmt.Sprintf("Reading mock file '%s' ...", mockFile))
+	r.logger.Info(fmt.Sprintf("Reading mock file '%s' ...", mockFile))
 	mockFileContent, err := os.ReadFile(mockFile)
 	if err != nil {
 		return nil, err
@@ -228,27 +228,20 @@ func (r *RequestHandler) AddRoutes(router *mux.Router) {
 		return endPoint != nil
 	})
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if r.logger.IsHTTPLogging(request) {
-			r.logger.LogIncomingRequest(request)
-			writer = logging.NewResponseWriter(writer, r.logger, 2)
-		}
 		if matchReload {
 			if reloadResponseStatusCode == http.StatusOK {
-				r.logger.LogWhenVerbose("Reloading mock files...")
+				r.logger.Info("Reloading mock files...")
 				err := r.LoadFiles()
 				if err != nil {
-					r.logger.LogError("Error reloading mock files", err)
+					r.logger.Error("Error reloading mock files", zap.Error(err))
 					reloadResponseStatusCode = http.StatusInternalServerError
 				} else {
-					r.logger.LogWhenVerbose("Reloaded mock files successfully.")
+					r.logger.Info("Reloaded mock files successfully.")
 				}
 			}
 			writer.WriteHeader(reloadResponseStatusCode)
 		} else {
 			r.renderResponse(writer, request, endPoint, match, requestPathParam, queryParams)
-		}
-		if r.logger.IsHTTPLogging(request) {
-			writer.(*logging.ResponseWriter).Log()
 		}
 	})
 }
@@ -314,7 +307,7 @@ func (r *RequestHandler) registerEndpoint(endpoint *Endpoint, sn *epSearchNode) 
 		sn.endpoints[endpointKey] = append(sn.endpoints[endpointKey][:insertIndex+1], sn.endpoints[endpointKey][insertIndex:]...)
 		sn.endpoints[endpointKey][insertIndex] = endpoint
 	}
-	r.logger.LogWhenVerbose(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.ID, endpoint.Request.Path, endpoint.Request.Method))
+	r.logger.Info(fmt.Sprintf("register endpoint with id '%s' for path|method: %s|%s", endpoint.ID, endpoint.Request.Path, endpoint.Request.Method))
 }
 
 func getPathSegment(segments []string, pos int) string {
@@ -444,7 +437,7 @@ func (r *RequestHandler) matchBody(matchRequest *MatchRequest, request *http.Req
 	if matchRequest.BodyRegexp != nil {
 		reqBodyBytes, err := io.ReadAll(request.Body)
 		if err != nil {
-			r.logger.LogError("no match, error reading request body", err)
+			r.logger.Error("no match, error reading request body", zap.Error(err))
 			return false
 		}
 		return matchRequest.BodyRegexp.Match(reqBodyBytes)

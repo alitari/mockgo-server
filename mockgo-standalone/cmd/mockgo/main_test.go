@@ -13,8 +13,8 @@ import (
 var apiPassword = testutil.RandString(10)
 
 func TestMain(m *testing.M) {
-	os.Setenv("LOGLEVEL_API", "2")
-	os.Setenv("LOGLEVEL_MOCK", "2")
+	os.Setenv("LOGLEVEL_API", "-1")
+	os.Setenv("LOGLEVEL_MOCK", "-1")
 	os.Setenv("API_PASSWORD", apiPassword)
 	os.Setenv("MOCK_DIR", "../../../test/main")
 	os.Setenv("MATCHES_RECORD_REQUESTS", "true")

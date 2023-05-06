@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"go.uber.org/zap/zapcore"
 	"io"
 	"io/ioutil"
 	"log"
@@ -10,7 +11,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/gorilla/mux"
@@ -37,7 +37,7 @@ type mockTestCase struct {
 var router = mux.NewRouter()
 
 func TestMain(m *testing.M) {
-	mockRequestHandler := NewRequestHandler("/__", username, password, "../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+	mockRequestHandler := NewRequestHandler("/__", username, password, "../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	if err := mockRequestHandler.LoadFiles(); err != nil {
 		log.Fatal(err)
 	}
@@ -55,25 +55,25 @@ func TestMain(m *testing.M) {
 
 func TestMockRequestHandler_LoadFiles_dir_not_exists(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "pathnotexists", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "lstat pathnotexists: no such file or directory")
 }
 
 func TestMockRequestHandler_ReadMockfile_wrong_requestBody(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/wrongRequestBodyRegexp",
-		"*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+		"*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "error parsing regexp: missing closing ]: `[a`")
 }
 
 func TestMockRequestHandler_ReadMockfile_wrong_yaml(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/wrongYaml", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "yaml: line 3: mapping values are not allowed in this context")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_doubleBody(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/doubleResponseBody", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	err := mockRequestHandlerWithError.LoadFiles()
 	assert.NoError(t, err)
 	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
@@ -82,7 +82,7 @@ func TestMockRequestHandler_InitResponseTemplates_doubleBody(t *testing.T) {
 
 func TestMockRequestHandler_InitResponseTemplates_bodyfilename_not_exists(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/bodyfilenameDoesNotExist", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	err := mockRequestHandlerWithError.LoadFiles()
 	assert.NoError(t, err)
 	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
@@ -91,7 +91,7 @@ func TestMockRequestHandler_InitResponseTemplates_bodyfilename_not_exists(t *tes
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseBodyTemplate(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/wrongResponseBodyTemplate", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	err := mockRequestHandlerWithError.LoadFiles()
 	assert.NoError(t, err)
 	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
@@ -100,7 +100,7 @@ func TestMockRequestHandler_InitResponseTemplates_wrongResponseBodyTemplate(t *t
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseStatusTemplate(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/wrongResponseStatusTemplate", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	err := mockRequestHandlerWithError.LoadFiles()
 	assert.NoError(t, err)
 	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
@@ -109,7 +109,7 @@ func TestMockRequestHandler_InitResponseTemplates_wrongResponseStatusTemplate(t 
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseHeaderTemplate(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", username, password, "../../test/mocksWithError/wrongResponseHeaderTemplate", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	err := mockRequestHandlerWithError.LoadFiles()
 	assert.NoError(t, err)
 	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
@@ -118,14 +118,14 @@ func TestMockRequestHandler_InitResponseTemplates_wrongResponseHeaderTemplate(t 
 
 func TestMockRequestHandler_matchBody_readerror(t *testing.T) {
 	mockRequestHandler := NewRequestHandler("", username, password, "../../test/mocks", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	errorRequest := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodGet, "/path", testutil.CreateHeader())
 	assert.False(t, mockRequestHandler.matchBody(&MatchRequest{BodyRegexp: regexp.MustCompile(`^`)}, errorRequest))
 }
 
 func TestMockRequestHandler_renderResponse_readerror(t *testing.T) {
 	mockRequestHandler := NewRequestHandler("", username, password, "../../test/mocks", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, logging.NewLoggerUtil(logging.Debug))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
 	errorRequest := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodGet, "/path", testutil.CreateHeader())
 	recorder := httptest.NewRecorder()
 	mockRequestHandler.renderResponse(recorder, errorRequest, &Endpoint{ID: "myId"}, nil, nil, nil)

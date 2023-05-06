@@ -2,18 +2,16 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"net/http"
-	"strconv"
-	"text/template"
-
 	"github.com/alitari/mockgo-server/mockgo/kvstore"
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/alitari/mockgo-server/mockgo/mock"
+	"github.com/alitari/mockgo-server/mockgo/util"
 	"github.com/gorilla/mux"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
+	"net/http"
+	"strconv"
 )
 
 const banner = `
@@ -25,6 +23,8 @@ Standalone         |___/  %s
 `
 
 const versionTag = "latest"
+
+var logger *zap.Logger
 
 /*
 RequestHandler abstraction of a set of http handler funcs
@@ -61,44 +61,47 @@ API:
   Path prefix: '%s' ("API_PATH_PREFIX")
   BasicAuth User: '%s' ("API_USERNAME")
   BasicAuth Password: %s ("API_PASSWORD")
-  LogLevel: '%s' ("LOGLEVEL_API")
+  LogLevel: '%v' ("LOGLEVEL_API")
 
 Mock Server:
   Port: %v ("MOCK_PORT")
   Dir: '%s' ("MOCK_DIR")
   Filepattern: '%s' ("MOCK_FILEPATTERN")
-  LogLevel: '%s' ("LOGLEVEL_MOCK")
+  LogLevel: '%v' ("LOGLEVEL_MOCK")
   
 Matches:
   Capacity: %d ("MATCHES_CAPACITY")
   `,
-		c.APIPathPrefix, c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
-		c.MockPort, c.MockDir, c.MockFilepattern, logging.ParseLogLevel(c.LoglevelMock).String(),
+		c.APIPathPrefix, c.APIUsername, passwordMessage, c.LoglevelAPI,
+		c.MockPort, c.MockDir, c.MockFilepattern, c.LoglevelMock,
 		c.MatchesCapacity)
 }
 
 func main() {
 	router, port, err := setupRouter()
 	if err != nil {
-		log.Fatalf("can't setup router : %v", err)
+		logger.Fatal("can't setup router", zap.Error(err))
 	}
 	server := &http.Server{Addr: ":" + strconv.Itoa(port), Handler: router}
-	log.Printf("serving on '%s' ...", server.Addr)
+	logger.Info("serving http  ...", zap.String("address", server.Addr))
 
 	err = server.ListenAndServe()
 	if err != nil {
-		log.Fatalf("can't serve : %v", err)
+		logger.Fatal("can't start server", zap.Error(err))
 	}
 }
 
 func setupRouter() (*mux.Router, int, error) {
-	log.Printf(banner, versionTag)
+	fmt.Printf(banner, versionTag)
 	configuration := createConfiguration()
-	log.Print(configuration.info())
+	logger = util.CreateLogger(configuration.LoglevelAPI)
+	logger.Info(configuration.info())
 	matchStore := matches.NewInMemoryMatchstore(uint16(configuration.MatchesCapacity))
-	matchHandler := createMatchHandler(configuration, matchStore)
-	kvStoreHandler := createKVStoreHandler(configuration)
-	mockHandler := createMockHandler(configuration, matchStore, kvStoreHandler.GetFuncMap())
+	matchHandler := matches.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
+		matchStore, configuration.LoglevelAPI)
+	kvStoreHandler := kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstore.NewInmemoryStorage(), configuration.LoglevelAPI)
+	mockHandler := mock.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername,
+		configuration.APIPassword, configuration.MockDir, configuration.MockFilepattern, matchStore, kvStoreHandler.GetFuncMap(), configuration.LoglevelMock)
 	if err := mockHandler.LoadFiles(); err != nil {
 		return nil, -1, fmt.Errorf("can't load mockfiles: %v", err)
 	}
@@ -111,27 +114,9 @@ func setupRouter() (*mux.Router, int, error) {
 func createConfiguration() *Configuration {
 	configuration := Configuration{}
 	if err := envconfig.Process("", &configuration); err != nil {
-		log.Fatal(err)
+		logger.Fatal("can't create configuration", zap.Error(err))
 	}
 	return &configuration
-}
-
-func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.RequestHandler {
-	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	return matches.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
-		matchstore, matchLogger)
-}
-
-func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler {
-	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
-	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvstore.NewInmemoryStorage(), kvstoreLogger)
-}
-
-func createMockHandler(configuration *Configuration, matchstore matches.Matchstore, funcMap template.FuncMap) *mock.RequestHandler {
-	mockLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMock))
-	mockHandler := mock.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername,
-		configuration.APIPassword, configuration.MockDir, configuration.MockFilepattern, matchstore, funcMap, mockLogger)
-	return mockHandler
 }
 
 func createRouter(requestHandlers ...RequestHandler) *mux.Router {

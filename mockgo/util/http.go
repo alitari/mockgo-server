@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
 )
@@ -82,19 +81,19 @@ func PathParamRequest(expectedPathParams []string, impl func(writer http.Respons
 /*
 LoggingRequest writes details of request and response
 */
-func LoggingRequest(loggerUtil *logging.LoggerUtil, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
-	f := func(w http.ResponseWriter, r *http.Request) {
-		if loggerUtil.IsHTTPLogging(r) {
-			loggerUtil.LogIncomingRequest(r)
-			w = logging.NewResponseWriter(w, loggerUtil, 2)
-		}
-		impl(w, r)
-		if loggerUtil.IsHTTPLogging(r) {
-			w.(*logging.ResponseWriter).Log()
-		}
-	}
-	return f
-}
+//func LoggingRequest(loggerUtil *logging.LoggerUtil, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+//	f := func(w http.ResponseWriter, r *http.Request) {
+//		if loggerUtil.IsHTTPLogging(r) {
+//			loggerUtil.LogIncomingRequest(r)
+//			w = logging.NewResponseWriter(w, loggerUtil, 2)
+//		}
+//		impl(w, r)
+//		if loggerUtil.IsHTTPLogging(r) {
+//			w.(*logging.ResponseWriter).Log()
+//		}
+//	}
+//	return f
+//}
 
 /*
 WriteEntity marshals an entity and writes the output to the http response

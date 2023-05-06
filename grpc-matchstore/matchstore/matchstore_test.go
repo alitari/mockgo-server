@@ -1,6 +1,7 @@
 package matchstore
 
 import (
+	"go.uber.org/zap/zapcore"
 	"log"
 	"net/http"
 	"net/url"
@@ -9,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/stretchr/testify/assert"
@@ -21,13 +21,13 @@ var startPort = 50051
 var matchstores []*grpcMatchstore
 
 func TestMain(m *testing.M) {
-	startMatchsroreCluster()
+	startMatchstoreCluster()
 	code := testutil.RunAndCheckCoverage("main", m, 0.25)
 	stopCluster()
 	os.Exit(code)
 }
 
-func getClusterAdresses() []string {
+func getClusterAddresses() []string {
 	var clusterAddresses []string
 	for i := 0; i < clusterSize; i++ {
 		clusterAddresses = append(clusterAddresses, "localhost:"+strconv.Itoa(startPort+i))
@@ -35,10 +35,10 @@ func getClusterAdresses() []string {
 	return clusterAddresses
 }
 
-func startMatchsroreCluster() {
-	addresses := getClusterAdresses()
+func startMatchstoreCluster() {
+	addresses := getClusterAddresses()
 	for i := 0; i < clusterSize; i++ {
-		matchStore, err := NewGrpcMatchstore(addresses, startPort+i, uint16(100), logging.NewLoggerUtil(logging.Debug))
+		matchStore, err := NewGrpcMatchstore(addresses, startPort+i, uint16(100), int(zapcore.DebugLevel))
 		if err != nil {
 			log.Fatal(err)
 		}

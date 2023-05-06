@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/alitari/mockgo-server/mockgo/kvstore"
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/alitari/mockgo-server/mockgo/mock"
 	rediskvstore "github.com/alitari/mockgo-server/redis-kvstore/kvstore"
@@ -76,13 +75,13 @@ API:
   Path prefix: '%s' ("API_PATH_PREFIX")
   BasicAuth User: '%s' ("API_USERNAME")
   BasicAuth Password: %s ("API_PASSWORD")
-  LogLevel: '%s' ("LOGLEVEL_API")
+  LogLevel: '%v' ("LOGLEVEL_API")
 
 Mock Server:
   Port: %v ("MOCK_PORT")
   Dir: '%s' ("MOCK_DIR")
   Filepattern: '%s' ("MOCK_FILEPATTERN")
-  LogLevel: '%s' ("LOGLEVEL_MOCK")
+  LogLevel: '%v' ("LOGLEVEL_MOCK")
 
 Matchstore:
   Redis Database: %d ("MATCHSTORE_REDIS_DB")
@@ -94,8 +93,8 @@ Redis:
   Address: '%s' ("REDIS_ADDRESS")
   Password: '%s' ("REDIS_PASSWORD")
 `,
-		c.APIPathPrefix, c.APIUsername, passwordInfo(c.APIPassword), logging.ParseLogLevel(c.LoglevelAPI).String(),
-		c.MockPort, c.MockDir, c.MockFilepattern, logging.ParseLogLevel(c.LoglevelMock).String(),
+		c.APIPathPrefix, c.APIUsername, passwordInfo(c.APIPassword), c.LoglevelAPI,
+		c.MockPort, c.MockDir, c.MockFilepattern, c.LoglevelMock,
 		c.MatchstoreRedisDB, c.KvstoreRedisDB, c.RedisAddress, passwordInfo(c.RedisPassword))
 
 }
@@ -136,25 +135,22 @@ func createMatchstore(configuration *Configuration) matches.Matchstore {
 }
 
 func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.RequestHandler {
-	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
 	return matches.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
-		matchstore, matchLogger)
+		matchstore, configuration.LoglevelMatchstore)
 }
 
 func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler {
-	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelKvstore))
 	kvs, err := rediskvstore.NewRedisStorage(configuration.RedisAddress, configuration.RedisPassword,
 		configuration.KvstoreRedisDB)
 	if err != nil {
 		log.Fatalf("can't initialize redis kvstore: %v", err)
 	}
-	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvs, kvstoreLogger)
+	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvs, configuration.LoglevelKvstore)
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore, funcMap template.FuncMap) *mock.RequestHandler {
-	mockLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMock))
 	mockHandler := mock.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
-		configuration.MockDir, configuration.MockFilepattern, matchstore, funcMap, mockLogger)
+		configuration.MockDir, configuration.MockFilepattern, matchstore, funcMap, configuration.LoglevelMock)
 	return mockHandler
 }
 

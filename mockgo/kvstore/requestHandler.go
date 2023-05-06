@@ -3,11 +3,11 @@ package kvstore
 import (
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"text/template"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/util"
 
 	"github.com/gorilla/mux"
@@ -18,7 +18,7 @@ RequestHandler implements an http API to access a Storage
 */
 type RequestHandler struct {
 	pathPrefix        string
-	logger            *logging.LoggerUtil
+	logger            *zap.Logger
 	storage           Storage
 	basicAuthUsername string
 	basicAuthPassword string
@@ -41,10 +41,10 @@ const (
 /*
 NewRequestHandler creates an instance of RequestHandler
 */
-func NewRequestHandler(pathPrefix, username, password string, storage Storage, logger *logging.LoggerUtil) *RequestHandler {
+func NewRequestHandler(pathPrefix, username, password string, storage Storage, logLevel int) *RequestHandler {
 	configRouter := &RequestHandler{
 		pathPrefix:        pathPrefix,
-		logger:            logger,
+		logger:            util.CreateLogger(logLevel),
 		storage:           storage,
 		basicAuthUsername: username,
 		basicAuthPassword: password,
@@ -69,13 +69,13 @@ func (r *RequestHandler) AddRoutes(router *mux.Router) {
 	storePath := baseStorePath + "/{" + pathParamStore + "}"
 	storePathWithKey := storePath + "/{" + pathParamKey + "}"
 	router.NewRoute().Name("putKVStore").Path(storePathWithKey).Methods(http.MethodPut).
-		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONContentTypeRequest(util.PathParamRequest([]string{pathParamStore, pathParamKey}, r.handlePutKVStore)))))
+		HandlerFunc(util.JSONContentTypeRequest(util.PathParamRequest([]string{pathParamStore, pathParamKey}, r.handlePutKVStore)))
 	router.NewRoute().Name("getKVStore").Path(storePathWithKey).Methods(http.MethodGet).
-		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(util.PathParamRequest([]string{pathParamStore, pathParamKey}, r.handleGetKVStore)))))
+		HandlerFunc(util.JSONAcceptRequest(util.PathParamRequest([]string{pathParamStore, pathParamKey}, r.handleGetKVStore)))
 	router.NewRoute().Name("getAllKVStore").Path(storePath).Methods(http.MethodGet).
-		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.JSONAcceptRequest(util.PathParamRequest([]string{pathParamStore}, r.handleGetAllKVStore)))))
+		HandlerFunc(util.JSONAcceptRequest(util.PathParamRequest([]string{pathParamStore}, r.handleGetAllKVStore)))
 	router.NewRoute().Name("removeKVStore").Path(storePathWithKey).Methods(http.MethodDelete).
-		HandlerFunc(util.LoggingRequest(r.logger, util.BasicAuthRequest(r.basicAuthUsername, r.basicAuthPassword, util.PathParamRequest([]string{pathParamStore, pathParamKey}, r.handleRemoveKVStore))))
+		HandlerFunc(util.PathParamRequest([]string{pathParamStore, pathParamKey}, r.handleRemoveKVStore))
 }
 
 func (r *RequestHandler) handleHealth(writer http.ResponseWriter, request *http.Request) {

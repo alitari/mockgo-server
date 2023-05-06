@@ -4,12 +4,13 @@ import (
 	context "context"
 	"encoding/json"
 	"fmt"
+	"github.com/alitari/mockgo-server/mockgo/util"
+	"go.uber.org/zap"
 	"log"
 	"net"
 	"time"
 
 	"github.com/alitari/mockgo-server/mockgo/kvstore"
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/google/uuid"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -20,7 +21,7 @@ type grpcStorage struct {
 	*kvstore.InmemoryStorage
 	clients []KVStoreClient
 	timeout time.Duration
-	logger  *logging.LoggerUtil
+	logger  *zap.Logger
 	UnimplementedKVStoreServer
 	server *grpc.Server
 }
@@ -28,8 +29,8 @@ type grpcStorage struct {
 /*
 NewGrpcStorage creates a new distributed kvstore.Storage.
 */
-func NewGrpcStorage(addresses []string, serverPort int, logger *logging.LoggerUtil) (kvstore.Storage, error) {
-	storage := &grpcStorage{id: uuid.New().String(), InmemoryStorage: kvstore.NewInmemoryStorage(), timeout: 1 * time.Second, logger: logger}
+func NewGrpcStorage(addresses []string, serverPort int, logLevel int) (kvstore.Storage, error) {
+	storage := &grpcStorage{id: uuid.New().String(), InmemoryStorage: kvstore.NewInmemoryStorage(), timeout: 1 * time.Second, logger: util.CreateLogger(logLevel)}
 	for _, address := range addresses {
 		conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
@@ -48,14 +49,14 @@ func (g *grpcStorage) startServe(port int) {
 	}
 	g.server = grpc.NewServer()
 	RegisterKVStoreServer(g.server, g)
-	g.logger.LogWhenVerbose(fmt.Sprintf("kvstore %s is serving at %v", g.id, listening.Addr()))
+	g.logger.Info(fmt.Sprintf("kvstore %s is serving at %v", g.id, listening.Addr()))
 	if err := g.server.Serve(listening); err != nil {
 		log.Fatalf("kvstore %s: can't listen to port %d: %v", g.id, port, err)
 	}
 }
 
 func (g *grpcStorage) StopServe() {
-	g.logger.LogWhenVerbose(fmt.Sprintf("stop serving kvstore: %s ", g.id))
+	g.logger.Info(fmt.Sprintf("stop serving kvstore: %s ", g.id))
 	g.server.GracefulStop()
 }
 
@@ -70,7 +71,7 @@ func (g *grpcStorage) StoreVal(ctx context.Context, storeValRequest *StoreValReq
 	if err != nil {
 		return nil, err
 	}
-	g.logger.LogWhenDebug(fmt.Sprintf("grpc storage: %s : %d bytes stored in %s with key '%s' ", g.id, len(storeValRequest.Value), storeValRequest.Storage, storeValRequest.Key))
+	g.logger.Debug(fmt.Sprintf("grpc storage: %s : %d bytes stored in %s with key '%s' ", g.id, len(storeValRequest.Value), storeValRequest.Storage, storeValRequest.Key))
 	return &StoreValResponse{}, nil
 }
 

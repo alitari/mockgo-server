@@ -11,7 +11,6 @@ import (
 	grpckvstore "github.com/alitari/mockgo-server/grpc-kvstore/kvstore"
 	"github.com/alitari/mockgo-server/grpc-matchstore/matchstore"
 	"github.com/alitari/mockgo-server/mockgo/kvstore"
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/alitari/mockgo-server/mockgo/mock"
 	"github.com/gorilla/mux"
@@ -81,30 +80,30 @@ API:
   Path prefix: '%s' ("API_PATH_PREFIX")
   BasicAuth User: '%s' ("API_USERNAME")
   BasicAuth Password: %s ("API_PASSWORD")
-  LogLevel: '%s' ("LOGLEVEL_API")
+  LogLevel: '%v' ("LOGLEVEL_API")
 
 Mock Server:
   Port: %v ("MOCK_PORT")
   Dir: '%s' ("MOCK_DIR")
   Filepattern: '%s' ("MOCK_FILEPATTERN")
-  LogLevel: '%s' ("LOGLEVEL_MOCK")
+  LogLevel: '%v' ("LOGLEVEL_MOCK")
   
 Matchstore:
   Port: %d ("MATCHSTORE_PORT")
-  LogLevel: %s ("LOGLEVEL_MATCHSTORE")
+  LogLevel: %v ("LOGLEVEL_MATCHSTORE")
   Capacity: %d ("MATCHES_CAPACITY")
 
 KVStore:
   Port: %d ("KVSTORE_PORT")
-  LogLevel: %s ("LOGLEVEL_KVSTORE")
+  LogLevel: %v ("LOGLEVEL_KVSTORE")
 
 Cluster:
   Hostnames: %v ("CLUSTER_HOSTNAMES")
 `,
-		c.APIPathPrefix, c.APIUsername, passwordMessage, logging.ParseLogLevel(c.LoglevelAPI).String(),
-		c.MockPort, c.MockDir, c.MockFilepattern, logging.ParseLogLevel(c.LoglevelMock).String(),
-		c.MatchstorePort, logging.ParseLogLevel(c.LoglevelMatchstore).String(), c.MatchesCapacity,
-		c.KvstorePort, logging.ParseLogLevel(c.LoglevelKvstore).String(),
+		c.APIPathPrefix, c.APIUsername, passwordMessage, c.LoglevelAPI,
+		c.MockPort, c.MockDir, c.MockFilepattern, c.LoglevelMock,
+		c.MatchstorePort, c.LoglevelMatchstore, c.MatchesCapacity,
+		c.KvstorePort, c.LoglevelKvstore,
 		c.ClusterHostnames)
 }
 
@@ -135,7 +134,6 @@ func createConfiguration() *Configuration {
 }
 
 func createMatchstore(configuration *Configuration) matches.Matchstore {
-	matchstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMatchstore))
 	addresses := []string{}
 
 	for _, host := range configuration.ClusterHostnames {
@@ -145,7 +143,7 @@ func createMatchstore(configuration *Configuration) matches.Matchstore {
 			addresses = append(addresses, fmt.Sprintf("%s:%d", host, configuration.MatchstorePort))
 		}
 	}
-	matchStore, err := matchstore.NewGrpcMatchstore(addresses, configuration.MatchstorePort, uint16(configuration.MatchesCapacity), matchstoreLogger)
+	matchStore, err := matchstore.NewGrpcMatchstore(addresses, configuration.MatchstorePort, uint16(configuration.MatchesCapacity), configuration.LoglevelMatchstore)
 	if err != nil {
 		log.Fatalf("can't initialize grpc matchstore: %v", err)
 	}
@@ -153,13 +151,11 @@ func createMatchstore(configuration *Configuration) matches.Matchstore {
 }
 
 func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.RequestHandler {
-	matchLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelAPI))
 	return matches.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
-		matchstore, matchLogger)
+		matchstore, configuration.LoglevelAPI)
 }
 
 func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler {
-	kvstoreLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelKvstore))
 	addresses := []string{}
 	for _, host := range configuration.ClusterHostnames {
 		if strings.Contains(host, ":") {
@@ -168,17 +164,16 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler 
 			addresses = append(addresses, fmt.Sprintf("%s:%d", host, configuration.KvstorePort))
 		}
 	}
-	kvs, err := grpckvstore.NewGrpcStorage(addresses, configuration.KvstorePort, kvstoreLogger)
+	kvs, err := grpckvstore.NewGrpcStorage(addresses, configuration.KvstorePort, configuration.LoglevelKvstore)
 	if err != nil {
 		log.Fatalf("can't initialize grpc kvstore: %v", err)
 	}
-	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvs, kvstoreLogger)
+	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvs, configuration.LoglevelKvstore)
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore, funcMap template.FuncMap) *mock.RequestHandler {
-	mockLogger := logging.NewLoggerUtil(logging.ParseLogLevel(configuration.LoglevelMock))
 	mockHandler := mock.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
-		configuration.MockDir, configuration.MockFilepattern, matchstore, funcMap, mockLogger)
+		configuration.MockDir, configuration.MockFilepattern, matchstore, funcMap, configuration.LoglevelMock)
 	return mockHandler
 }
 

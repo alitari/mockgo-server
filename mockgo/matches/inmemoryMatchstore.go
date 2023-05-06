@@ -18,10 +18,12 @@ type InMemoryMatchstore struct {
 /*
 NewInMemoryMatchstore creates a new instance of InMemoryMatchstore
 */
-func NewInMemoryMatchstore(size uint16) *InMemoryMatchstore {
-	list.New()
-	inMemoryMatchstore := &InMemoryMatchstore{matches: map[string]*list.List{}, mismatches: list.New(), matchesCount: map[string]uint64{}, size: size}
-	return inMemoryMatchstore
+func NewInMemoryMatchstore(size uint16) Matchstore {
+	return &InMemoryMatchstore{
+		matches:      map[string]*list.List{},
+		mismatches:   list.New(),
+		matchesCount: map[string]uint64{},
+		size:         size}
 }
 
 /*

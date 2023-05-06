@@ -2,12 +2,12 @@ package kvstore
 
 import (
 	"encoding/json"
+	"go.uber.org/zap/zapcore"
 	"math/rand"
 	"net/http"
 	"os"
 	"testing"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -21,8 +21,7 @@ const (
 var kvstoreHandler *RequestHandler
 
 func TestMain(m *testing.M) {
-	kvstoreLogger := logging.NewLoggerUtil(logging.Debug)
-	kvstoreHandler = NewRequestHandler("", username, password, NewInmemoryStorage(), kvstoreLogger)
+	kvstoreHandler = NewRequestHandler("", username, password, NewInmemoryStorage(), int(zapcore.DebugLevel))
 	router := mux.NewRouter()
 	kvstoreHandler.AddRoutes(router)
 	testutil.StartServing(router)
