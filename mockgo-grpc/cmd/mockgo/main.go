@@ -8,6 +8,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/alitari/mockgo-server/mockgo/util"
+
 	grpckvstore "github.com/alitari/mockgo-server/grpc-kvstore/kvstore"
 	"github.com/alitari/mockgo-server/grpc-matchstore/matchstore"
 	"github.com/alitari/mockgo-server/mockgo/kvstore"
@@ -114,7 +116,7 @@ func main() {
 	matchstore := createMatchstore(configuration)
 	matchHandler := createMatchHandler(configuration, matchstore)
 	kvStoreHandler := createKVStoreHandler(configuration)
-	mockHandler := createMockHandler(configuration, matchstore, kvStoreHandler.GetFuncMap())
+	mockHandler := createMockHandler(configuration, matchstore, nil)
 	if err := mockHandler.LoadFiles(); err != nil {
 		log.Fatalf("can't load mock files: %v", err)
 	}
@@ -151,7 +153,7 @@ func createMatchstore(configuration *Configuration) matches.Matchstore {
 }
 
 func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.RequestHandler {
-	return matches.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
+	return matches.NewRequestHandler(configuration.APIPathPrefix,
 		matchstore, configuration.LoglevelAPI)
 }
 
@@ -168,17 +170,19 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler 
 	if err != nil {
 		log.Fatalf("can't initialize grpc kvstore: %v", err)
 	}
-	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvs, configuration.LoglevelKvstore)
+	return kvstore.NewRequestHandler(configuration.APIPathPrefix, kvs, configuration.LoglevelKvstore)
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore, funcMap template.FuncMap) *mock.RequestHandler {
-	mockHandler := mock.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
+	mockHandler := mock.NewRequestHandler(configuration.APIPathPrefix,
 		configuration.MockDir, configuration.MockFilepattern, matchstore, funcMap, configuration.LoglevelMock)
 	return mockHandler
 }
 
 func startServing(configuration *Configuration, requestHandlers ...RequestHandler) error {
 	router := mux.NewRouter()
+	//router.Use(loggingMiddleware)
+	router.Use(util.BasicAuthMiddleware(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword))
 	for _, handler := range requestHandlers {
 		handler.AddRoutes(router)
 	}

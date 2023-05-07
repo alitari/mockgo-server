@@ -21,7 +21,7 @@ const (
 var kvstoreHandler *RequestHandler
 
 func TestMain(m *testing.M) {
-	kvstoreHandler = NewRequestHandler("", username, password, NewInmemoryStorage(), int(zapcore.DebugLevel))
+	kvstoreHandler = NewRequestHandler("", NewInmemoryStorage(), int(zapcore.DebugLevel))
 	router := mux.NewRouter()
 	kvstoreHandler.AddRoutes(router)
 	testutil.StartServing(router)

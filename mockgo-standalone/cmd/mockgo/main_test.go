@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
 	"net/http"
-	"os"
 	"testing"
+
+	"github.com/gorilla/mux"
 
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/stretchr/testify/assert"
@@ -12,30 +12,74 @@ import (
 
 var apiPassword = testutil.RandString(10)
 
-func TestMain(m *testing.M) {
-	os.Setenv("LOGLEVEL_API", "-1")
-	os.Setenv("LOGLEVEL_MOCK", "-1")
-	os.Setenv("API_PASSWORD", apiPassword)
-	os.Setenv("MOCK_DIR", "../../../test/main")
-	os.Setenv("MATCHES_RECORD_REQUESTS", "true")
-	os.Setenv("MISMATCHES_RECORD_REQUESTS", "true")
-	router, _, err := setupRouter()
-	if err != nil {
-		log.Fatalf("can't setup router : %v", err)
+// func TestMain(m *testing.M) {
+// 	os.Setenv("LOGLEVEL_API", "-1")
+// 	os.Setenv("LOGLEVEL_MOCK", "-1")
+// 	os.Setenv("API_PASSWORD", apiPassword)
+// 	os.Setenv("MOCK_DIR", "../../../test/main")
+// 	os.Setenv("MATCHES_RECORD_REQUESTS", "true")
+// 	os.Setenv("MISMATCHES_RECORD_REQUESTS", "true")
+// 	startServe = func(router *mux.Router) {
+// 		testutil.StartServing(router)
+// 	}
+
+// 	main()
+// 	m.Run()
+// 	testutil.StopServing()
+// }
+
+func setupMain(t *testing.T) {
+	env := map[string]string{
+		"LOGLEVEL_API":  "-1",
+		"LOGLEVEL_MOCK": "-1",
+		"MOCK_DIR":      "../../../test/main",
+		"API_PASSWORD":  apiPassword,
 	}
-	testutil.StartServing(router)
-	code := testutil.RunAndCheckCoverage("main_test", m, 0.60)
-	testutil.StopServing()
-	os.Exit(code)
+	for key, value := range env {
+		t.Setenv(key, value)
+	}
+	initializations()
+	startServe = func(router *mux.Router) {
+		testutil.StartServing(router)
+	}
+	main()
 }
 
 func TestMain_health(t *testing.T) {
+	setupMain(t)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
 		testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/health", testutil.CreateHeader(), ""), http.StatusOK))
+	testutil.StopServing()
+}
+
+func TestMain_basicAuth(t *testing.T) {
+	setupMain(t)
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
+		testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/kvstore/some", testutil.CreateHeader().WithJSONAccept(), ""), http.StatusUnauthorized))
+	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
+		testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/matches/helloId", testutil.CreateHeader().WithJSONAccept(), ""), http.StatusUnauthorized))
+	testutil.StopServing()
 }
 
 func TestMain_metrics(t *testing.T) {
-	matchRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/hello", testutil.CreateHeader(), "")
+	// 	os.Setenv("LOGLEVEL_API", "-1")
+	// 	os.Setenv("LOGLEVEL_MOCK", "-1")
+	// 	os.Setenv("API_PASSWORD", apiPassword)
+	// 	os.Setenv("MOCK_DIR", "../../../test/main")
+	// 	os.Setenv("MATCHES_RECORD_REQUESTS", "true")
+	// 	os.Setenv("MISMATCHES_RECORD_REQUESTS", "true")
+
+	// LoglevelAPI     int    `default:"-1" split_words:"true"`
+	// 	LoglevelMock    int    `default:"-1" split_words:"true"`
+	// 	MockPort        int    `default:"8081" split_words:"true"`
+	// 	MockDir         string `default:"." split_words:"true"`
+	// 	MockFilepattern string `default:"*-mock.*" split_words:"true"`
+	// 	MatchesCapacity int    `default:"1000" split_words:"true"`
+	// 	APIPathPrefix   string `default:"/__" split_words:"true"`
+	// 	APIUsername     string `default:"mockgo" split_words:"true"`
+	// 	APIPassword     string `default:"password" split_words:"true"`
+	setupMain(t)
+	matchRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/hello", testutil.CreateHeader().WithAuth("mockgo", apiPassword), "")
 	assertFunc := func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.Equal(t, "{\n    \"hello\": \"from Mockgo!\"\n}", responseBody)
@@ -43,10 +87,10 @@ func TestMain_metrics(t *testing.T) {
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, matchRequest, assertFunc))
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, matchRequest, assertFunc))
 
-	mismatchRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/mismatch", testutil.CreateHeader(), "")
+	mismatchRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/mismatch", testutil.CreateHeader().WithAuth("mockgo", apiPassword), "")
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, mismatchRequest, http.StatusNotFound))
 
-	metricsRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/metrics", testutil.CreateHeader(), "")
+	metricsRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/metrics", testutil.CreateHeader().WithAuth("mockgo", apiPassword), "")
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, metricsRequest, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.Contains(t, responseBody, "# HELP matches Number of matches of an endpoint")
@@ -56,9 +100,11 @@ func TestMain_metrics(t *testing.T) {
 		assert.Contains(t, responseBody, "# TYPE mismatches counter")
 		assert.Contains(t, responseBody, "mismatches")
 	}))
+	testutil.StopServing()
 }
 
 func TestMain_templateFunctionsPutKVStore(t *testing.T) {
+	setupMain(t)
 	putKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/setkvstore/mainstore/mykey", testutil.CreateHeader(), `{ "mainTest1": "mainTest1Value" }`)
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, putKVStoreRequest, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
@@ -76,10 +122,12 @@ func TestMain_templateFunctionsPutKVStore(t *testing.T) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 		assert.Equal(t, `{ "mainTest1": "mainTest1Value" }`, responseBody)
 	}))
+	testutil.StopServing()
 
 }
 
 func TestMain_templateFunctionsGetKVStore(t *testing.T) {
+	setupMain(t)
 	putKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/__/kvstore/mainstore/mykey", testutil.CreateHeader().WithJSONContentType().WithAuth("mockgo", apiPassword), `{ "key": "value" }`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, putKVStoreRequest, http.StatusNoContent))
 
@@ -94,9 +142,11 @@ func TestMain_templateFunctionsGetKVStore(t *testing.T) {
 }`
 		assert.Equal(t, expectedResponseBody, responseBody)
 	}))
+	testutil.StopServing()
 }
 
 func TestMain_templateFunctionsGetKVStoreInline(t *testing.T) {
+	setupMain(t)
 	putKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/__/kvstore/mainstoreInline/mykeyInline", testutil.CreateHeader().WithJSONContentType().WithAuth("mockgo", apiPassword), `{ "key": "valueInline" }`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, putKVStoreRequest, http.StatusNoContent))
 
@@ -111,10 +161,12 @@ func TestMain_templateFunctionsGetKVStoreInline(t *testing.T) {
 }`
 		assert.Equal(t, expectedResponseBody, responseBody)
 	}))
+	testutil.StopServing()
 
 }
 
 func TestMain_templateFunctionsRemoveKVStore(t *testing.T) {
+	setupMain(t)
 	putKVStoreRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/__/kvstore/mainstore/anotherkey", testutil.CreateHeader().WithJSONContentType().WithAuth("mockgo", apiPassword), `{ "key": "value" }`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, putKVStoreRequest, http.StatusNoContent))
 
@@ -132,18 +184,22 @@ func TestMain_templateFunctionsRemoveKVStore(t *testing.T) {
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getKVStoreRequest, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusNotFound, response.StatusCode)
 	}))
+	testutil.StopServing()
 }
 
 func TestMain_templateFunctionsResponseCode(t *testing.T) {
+	setupMain(t)
 	getStatusCodeRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/statusCode/201", testutil.CreateHeader(), "Alex")
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getStatusCodeRequest, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusCreated, response.StatusCode)
 		assert.Equal(t, "Alex", responseBody)
 		assert.Equal(t, []string{"/statusCode/201"}, response.Header["Header1"])
 	}))
+	testutil.StopServing()
 }
 
 func TestMain_templateFunctionsQueryParams(t *testing.T) {
+	setupMain(t)
 	getQueryParamsRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/queryParams?foo=bar&foo2=bar2", testutil.CreateHeader(), "")
 	assert.NoError(t, testutil.AssertResponseOfRequestCall(t, getQueryParamsRequest, func(response *http.Response, responseBody string) {
 		assert.Equal(t, http.StatusOK, response.StatusCode)
@@ -153,9 +209,11 @@ func TestMain_templateFunctionsQueryParams(t *testing.T) {
 }`
 		assert.Equal(t, expectedResponseBody, responseBody)
 	}))
+	testutil.StopServing()
 }
 
 func TestMain_templateFunctionsPeople(t *testing.T) {
+	setupMain(t)
 	storeWrongAlexRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/storePeople", testutil.CreateHeader(), `{ "wrongkey": "Alex", "age": 55 }`)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t, storeWrongAlexRequest, http.StatusBadRequest))
 	storeAlexRequest := testutil.CreateOutgoingRequest(t, http.MethodPut, "/storePeople", testutil.CreateHeader(), `{ "name": "Alex", "age": 55 }`)
@@ -188,4 +246,5 @@ func TestMain_templateFunctionsPeople(t *testing.T) {
   }
 }`, responseBody)
 	}))
+	testutil.StopServing()
 }

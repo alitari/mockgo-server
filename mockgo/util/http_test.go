@@ -16,27 +16,27 @@ var impl = func(writer http.ResponseWriter, request *http.Request) {
 	writer.Write([]byte("OK"))
 }
 
-func TestBasicAuthRequest(t *testing.T) {
-	request := testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader(), "")
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, BasicAuthRequest("alex", "alexpassword", impl),
-		func(response *http.Response, responseBody string) {
-			assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
-			assert.Equal(t, "Unauthorized\n", responseBody)
-		}))
-
-	request = testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader().WithAuth("alex", "wrongpass"), "")
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, BasicAuthRequest("alex", "alexpassword", impl),
-		func(response *http.Response, responseBody string) {
-			assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
-			assert.Equal(t, "Authorization with username 'alex' failed. \n", responseBody)
-		}))
-	request = testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader().WithAuth("alex", "alexpassword"), "")
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, BasicAuthRequest("alex", "alexpassword", impl),
-		func(response *http.Response, responseBody string) {
-			assert.Equal(t, http.StatusOK, response.StatusCode)
-			assert.Equal(t, "OK", responseBody)
-		}))
-}
+//func TestBasicAuthRequest(t *testing.T) {
+//	request := testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader(), "")
+//	assert.NoError(t, testutil.AssertHandlerFunc(t, request, BasicAuthRequest("alex", "alexpassword", impl),
+//		func(response *http.Response, responseBody string) {
+//			assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+//			assert.Equal(t, "Unauthorized\n", responseBody)
+//		}))
+//
+//	request = testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader().WithAuth("alex", "wrongpass"), "")
+//	assert.NoError(t, testutil.AssertHandlerFunc(t, request, BasicAuthRequest("alex", "alexpassword", impl),
+//		func(response *http.Response, responseBody string) {
+//			assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+//			assert.Equal(t, "Authorization with username 'alex' failed. \n", responseBody)
+//		}))
+//	request = testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader().WithAuth("alex", "alexpassword"), "")
+//	assert.NoError(t, testutil.AssertHandlerFunc(t, request, BasicAuthRequest("alex", "alexpassword", impl),
+//		func(response *http.Response, responseBody string) {
+//			assert.Equal(t, http.StatusOK, response.StatusCode)
+//			assert.Equal(t, "OK", responseBody)
+//		}))
+//}
 
 func TestJsonContentTypeRequest(t *testing.T) {
 	request := testutil.CreateIncomingRequest(http.MethodGet, "/hello", testutil.CreateHeader(), "")

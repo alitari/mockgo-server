@@ -68,7 +68,7 @@ MOCK_DIR=$(pwd)/test/mocks ./$MOCKGO_NAME
 ### option 2: go install
 
 ```bash
-go install github.com/alitari/mockgo-server/mockgo-$MOCKGO_VARIANT/cmd/mockgo@latest
+go install github.com/alitari/mockgo-server/mockgo-$MOCKGO_VARIANT/starter/mockgo@latest
 MOCK_DIR=$(pwd)/test/mocks mockgo
 ```
 

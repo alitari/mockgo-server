@@ -23,13 +23,11 @@ type RequestHandler struct {
 /*
 NewRequestHandler creates an instance of RequestHandler
 */
-func NewRequestHandler(pathPrefix, username, password string, matchStore Matchstore, logLevel int) *RequestHandler {
+func NewRequestHandler(pathPrefix string, matchStore Matchstore, logLevel int) *RequestHandler {
 	configRouter := &RequestHandler{
-		pathPrefix:        pathPrefix,
-		matchStore:        matchStore,
-		logger:            util.CreateLogger(logLevel),
-		basicAuthUsername: username,
-		basicAuthPassword: password,
+		pathPrefix: pathPrefix,
+		matchStore: matchStore,
+		logger:     util.CreateLogger(logLevel),
 	}
 	return configRouter
 }

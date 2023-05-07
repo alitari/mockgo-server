@@ -2,12 +2,8 @@ package mock
 
 import (
 	"bytes"
-	"crypto/subtle"
 	"encoding/json"
 	"fmt"
-	sprig "github.com/Masterminds/sprig/v3"
-	"github.com/alitari/mockgo-server/mockgo/util"
-	"go.uber.org/zap"
 	"io"
 	"math"
 	"net/http"
@@ -18,6 +14,10 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	sprig "github.com/Masterminds/sprig/v3"
+	"github.com/alitari/mockgo-server/mockgo/util"
+	"go.uber.org/zap"
 
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/prometheus/client_golang/prometheus"
@@ -53,8 +53,6 @@ RequestHandler implements an http server for mock endpoints
 */
 type RequestHandler struct {
 	pathPrefix      string
-	username        string
-	password        string
 	mockDir         string
 	mockFilepattern string
 	logger          *zap.Logger
@@ -66,11 +64,9 @@ type RequestHandler struct {
 /*
 NewRequestHandler creates an instance of RequestHandler
 */
-func NewRequestHandler(pathPrefix, username, password, mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logLevel int) *RequestHandler {
+func NewRequestHandler(pathPrefix string, mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logLevel int) *RequestHandler {
 	mockRouter := &RequestHandler{
 		pathPrefix:      pathPrefix,
-		username:        username,
-		password:        password,
 		mockDir:         mockDir,
 		mockFilepattern: mockFilepattern,
 		logger:          util.CreateLogger(logLevel),
@@ -97,7 +93,7 @@ var (
 	)
 )
 
-// RegisterMetrics registers the metrics for prometheus
+// RegisterMetrics registers the prometheus metrics
 func RegisterMetrics() error {
 	if err := prometheus.Register(matchesMetric); err != nil {
 		return err
@@ -214,52 +210,34 @@ AddRoutes adds mux.Routes for the http API to a given mux.Router
 */
 func (r *RequestHandler) AddRoutes(router *mux.Router) {
 	var matchReload bool
-	var reloadResponseStatusCode int
 	var endPoint *Endpoint
 	var match *matches.Match
 	var requestPathParam map[string]string
 	var queryParams map[string]string
 	route := router.MatcherFunc(func(request *http.Request, routematch *mux.RouteMatch) bool {
-		matchReload, reloadResponseStatusCode = r.matchReloadRequest(request)
-		if matchReload {
+		if request.Method == http.MethodPost && request.URL.Path == r.pathPrefix+"/reload" {
+			matchReload = true
 			return true
 		}
+		matchReload = false
 		endPoint, match, requestPathParam, queryParams = r.matchRequestToEndpoint(request)
 		return endPoint != nil
 	})
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if matchReload {
-			if reloadResponseStatusCode == http.StatusOK {
-				r.logger.Info("Reloading mock files...")
-				err := r.LoadFiles()
-				if err != nil {
-					r.logger.Error("Error reloading mock files", zap.Error(err))
-					reloadResponseStatusCode = http.StatusInternalServerError
-				} else {
-					r.logger.Info("Reloaded mock files successfully.")
-				}
+			r.logger.Info("Reloading mock files...")
+			err := r.LoadFiles()
+			if err != nil {
+				r.logger.Error("Error reloading mock files", zap.Error(err))
+				writer.WriteHeader(http.StatusInternalServerError)
+			} else {
+				r.logger.Info("Reloaded mock files successfully.")
+				writer.WriteHeader(http.StatusOK)
 			}
-			writer.WriteHeader(reloadResponseStatusCode)
 		} else {
 			r.renderResponse(writer, request, endPoint, match, requestPathParam, queryParams)
 		}
 	})
-}
-
-func (r *RequestHandler) matchReloadRequest(request *http.Request) (bool, int) {
-	if request.Method == http.MethodPost && request.URL.Path == r.pathPrefix+"/reload" {
-		username, password, ok := request.BasicAuth()
-		if ok {
-			usernameMatch := username == r.username
-			passwordMatch := subtle.ConstantTimeCompare([]byte(password), []byte(r.password)) == 1
-			if usernameMatch && passwordMatch {
-				return true, http.StatusOK
-			}
-			return true, http.StatusUnauthorized
-		}
-		return true, http.StatusUnauthorized
-	}
-	return false, -1
 }
 
 func (r *RequestHandler) registerEndpoint(endpoint *Endpoint, sn *epSearchNode) {

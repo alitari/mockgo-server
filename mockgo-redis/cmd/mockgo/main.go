@@ -2,6 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"text/template"
+
 	"github.com/alitari/mockgo-server/mockgo/kvstore"
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/alitari/mockgo-server/mockgo/mock"
@@ -10,10 +15,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"log"
-	"net/http"
-	"strconv"
-	"text/template"
 )
 
 const banner = `
@@ -106,7 +107,7 @@ func main() {
 	matchstore := createMatchstore(configuration)
 	matchHandler := createMatchHandler(configuration, matchstore)
 	kvStoreHandler := createKVStoreHandler(configuration)
-	mockHandler := createMockHandler(configuration, matchstore, kvStoreHandler.GetFuncMap())
+	mockHandler := createMockHandler(configuration, matchstore, nil)
 	if err := mockHandler.LoadFiles(); err != nil {
 		log.Fatalf("can't load mock files: %v", err)
 	}
@@ -135,7 +136,7 @@ func createMatchstore(configuration *Configuration) matches.Matchstore {
 }
 
 func createMatchHandler(configuration *Configuration, matchstore matches.Matchstore) *matches.RequestHandler {
-	return matches.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
+	return matches.NewRequestHandler(configuration.APIPathPrefix,
 		matchstore, configuration.LoglevelMatchstore)
 }
 
@@ -145,11 +146,11 @@ func createKVStoreHandler(configuration *Configuration) *kvstore.RequestHandler 
 	if err != nil {
 		log.Fatalf("can't initialize redis kvstore: %v", err)
 	}
-	return kvstore.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword, kvs, configuration.LoglevelKvstore)
+	return kvstore.NewRequestHandler(configuration.APIPathPrefix, kvs, configuration.LoglevelKvstore)
 }
 
 func createMockHandler(configuration *Configuration, matchstore matches.Matchstore, funcMap template.FuncMap) *mock.RequestHandler {
-	mockHandler := mock.NewRequestHandler(configuration.APIPathPrefix, configuration.APIUsername, configuration.APIPassword,
+	mockHandler := mock.NewRequestHandler(configuration.APIPathPrefix,
 		configuration.MockDir, configuration.MockFilepattern, matchstore, funcMap, configuration.LoglevelMock)
 	return mockHandler
 }

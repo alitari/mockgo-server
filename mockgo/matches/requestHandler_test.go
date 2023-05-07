@@ -45,8 +45,8 @@ func (s *ErrorMatchstore) DeleteMismatches() error {
 	return fmt.Errorf("error in delete mismatches")
 }
 
-var matchesRequestHandler = NewRequestHandler("", username, password, NewInMemoryMatchstore(uint16(100)), int(zapcore.DebugLevel))
-var matchesRequestHandlerErroneous = NewRequestHandler("", username, password, &ErrorMatchstore{}, int(zapcore.DebugLevel))
+var matchesRequestHandler = NewRequestHandler("", NewInMemoryMatchstore(uint16(100)), int(zapcore.DebugLevel))
+var matchesRequestHandlerErroneous = NewRequestHandler("", &ErrorMatchstore{}, int(zapcore.DebugLevel))
 
 func TestMain(m *testing.M) {
 	router := mux.NewRouter()

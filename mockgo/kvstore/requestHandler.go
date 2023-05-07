@@ -3,10 +3,10 @@ package kvstore
 import (
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
-	"text/template"
+
+	"go.uber.org/zap"
 
 	"github.com/alitari/mockgo-server/mockgo/util"
 
@@ -41,22 +41,13 @@ const (
 /*
 NewRequestHandler creates an instance of RequestHandler
 */
-func NewRequestHandler(pathPrefix, username, password string, storage Storage, logLevel int) *RequestHandler {
+func NewRequestHandler(pathPrefix string, storage Storage, logLevel int) *RequestHandler {
 	configRouter := &RequestHandler{
-		pathPrefix:        pathPrefix,
-		logger:            util.CreateLogger(logLevel),
-		storage:           storage,
-		basicAuthUsername: username,
-		basicAuthPassword: password,
+		pathPrefix: pathPrefix,
+		logger:     util.CreateLogger(logLevel),
+		storage:    storage,
 	}
 	return configRouter
-}
-
-/*
-GetFuncMap returns template functions for accessing the Storage
-*/
-func (r *RequestHandler) GetFuncMap() template.FuncMap {
-	return NewKVStoreTemplateFuncMap(r.storage)
 }
 
 /*
