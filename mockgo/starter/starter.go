@@ -2,6 +2,7 @@ package starter
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/alitari/mockgo-server/mockgo/mock"
 	"github.com/alitari/mockgo-server/mockgo/util"
 	"github.com/gorilla/mux"
+	"github.com/kelseyhightower/envconfig"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
@@ -28,21 +30,6 @@ RequestHandler abstraction of a set of http handler funcs
 */
 type RequestHandler interface {
 	AddRoutes(router *mux.Router)
-}
-
-/*
-Configuration is the configuration model of the server which is defined via environment variables
-*/
-type Configuration interface {
-	Info() string
-	Port() int
-	LogLevelAPI() int
-	LogLevelMock() int
-	PathPrefix() string
-	User() string
-	Password() string
-	MockDirectory() string
-	MockFilePattern() string
 }
 
 // BasicConfiguration is the basic configuration model of the server which is defined via environment variables
@@ -88,65 +75,39 @@ Matches:
 		c.MatchesCapacity)
 }
 
-// Port returns the port of the server
-func (c *BasicConfiguration) Port() int {
-	return c.MockPort
+// BasicConfig is the basic mock configuration
+var BasicConfig *BasicConfiguration
+
+// logger is the basic logger
+var logger *zap.Logger
+
+func init() {
+	BasicConfig = &BasicConfiguration{}
+	if err := envconfig.Process("", BasicConfig); err != nil {
+		log.Fatal("can't create configuration", zap.Error(err))
+	}
 }
 
-// LogLevelAPI returns the loglevel of the api
-func (c *BasicConfiguration) LogLevelAPI() int {
-	return c.LoglevelAPI
-}
-
-// LogLevelMock returns the loglevel of the mock server
-func (c *BasicConfiguration) LogLevelMock() int {
-	return c.LoglevelMock
-}
-
-// PathPrefix returns the path prefix of the api
-func (c *BasicConfiguration) PathPrefix() string {
-	return c.APIPathPrefix
-}
-
-// MockDirectory returns the directory where the mock files are stored
-func (c *BasicConfiguration) MockDirectory() string {
-	return c.MockDir
-}
-
-// MockFilePattern returns the file pattern of the mock files
-func (c *BasicConfiguration) MockFilePattern() string {
-	return c.MockFilepattern
-}
-
-// User returns the user of the basic auth
-func (c *BasicConfiguration) User() string {
-	return c.APIUsername
-}
-
-// Password returns the password of the basic auth
-func (c *BasicConfiguration) Password() string {
-	return c.APIPassword
-}
-
-// SetupRouter sets up the router with the given configuration
-func SetupRouter(config Configuration, variant, versionTag string, logger *zap.Logger, matchStore matches.Matchstore, kvStore kvstore.Storage) (*mux.Router, error) {
+// SetupRouter sets up the router with the given configuration, allows to control the server start
+func SetupRouter(variant, versionTag string, matchStore matches.Matchstore, kvStore kvstore.Storage, serve func(router *mux.Router)) {
+	logger = util.CreateLogger(BasicConfig.LoglevelAPI)
 	fmt.Printf(banner, variant, versionTag)
-	logger.Info(config.Info())
+	logger.Info(BasicConfig.Info())
 	router := mux.NewRouter()
-	router.NewRoute().Name("health").Path(config.PathPrefix() + "/health").Methods(http.MethodGet).
+	router.NewRoute().Name("health").Path(BasicConfig.APIPathPrefix + "/health").Methods(http.MethodGet).
 		HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			writer.WriteHeader(http.StatusOK)
 			writer.Write([]byte("OK"))
 		})
 
-	router.Use(util.BasicAuthMiddleware(config.PathPrefix(), config.User(), config.Password()))
-	mockHandler := mock.NewRequestHandler(config.PathPrefix(), config.MockDirectory(), config.MockFilePattern(), matchStore,
-		kvstore.NewKVStoreTemplateFuncMap(kvStore), config.LogLevelMock())
+	router.Use(util.BasicAuthMiddleware(BasicConfig.APIPathPrefix, BasicConfig.APIUsername, BasicConfig.APIPassword))
+	mockHandler := mock.NewRequestHandler(BasicConfig.APIPathPrefix, BasicConfig.MockDir, BasicConfig.MockFilepattern, matchStore,
+		kvstore.NewKVStoreTemplateFuncMap(kvStore), BasicConfig.LoglevelMock)
 	if err := mockHandler.LoadFiles(); err != nil {
-		return nil, fmt.Errorf("can't load mockfiles: %v", err)
+		logger.Fatal("can't load mockfiles", zap.Error(err))
 	}
-	matchHandler := matches.NewRequestHandler(config.PathPrefix(), matchStore, config.LogLevelAPI())
-	kvHandler := kvstore.NewRequestHandler(config.PathPrefix(), kvStore, config.LogLevelAPI())
+	matchHandler := matches.NewRequestHandler(BasicConfig.APIPathPrefix, matchStore, BasicConfig.LoglevelAPI)
+	kvHandler := kvstore.NewRequestHandler(BasicConfig.APIPathPrefix, kvStore, BasicConfig.LoglevelAPI)
 
 	mockHandler.AddRoutes(router)
 	matchHandler.AddRoutes(router)
@@ -155,12 +116,15 @@ func SetupRouter(config Configuration, variant, versionTag string, logger *zap.L
 	mock.RegisterMetrics()
 	router.NewRoute().Name("metrics").Path("/__/metrics").Handler(promhttp.Handler())
 
-	return router, nil
+	if serve == nil {
+		serve = DefaultServe
+	}
+	serve(router)
 }
 
-// Serve starts the server with the given configuration
-func Serve(config Configuration, router *mux.Router, logger *zap.Logger) {
-	server := &http.Server{Addr: ":" + strconv.Itoa(config.Port()), Handler: router}
+// DefaultServe starts the default http server
+func DefaultServe(router *mux.Router) {
+	server := &http.Server{Addr: ":" + strconv.Itoa(BasicConfig.MockPort), Handler: router}
 	logger.Info("serving http  ...", zap.String("address", server.Addr))
 	err := server.ListenAndServe()
 	if err != nil {

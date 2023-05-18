@@ -1,11 +1,15 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/kelseyhightower/envconfig"
+	"go.uber.org/zap"
 
+	"github.com/alitari/mockgo-server/mockgo/starter"
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,8 +26,12 @@ func setupMain(t *testing.T) {
 	for key, value := range env {
 		t.Setenv(key, value)
 	}
-	initializations()
-	startServe = func(router *mux.Router) {
+	starter.BasicConfig = &starter.BasicConfiguration{}
+	if err := envconfig.Process("", starter.BasicConfig); err != nil {
+		log.Fatal("can't create configuration", zap.Error(err))
+	}
+
+	serve = func(router *mux.Router) {
 		testutil.StartServing(router)
 	}
 	main()
