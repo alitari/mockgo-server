@@ -2,7 +2,6 @@ package matches
 
 import (
 	"fmt"
-	"go.uber.org/zap/zapcore"
 	"net/http"
 	"os"
 	"testing"
@@ -45,8 +44,8 @@ func (s *ErrorMatchstore) DeleteMismatches() error {
 	return fmt.Errorf("error in delete mismatches")
 }
 
-var matchesRequestHandler = NewRequestHandler("", NewInMemoryMatchstore(uint16(100)), int(zapcore.DebugLevel))
-var matchesRequestHandlerErroneous = NewRequestHandler("", &ErrorMatchstore{}, int(zapcore.DebugLevel))
+var matchesRequestHandler = NewRequestHandler("", NewInMemoryMatchstore(uint16(100)), "DEBUG")
+var matchesRequestHandlerErroneous = NewRequestHandler("", &ErrorMatchstore{}, "DEBUG")
 
 func TestMain(m *testing.M) {
 	router := mux.NewRouter()

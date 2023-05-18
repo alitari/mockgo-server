@@ -34,8 +34,8 @@ type RequestHandler interface {
 
 // BasicConfiguration is the basic configuration model of the server which is defined via environment variables
 type BasicConfiguration struct {
-	LoglevelAPI     int    `default:"-1" split_words:"true"`
-	LoglevelMock    int    `default:"-1" split_words:"true"`
+	LoglevelAPI     string `default:"-1" split_words:"true"`
+	LoglevelMock    string `default:"-1" split_words:"true"`
 	MockPort        int    `default:"8081" split_words:"true"`
 	MockDir         string `default:"." split_words:"true"`
 	MockFilepattern string `default:"*-mock.*" split_words:"true"`

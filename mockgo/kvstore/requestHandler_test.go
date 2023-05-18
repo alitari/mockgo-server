@@ -2,7 +2,6 @@ package kvstore
 
 import (
 	"encoding/json"
-	"go.uber.org/zap/zapcore"
 	"math/rand"
 	"net/http"
 	"os"
@@ -21,7 +20,7 @@ const (
 var kvstoreHandler *RequestHandler
 
 func TestMain(m *testing.M) {
-	kvstoreHandler = NewRequestHandler("", NewInmemoryStorage(), int(zapcore.DebugLevel))
+	kvstoreHandler = NewRequestHandler("", NewInmemoryStorage(), "DEBUG")
 	router := mux.NewRouter()
 	kvstoreHandler.AddRoutes(router)
 	testutil.StartServing(router)

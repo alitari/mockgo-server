@@ -29,13 +29,9 @@ matches:
 # 0 only errors, 1 verbose , 2 debug
 logging: 
   api:
-    level: 1
+    level: INFO
   mock:
-    level: 1
-  kvstore:
-    level: 1
-  matchstore:
-    level: 1
+    level: INFO
 
 replicas: 1
 

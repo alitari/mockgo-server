@@ -23,7 +23,7 @@ type RequestHandler struct {
 /*
 NewRequestHandler creates an instance of RequestHandler
 */
-func NewRequestHandler(pathPrefix string, matchStore Matchstore, logLevel int) *RequestHandler {
+func NewRequestHandler(pathPrefix string, matchStore Matchstore, logLevel string) *RequestHandler {
 	configRouter := &RequestHandler{
 		pathPrefix: pathPrefix,
 		matchStore: matchStore,

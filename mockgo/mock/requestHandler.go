@@ -64,7 +64,7 @@ type RequestHandler struct {
 /*
 NewRequestHandler creates an instance of RequestHandler
 */
-func NewRequestHandler(pathPrefix string, mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logLevel int) *RequestHandler {
+func NewRequestHandler(pathPrefix string, mockDir, mockFilepattern string, matchstore matches.Matchstore, funcMap template.FuncMap, logLevel string) *RequestHandler {
 	mockRouter := &RequestHandler{
 		pathPrefix:      pathPrefix,
 		mockDir:         mockDir,

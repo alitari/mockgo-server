@@ -10,8 +10,6 @@ import (
 	"regexp"
 	"testing"
 
-	"go.uber.org/zap/zapcore"
-
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/gorilla/mux"
@@ -38,7 +36,7 @@ type mockTestCase struct {
 var router = mux.NewRouter()
 
 func TestMain(m *testing.M) {
-	mockRequestHandler := NewRequestHandler("/__", "../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+	mockRequestHandler := NewRequestHandler("/__", "../../test/mocks", "*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	if err := mockRequestHandler.LoadFiles(); err != nil {
 		log.Fatal(err)
 	}
@@ -56,25 +54,25 @@ func TestMain(m *testing.M) {
 
 func TestMockRequestHandler_LoadFiles_dir_not_exists(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", "pathnotexists", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "lstat pathnotexists: no such file or directory")
 }
 
 func TestMockRequestHandler_ReadMockfile_wrong_requestBody(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", "../../test/mocksWithError/wrongRequestBodyRegexp",
-		"*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+		"*-mock.yaml", matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "error parsing regexp: missing closing ]: `[a`")
 }
 
 func TestMockRequestHandler_ReadMockfile_wrong_yaml(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", "../../test/mocksWithError/wrongYaml", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	assert.ErrorContains(t, mockRequestHandlerWithError.LoadFiles(), "yaml: line 3: mapping values are not allowed in this context")
 }
 
 func TestMockRequestHandler_InitResponseTemplates_doubleBody(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", "../../test/mocksWithError/doubleResponseBody", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	err := mockRequestHandlerWithError.LoadFiles()
 	assert.NoError(t, err)
 	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
@@ -83,7 +81,7 @@ func TestMockRequestHandler_InitResponseTemplates_doubleBody(t *testing.T) {
 
 func TestMockRequestHandler_InitResponseTemplates_bodyfilename_not_exists(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", "../../test/mocksWithError/bodyfilenameDoesNotExist", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	err := mockRequestHandlerWithError.LoadFiles()
 	assert.NoError(t, err)
 	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
@@ -92,7 +90,7 @@ func TestMockRequestHandler_InitResponseTemplates_bodyfilename_not_exists(t *tes
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseBodyTemplate(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", "../../test/mocksWithError/wrongResponseBodyTemplate", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	err := mockRequestHandlerWithError.LoadFiles()
 	assert.NoError(t, err)
 	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
@@ -101,7 +99,7 @@ func TestMockRequestHandler_InitResponseTemplates_wrongResponseBodyTemplate(t *t
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseStatusTemplate(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", "../../test/mocksWithError/wrongResponseStatusTemplate", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	err := mockRequestHandlerWithError.LoadFiles()
 	assert.NoError(t, err)
 	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
@@ -110,7 +108,7 @@ func TestMockRequestHandler_InitResponseTemplates_wrongResponseStatusTemplate(t 
 
 func TestMockRequestHandler_InitResponseTemplates_wrongResponseHeaderTemplate(t *testing.T) {
 	mockRequestHandlerWithError := NewRequestHandler("", "../../test/mocksWithError/wrongResponseHeaderTemplate", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	err := mockRequestHandlerWithError.LoadFiles()
 	assert.NoError(t, err)
 	assert.Len(t, mockRequestHandlerWithError.EpSearchNode.searchNodes, 0)
@@ -119,14 +117,14 @@ func TestMockRequestHandler_InitResponseTemplates_wrongResponseHeaderTemplate(t 
 
 func TestMockRequestHandler_matchBody_readerror(t *testing.T) {
 	mockRequestHandler := NewRequestHandler("", "../../test/mocks", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	errorRequest := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodGet, "/path", testutil.CreateHeader())
 	assert.False(t, mockRequestHandler.matchBody(&MatchRequest{BodyRegexp: regexp.MustCompile(`^`)}, errorRequest))
 }
 
 func TestMockRequestHandler_renderResponse_readerror(t *testing.T) {
 	mockRequestHandler := NewRequestHandler("", "../../test/mocks", "*-mock.yaml",
-		matches.NewInMemoryMatchstore(uint16(100)), nil, int(zapcore.DebugLevel))
+		matches.NewInMemoryMatchstore(uint16(100)), nil, "DEBUG")
 	errorRequest := testutil.CreateIncomingErrorReadingBodyRequest(http.MethodGet, "/path", testutil.CreateHeader())
 	recorder := httptest.NewRecorder()
 	mockRequestHandler.renderResponse(recorder, errorRequest, &Endpoint{ID: "myId"}, nil, nil, nil)

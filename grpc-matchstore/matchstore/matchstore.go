@@ -30,7 +30,7 @@ type grpcMatchstore struct {
 /*
 NewGrpcMatchstore creates a new distributed matches.Matchstore
 */
-func NewGrpcMatchstore(addresses []string, serverPort int, capacity uint16, logLevel int) (matches.Matchstore, error) {
+func NewGrpcMatchstore(addresses []string, serverPort int, capacity uint16, logLevel string) (matches.Matchstore, error) {
 	matchstore := &grpcMatchstore{id: uuid.New().String(), Matchstore: matches.NewInMemoryMatchstore(capacity), timeout: 1 * time.Second, transferLock: false, logger: util.CreateLogger(logLevel)}
 	for _, address := range addresses {
 		conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))

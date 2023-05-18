@@ -1,7 +1,6 @@
 package matchstore
 
 import (
-	"go.uber.org/zap/zapcore"
 	"log"
 	"net/http"
 	"net/url"
@@ -38,7 +37,7 @@ func getClusterAddresses() []string {
 func startMatchstoreCluster() {
 	addresses := getClusterAddresses()
 	for i := 0; i < clusterSize; i++ {
-		matchStore, err := NewGrpcMatchstore(addresses, startPort+i, uint16(100), int(zapcore.DebugLevel))
+		matchStore, err := NewGrpcMatchstore(addresses, startPort+i, uint16(100), "DEBUG")
 		if err != nil {
 			log.Fatal(err)
 		}

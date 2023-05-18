@@ -10,7 +10,7 @@ import (
 /*
 CreateLogger creates a logger with the given log level
 */
-func CreateLogger(logLevel int) *zap.Logger {
+func CreateLogger(logLevelTxt string) *zap.Logger {
 	var logCfg zap.Config
 	logType := os.Getenv("LOGTYPE")
 	if logType == "prod" || logType == "production" {
@@ -18,7 +18,11 @@ func CreateLogger(logLevel int) *zap.Logger {
 	} else {
 		logCfg = zap.NewDevelopmentConfig()
 	}
-	logCfg.Level = zap.NewAtomicLevelAt(zapcore.Level(logLevel))
+	level, err := zapcore.ParseLevel(logLevelTxt)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logCfg.Level = zap.NewAtomicLevelAt(level)
 	logger, err := logCfg.Build()
 	if err != nil {
 		log.Fatal(err)

@@ -18,8 +18,8 @@ var apiPassword = testutil.RandString(10)
 
 func setupMain(t *testing.T) {
 	env := map[string]string{
-		"LOGLEVEL_API":  "-1",
-		"LOGLEVEL_MOCK": "-1",
+		"LOGLEVEL_API":  "DEBUG",
+		"LOGLEVEL_MOCK": "DEBUG",
 		"MOCK_DIR":      "../../../test/main",
 		"API_PASSWORD":  apiPassword,
 	}

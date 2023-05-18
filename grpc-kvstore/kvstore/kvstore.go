@@ -29,7 +29,7 @@ type grpcStorage struct {
 /*
 NewGrpcStorage creates a new distributed kvstore.Storage.
 */
-func NewGrpcStorage(addresses []string, serverPort int, logLevel int) (kvstore.Storage, error) {
+func NewGrpcStorage(addresses []string, serverPort int, logLevel string) (kvstore.Storage, error) {
 	storage := &grpcStorage{id: uuid.New().String(), InmemoryStorage: kvstore.NewInmemoryStorage(), timeout: 1 * time.Second, logger: util.CreateLogger(logLevel)}
 	for _, address := range addresses {
 		conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))

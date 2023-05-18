@@ -41,7 +41,7 @@ const (
 /*
 NewRequestHandler creates an instance of RequestHandler
 */
-func NewRequestHandler(pathPrefix string, storage Storage, logLevel int) *RequestHandler {
+func NewRequestHandler(pathPrefix string, storage Storage, logLevel string) *RequestHandler {
 	configRouter := &RequestHandler{
 		pathPrefix: pathPrefix,
 		logger:     util.CreateLogger(logLevel),

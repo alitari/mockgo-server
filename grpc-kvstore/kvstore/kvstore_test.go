@@ -1,7 +1,6 @@
 package kvstore
 
 import (
-	"go.uber.org/zap/zapcore"
 	"log"
 	"os"
 	"strconv"
@@ -35,7 +34,7 @@ func getClusterAdresses() []string {
 func startStorageCluster() {
 	addresses := getClusterAdresses()
 	for i := 0; i < clusterSize; i++ {
-		kvStore, err := NewGrpcStorage(addresses, startPort+i, int(zapcore.DebugLevel))
+		kvStore, err := NewGrpcStorage(addresses, startPort+i, "DEBUG")
 		if err != nil {
 			log.Fatal(err)
 		}
