@@ -17,7 +17,7 @@ import (
 func BasicAuthMiddleware(includePathPrefix, expectedUsername, expectedPassword string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.Path, includePathPrefix) && r.URL.Path != "/__/health" {
+			if strings.HasPrefix(r.URL.Path, includePathPrefix) && !strings.HasSuffix(r.URL.Path, "/health") {
 				username, password, ok := r.BasicAuth()
 				if ok {
 					usernameMatch := username == expectedUsername

@@ -209,35 +209,34 @@ func (r *RequestHandler) initResponseTemplates(endpoint *Endpoint, funcMap templ
 AddRoutes adds mux.Routes for the http API to a given mux.Router
 */
 func (r *RequestHandler) AddRoutes(router *mux.Router) {
-	var matchReload bool
 	var endPoint *Endpoint
 	var match *matches.Match
 	var requestPathParam map[string]string
 	var queryParams map[string]string
 	route := router.MatcherFunc(func(request *http.Request, routematch *mux.RouteMatch) bool {
-		if request.Method == http.MethodPost && request.URL.Path == r.pathPrefix+"/reload" {
-			matchReload = true
-			return true
+		if strings.HasPrefix(request.URL.Path, r.pathPrefix) {
+			return false
 		}
-		matchReload = false
 		endPoint, match, requestPathParam, queryParams = r.matchRequestToEndpoint(request)
 		return endPoint != nil
 	})
 	route.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if matchReload {
-			r.logger.Info("Reloading mock files...")
-			err := r.LoadFiles()
-			if err != nil {
-				r.logger.Error("Error reloading mock files", zap.Error(err))
-				writer.WriteHeader(http.StatusInternalServerError)
-			} else {
-				r.logger.Info("Reloaded mock files successfully.")
-				writer.WriteHeader(http.StatusOK)
-			}
-		} else {
-			r.renderResponse(writer, request, endPoint, match, requestPathParam, queryParams)
-		}
+		r.renderResponse(writer, request, endPoint, match, requestPathParam, queryParams)
 	})
+	router.NewRoute().Name("reload").Path(r.pathPrefix + "/reload").Methods(http.MethodPost).
+		HandlerFunc(r.handleReload)
+}
+
+func (r *RequestHandler) handleReload(writer http.ResponseWriter, request *http.Request) {
+	r.logger.Info("Reloading mock files...")
+	err := r.LoadFiles()
+	if err != nil {
+		r.logger.Error("Error reloading mock files", zap.Error(err))
+		writer.WriteHeader(http.StatusInternalServerError)
+	} else {
+		r.logger.Info("Reloaded mock files successfully.")
+		writer.WriteHeader(http.StatusOK)
+	}
 }
 
 func (r *RequestHandler) registerEndpoint(endpoint *Endpoint, sn *epSearchNode) {

@@ -12,22 +12,6 @@ import (
 
 var apiPassword = testutil.RandString(10)
 
-// func TestMain(m *testing.M) {
-// 	os.Setenv("LOGLEVEL_API", "-1")
-// 	os.Setenv("LOGLEVEL_MOCK", "-1")
-// 	os.Setenv("API_PASSWORD", apiPassword)
-// 	os.Setenv("MOCK_DIR", "../../../test/main")
-// 	os.Setenv("MATCHES_RECORD_REQUESTS", "true")
-// 	os.Setenv("MISMATCHES_RECORD_REQUESTS", "true")
-// 	startServe = func(router *mux.Router) {
-// 		testutil.StartServing(router)
-// 	}
-
-// 	main()
-// 	m.Run()
-// 	testutil.StopServing()
-// }
-
 func setupMain(t *testing.T) {
 	env := map[string]string{
 		"LOGLEVEL_API":  "-1",
@@ -62,22 +46,6 @@ func TestMain_basicAuth(t *testing.T) {
 }
 
 func TestMain_metrics(t *testing.T) {
-	// 	os.Setenv("LOGLEVEL_API", "-1")
-	// 	os.Setenv("LOGLEVEL_MOCK", "-1")
-	// 	os.Setenv("API_PASSWORD", apiPassword)
-	// 	os.Setenv("MOCK_DIR", "../../../test/main")
-	// 	os.Setenv("MATCHES_RECORD_REQUESTS", "true")
-	// 	os.Setenv("MISMATCHES_RECORD_REQUESTS", "true")
-
-	// LoglevelAPI     int    `default:"-1" split_words:"true"`
-	// 	LoglevelMock    int    `default:"-1" split_words:"true"`
-	// 	MockPort        int    `default:"8081" split_words:"true"`
-	// 	MockDir         string `default:"." split_words:"true"`
-	// 	MockFilepattern string `default:"*-mock.*" split_words:"true"`
-	// 	MatchesCapacity int    `default:"1000" split_words:"true"`
-	// 	APIPathPrefix   string `default:"/__" split_words:"true"`
-	// 	APIUsername     string `default:"mockgo" split_words:"true"`
-	// 	APIPassword     string `default:"password" split_words:"true"`
 	setupMain(t)
 	matchRequest := testutil.CreateOutgoingRequest(t, http.MethodGet, "/hello", testutil.CreateHeader().WithAuth("mockgo", apiPassword), "")
 	assertFunc := func(response *http.Response, responseBody string) {

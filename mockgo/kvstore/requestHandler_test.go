@@ -30,19 +30,6 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestKVStoreRequestHandler_health(t *testing.T) {
-	request := testutil.CreateIncomingRequest(http.MethodGet, "/health", testutil.CreateHeader(), "")
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handleHealth, func(response *http.Response, responseBody string) {
-		assert.Equal(t, http.StatusOK, response.StatusCode)
-	},
-	))
-}
-
-func TestKVStoreRequestHandler_serving_health(t *testing.T) {
-	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
-		testutil.CreateOutgoingRequest(t, http.MethodGet, "/health", testutil.CreateHeader(), ""), http.StatusOK))
-}
-
 func TestKVStoreRequestHandler_serving_putKVStore(t *testing.T) {
 	store := randString(5)
 	key := randString(5)

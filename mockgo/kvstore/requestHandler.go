@@ -54,8 +54,6 @@ func NewRequestHandler(pathPrefix string, storage Storage, logLevel int) *Reques
 AddRoutes adds mux.Routes for the http API to a given mux.Router
 */
 func (r *RequestHandler) AddRoutes(router *mux.Router) {
-	router.NewRoute().Name("health").Path(r.pathPrefix + "/health").Methods(http.MethodGet).
-		HandlerFunc(r.handleHealth)
 	baseStorePath := r.pathPrefix + "/kvstore"
 	storePath := baseStorePath + "/{" + pathParamStore + "}"
 	storePathWithKey := storePath + "/{" + pathParamKey + "}"
@@ -67,10 +65,6 @@ func (r *RequestHandler) AddRoutes(router *mux.Router) {
 		HandlerFunc(util.JSONAcceptRequest(util.PathParamRequest([]string{pathParamStore}, r.handleGetAllKVStore)))
 	router.NewRoute().Name("removeKVStore").Path(storePathWithKey).Methods(http.MethodDelete).
 		HandlerFunc(util.PathParamRequest([]string{pathParamStore, pathParamKey}, r.handleRemoveKVStore))
-}
-
-func (r *RequestHandler) handleHealth(writer http.ResponseWriter, request *http.Request) {
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (r *RequestHandler) handleGetKVStore(writer http.ResponseWriter, request *http.Request) {

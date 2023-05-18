@@ -57,11 +57,6 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestMatchesRequestHandler_serving_health(t *testing.T) {
-	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
-		testutil.CreateOutgoingRequest(t, http.MethodGet, "/health", testutil.CreateHeader(), ""), http.StatusOK))
-}
-
 func TestMatchesRequestHandler_serving_getMatches(t *testing.T) {
 	endpointID := "myEndpointId"
 	err := matchesRequestHandler.matchStore.DeleteMatches(endpointID)

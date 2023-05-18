@@ -133,6 +133,12 @@ func SetupRouter(config Configuration, variant, versionTag string, logger *zap.L
 	fmt.Printf(banner, variant, versionTag)
 	logger.Info(config.Info())
 	router := mux.NewRouter()
+	router.NewRoute().Name("health").Path(config.PathPrefix() + "/health").Methods(http.MethodGet).
+		HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.WriteHeader(http.StatusOK)
+			writer.Write([]byte("OK"))
+		})
+
 	router.Use(util.BasicAuthMiddleware(config.PathPrefix(), config.User(), config.Password()))
 	mockHandler := mock.NewRequestHandler(config.PathPrefix(), config.MockDirectory(), config.MockFilePattern(), matchStore,
 		kvstore.NewKVStoreTemplateFuncMap(kvStore), config.LogLevelMock())
