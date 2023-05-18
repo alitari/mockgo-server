@@ -89,10 +89,10 @@ func init() {
 }
 
 // SetupRouter sets up the router with the given configuration, allows to control the server start
-func SetupRouter(variant, versionTag string, matchStore matches.Matchstore, kvStore kvstore.Storage, serve func(router *mux.Router)) {
+func SetupRouter(variant, versionTag, configInfo string, matchStore matches.Matchstore, kvStore kvstore.Storage, serve func(router *mux.Router)) {
 	logger = util.CreateLogger(BasicConfig.LoglevelAPI)
 	fmt.Printf(banner, variant, versionTag)
-	logger.Info(BasicConfig.Info())
+	logger.Info(BasicConfig.Info() + configInfo)
 	router := mux.NewRouter()
 	router.NewRoute().Name("health").Path(BasicConfig.APIPathPrefix + "/health").Methods(http.MethodGet).
 		HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
