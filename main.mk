@@ -257,6 +257,7 @@ endif
 
 .PHONY: helm-deploy
 helm-deploy: kind pushdocker
+	helm dependency build $(PROJECT_DIR)/deployments/helm/mockgo-server
 	helm upgrade --install mockgo-$(MOCKGO_VARIANT) $(PROJECT_DIR)/deployments/helm/mockgo-server \
 	--namespace mockgo --create-namespace -f $(PROJECT_DIR)/deployments/helm/$(MOCKGO_VARIANT)-values.yaml \
 	--wait --timeout $(HELM_DEPLOY_TIMEOUT) --atomic
