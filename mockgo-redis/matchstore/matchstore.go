@@ -3,12 +3,14 @@ package matchstore
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/alitari/mockgo-server/mockgo/matches"
 	"github.com/redis/go-redis/v9"
-	"time"
 )
 
 const mismatchesKey = "__mismatches__"
+const counterKey = "__counter__"
 
 type redisMatchstore struct {
 	client   *redis.Client
@@ -41,11 +43,11 @@ func (r *redisMatchstore) GetMatches(endpointID string) ([]*matches.Match, error
 
 func (r *redisMatchstore) GetMatchesCount(endpointID string) (uint64, error) {
 	ctx := context.Background()
-	llen := r.client.LLen(ctx, endpointID)
-	if llen.Err() != nil {
-		return 0, llen.Err()
+	get := r.client.Get(ctx, endpointID+counterKey)
+	if get.Err() != nil {
+		return 0, get.Err()
 	}
-	return uint64(llen.Val()), nil
+	return get.Uint64()
 }
 
 func (r *redisMatchstore) GetMismatches() ([]*matches.Mismatch, error) {
@@ -68,21 +70,29 @@ func (r *redisMatchstore) GetMismatches() ([]*matches.Mismatch, error) {
 
 func (r *redisMatchstore) AddMatch(endpointID string, match *matches.Match) error {
 	ctx := context.Background()
-	// marshal match
 	mval, err := json.Marshal(match)
 	if err != nil {
 		return err
 	}
-	lpush := r.client.RPush(ctx, endpointID, mval)
-	if lpush.Err() != nil {
-		return lpush.Err()
+	rpush := r.client.RPush(ctx, endpointID, mval)
+	if rpush.Err() != nil {
+		return rpush.Err()
+	}
+	if r.client.LLen(ctx, endpointID).Val() > int64(r.capacity) {
+		lpop := r.client.LPop(ctx, endpointID)
+		if lpop.Err() != nil {
+			return lpop.Err()
+		}
+	}
+	incr := r.client.Incr(ctx, endpointID+counterKey)
+	if incr.Err() != nil {
+		return incr.Err()
 	}
 	return nil
 }
 
 func (r *redisMatchstore) AddMismatch(mismatch *matches.Mismatch) error {
 	ctx := context.Background()
-	// marshal match
 	mval, err := json.Marshal(mismatch)
 	if err != nil {
 		return err
@@ -91,16 +101,26 @@ func (r *redisMatchstore) AddMismatch(mismatch *matches.Mismatch) error {
 	if lpush.Err() != nil {
 		return lpush.Err()
 	}
+	if r.client.LLen(ctx, mismatchesKey).Val() > int64(r.capacity) {
+		lpop := r.client.LPop(ctx, mismatchesKey)
+		if lpop.Err() != nil {
+			return lpop.Err()
+		}
+	}
+	incr := r.client.Incr(ctx, mismatchesKey+counterKey)
+	if incr.Err() != nil {
+		return incr.Err()
+	}
 	return nil
 }
 
 func (r *redisMatchstore) GetMismatchesCount() (uint64, error) {
 	ctx := context.Background()
-	llen := r.client.LLen(ctx, mismatchesKey)
-	if llen.Err() != nil {
-		return 0, llen.Err()
+	get := r.client.Get(ctx, mismatchesKey+counterKey)
+	if get.Err() != nil {
+		return 0, get.Err()
 	}
-	return uint64(llen.Val()), nil
+	return get.Uint64()
 }
 
 func (r *redisMatchstore) DeleteMatches(endpointID string) error {
@@ -108,6 +128,10 @@ func (r *redisMatchstore) DeleteMatches(endpointID string) error {
 	del := r.client.Del(ctx, endpointID)
 	if del.Err() != nil {
 		return del.Err()
+	}
+	set := r.client.Set(ctx, endpointID+counterKey, 0, 0)
+	if set.Err() != nil {
+		return set.Err()
 	}
 	return nil
 }
@@ -117,6 +141,10 @@ func (r *redisMatchstore) DeleteMismatches() error {
 	del := r.client.Del(ctx, mismatchesKey)
 	if del.Err() != nil {
 		return del.Err()
+	}
+	set := r.client.Set(ctx, mismatchesKey+counterKey, 0, 0)
+	if set.Err() != nil {
+		return set.Err()
 	}
 	return nil
 }
