@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/alitari/mockgo-server/mockgo-redis/kvstore"
+	"github.com/alitari/mockgo-server/mockgo-redis/matchstore"
 	"github.com/alitari/mockgo-server/mockgo/starter"
-	rediskvstore "github.com/alitari/mockgo-server/redis-kvstore/kvstore"
-	redismatchstore "github.com/alitari/mockgo-server/redis-matchstore/matchstore"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -68,13 +68,13 @@ Redis:
 }
 
 func main() {
-	matchStore, err := redismatchstore.NewRedisMatchstore(config.RedisAddress, config.RedisPassword,
+	matchStore, err := matchstore.NewRedisMatchstore(config.RedisAddress, config.RedisPassword,
 		config.MatchstoreRedisDB, uint16(starter.BasicConfig.MatchesCapacity))
 	if err != nil {
 		log.Fatalf("can't initialize redis matchstore: %v", err)
 	}
 
-	kvStore, err := rediskvstore.NewRedisStorage(config.RedisAddress, config.RedisPassword,
+	kvStore, err := kvstore.NewRedisStorage(config.RedisAddress, config.RedisPassword,
 		config.KvstoreRedisDB)
 	if err != nil {
 		log.Fatalf("can't initialize redis kvstore: %v", err)

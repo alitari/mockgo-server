@@ -43,19 +43,6 @@ make cover MOCKGO_MODULE=mockgo-standalone
 make acctest MOCKGO_MODULE=mockgo-standalone
 make helm-delete MOCKGO_MODULE=mockgo-standalone
 
-
-make dep-dev MOCKGO_MODULE=grpc-kvstore
-make tidy MOCKGO_MODULE=grpc-kvstore
-make clean MOCKGO_MODULE=grpc-kvstore
-make build MOCKGO_MODULE=grpc-kvstore
-make cover MOCKGO_MODULE=grpc-kvstore
-
-make dep-dev MOCKGO_MODULE=grpc-matchstore
-make tidy MOCKGO_MODULE=grpc-matchstore
-make clean MOCKGO_MODULE=grpc-matchstore
-make build MOCKGO_MODULE=grpc-matchstore
-make cover MOCKGO_MODULE=grpc-matchstore
-
 make dep-dev MOCKGO_MODULE=mockgo-grpc
 make tidy MOCKGO_MODULE=mockgo-grpc
 make clean MOCKGO_MODULE=mockgo-grpc
@@ -63,26 +50,14 @@ make cover MOCKGO_MODULE=mockgo-grpc
 make acctest MOCKGO_MODULE=mockgo-grpc
 make helm-delete MOCKGO_MODULE=mockgo-grpc
 
-
-make dep-dev MOCKGO_MODULE=redis-kvstore
-make tidy MOCKGO_MODULE=redis-kvstore
-make clean MOCKGO_MODULE=redis-kvstore
-make build MOCKGO_MODULE=redis-kvstore
-make cover MOCKGO_MODULE=redis-kvstore
-
-make dep-dev MOCKGO_MODULE=redis-matchstore
-make tidy MOCKGO_MODULE=redis-matchstore
-make clean MOCKGO_MODULE=redis-matchstore
-make build MOCKGO_MODULE=redis-matchstore
-make cover MOCKGO_MODULE=redis-matchstore
-
 make dep-dev MOCKGO_MODULE=mockgo-redis
 make tidy MOCKGO_MODULE=mockgo-redis
 make clean MOCKGO_MODULE=mockgo-redis
 make cover MOCKGO_MODULE=mockgo-redis
 make acctest MOCKGO_MODULE=mockgo-redis
+make helm-delete MOCKGO_MODULE=mockgo-redis
 
-echo "release test ended successfully "
+echo "release test ended successfully  "
 
 # execute when release tag is supplied
 if [[ ! -z $MOCKGO_RELEASE ]]; then
@@ -91,21 +66,8 @@ if [[ ! -z $MOCKGO_RELEASE ]]; then
     make dep-release MOCKGO_MODULE=mockgo-standalone
     make mod-release MOCKGO_MODULE=mockgo-standalone
 
-    make dep-release MOCKGO_MODULE=grpc-kvstore
-    make mod-release MOCKGO_MODULE=grpc-kvstore
-
-    make dep-release MOCKGO_MODULE=grpc-matchstore
-    make mod-release MOCKGO_MODULE=grpc-matchstore
-
     make dep-release MOCKGO_MODULE=mockgo-grpc
     make mod-release MOCKGO_MODULE=mockgo-grpc
-
-
-    make dep-release MOCKGO_MODULE=redis-kvstore
-    make mod-release MOCKGO_MODULE=redis-kvst
-
-    make dep-release MOCKGO_MODULE=redis-matchstore
-    make mod-release MOCKGO_MODULE=redis-matchst
 
     make dep-release MOCKGO_MODULE=mockgo-redis
     make mod-release MOCKGO_MODULE=mockgo-redis

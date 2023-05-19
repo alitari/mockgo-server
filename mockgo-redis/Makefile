@@ -16,9 +16,7 @@ build: buildexe buildchecksum
 run: buildexe runexe
 
 .PHONY: dep-dev
-dep-dev: require-dep-mockgo-dev require-dep-redis-kvstore-dev require-dep-redis-matchstore-dev
+dep-dev: require-dep-mockgo-dev
 
 .PHONY: dep-release
-dep-release: require-dep-mockgo-release require-dep-redis-kvstore-release require-dep-redis-matchstore-release
-
-
+dep-release: require-dep-mockgo-release

@@ -7,8 +7,8 @@ import (
 
 	"github.com/alitari/mockgo-server/mockgo/starter"
 
-	grpckvstore "github.com/alitari/mockgo-server/grpc-kvstore/kvstore"
-	"github.com/alitari/mockgo-server/grpc-matchstore/matchstore"
+	"github.com/alitari/mockgo-server/mockgo-grpc/kvstore"
+	"github.com/alitari/mockgo-server/mockgo-grpc/matchstore"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -70,7 +70,7 @@ func main() {
 		log.Fatalf("can't initialize grpc matchstore: %v", err)
 	}
 
-	kvStore, err := grpckvstore.NewGrpcStorage(createAddresses(config.ClusterHostnames, config.MatchstorePort),
+	kvStore, err := kvstore.NewGrpcStorage(createAddresses(config.ClusterHostnames, config.MatchstorePort),
 		config.KvstorePort, starter.BasicConfig.LoglevelAPI)
 	if err != nil {
 		log.Fatalf("can't initialize grpc kvstore: %v", err)
