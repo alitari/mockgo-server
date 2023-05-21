@@ -58,7 +58,7 @@ endpoints:
     body: "Hello from knative"
 EOF
 kubectl create configmap mockgo-config --from-file=kn-mock.yaml
-kn service create mockgo --image=alitari/mockgo-standalone:v1.2.3 --mount /mockdir=cm:mockgo-config --env MOCK_DIR=/mockdir --env MOCK_PORT=8080
+kn service create mockgo --image=alitari/mockgo-standalone:v1.3.0 --mount /mockdir=cm:mockgo-config --env MOCK_DIR=/mockdir --env MOCK_PORT=8080
 MOCKGO_URL=$(kn service describe mockgo -o url)
 curl -v $MOCKGO_URL/hello-kn
 ```
@@ -71,7 +71,7 @@ See [here](./knative.md) for a example with redis.
 Define the environment :
 
 ```bash
-MOCKGO_RELEASE_VERSION="v1.1.3"
+MOCKGO_RELEASE_VERSION="v1.3.0"
 MOCKGO_VARIANT="standalone" # or "grpc"
 MOCKGO_OS="linux" # or "windows"
 MOCKGO_ARCH="amd64" # or "arm64"
