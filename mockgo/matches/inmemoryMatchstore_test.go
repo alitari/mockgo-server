@@ -82,7 +82,7 @@ func TestInMemoryMatchstore_GetMismatchesCountInit(t *testing.T) {
 }
 
 func TestInMemoryMatchstore_GetMatches(t *testing.T) {
-	matchstore := NewInMemoryMatchstore(5)
+	matchstore := NewInMemoryMatchstore(5).(*InMemoryMatchstore)
 	matchstore.matches = map[string]*list.List{endpointID1: list.New()}
 	matches1 := createMatchesForEndpoint(endpointID1, 2)
 	for _, match := range matches1 {
@@ -94,7 +94,7 @@ func TestInMemoryMatchstore_GetMatches(t *testing.T) {
 }
 
 func TestInMemoryMatchstore_GetMismatches(t *testing.T) {
-	matchstore := NewInMemoryMatchstore(5)
+	matchstore := NewInMemoryMatchstore(5).(*InMemoryMatchstore)
 	mismatches2 := createMismnatches(2)
 	for _, mismatch := range mismatches2 {
 		matchstore.mismatches.PushBack(mismatch)
@@ -105,7 +105,7 @@ func TestInMemoryMatchstore_GetMismatches(t *testing.T) {
 }
 
 func TestInMemoryMatchstore_GetMatchesCount(t *testing.T) {
-	matchstore := NewInMemoryMatchstore(5)
+	matchstore := NewInMemoryMatchstore(5).(*InMemoryMatchstore)
 	count := rand.Uint64()
 	matchstore.matchesCount = map[string]uint64{endpointID1: count}
 	matchesCount, err := matchstore.GetMatchesCount(endpointID1)
@@ -114,7 +114,7 @@ func TestInMemoryMatchstore_GetMatchesCount(t *testing.T) {
 }
 
 func TestInMemoryMatchstore_GetMismatchesCount(t *testing.T) {
-	matchstore := NewInMemoryMatchstore(5)
+	matchstore := NewInMemoryMatchstore(5).(*InMemoryMatchstore)
 	count := rand.Uint64()
 	matchstore.mismatchesCount = count
 	mismatchesCount, err := matchstore.GetMismatchesCount()
@@ -123,7 +123,7 @@ func TestInMemoryMatchstore_GetMismatchesCount(t *testing.T) {
 }
 
 func TestInMemoryMatchstore_AddMatch(t *testing.T) {
-	matchstore := NewInMemoryMatchstore(3)
+	matchstore := NewInMemoryMatchstore(3).(*InMemoryMatchstore)
 	matches1 := createMatchesForEndpoint(endpointID1, 4)
 	for _, match := range matches1 {
 		err := matchstore.AddMatch(endpointID1, match)
@@ -135,7 +135,7 @@ func TestInMemoryMatchstore_AddMatch(t *testing.T) {
 }
 
 func TestInMemoryMatchstore_AddMisMatch(t *testing.T) {
-	matchstore := NewInMemoryMatchstore(3)
+	matchstore := NewInMemoryMatchstore(3).(*InMemoryMatchstore)
 	for i := 0; i < 5; i++ {
 		err := matchstore.AddMismatch(createMismatch())
 		assert.NoError(t, err)
@@ -146,7 +146,7 @@ func TestInMemoryMatchstore_AddMisMatch(t *testing.T) {
 }
 
 func TestInMemoryMatchstore_DeleteMatches(t *testing.T) {
-	matchstore := NewInMemoryMatchstore(5)
+	matchstore := NewInMemoryMatchstore(5).(*InMemoryMatchstore)
 	matchstore.matches = map[string]*list.List{endpointID1: list.New(), endpointID2: list.New()}
 	matches1 := createMatchesForEndpoint(endpointID1, 2)
 	for _, match := range matches1 {
@@ -168,7 +168,7 @@ func TestInMemoryMatchstore_DeleteMatches(t *testing.T) {
 }
 
 func TestInMemoryMatchstore_DeleteMismatches(t *testing.T) {
-	matchstore := NewInMemoryMatchstore(5)
+	matchstore := NewInMemoryMatchstore(5).(*InMemoryMatchstore)
 	matchstore.mismatches = list.New()
 	mismatches1 := createMismnatches(2)
 	for _, mismatch := range mismatches1 {

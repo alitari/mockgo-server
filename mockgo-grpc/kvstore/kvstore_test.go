@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,7 +34,7 @@ func getClusterAdresses() []string {
 func startStorageCluster() {
 	addresses := getClusterAdresses()
 	for i := 0; i < clusterSize; i++ {
-		kvStore, err := NewGrpcStorage(addresses, startPort+i, logging.NewLoggerUtil(logging.Debug))
+		kvStore, err := NewGrpcStorage(addresses, startPort+i, "DEBUG")
 		if err != nil {
 			log.Fatal(err)
 		}

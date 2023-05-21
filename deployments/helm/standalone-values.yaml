@@ -35,9 +35,9 @@ healthcheck:
 
 logging:
   api:
-    level: 1
+    level: INFO
   mock:
-    level: 1
+    level: INFO
 
 files:
   hello-mock.yaml: |

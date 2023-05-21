@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -21,27 +20,13 @@ const (
 var kvstoreHandler *RequestHandler
 
 func TestMain(m *testing.M) {
-	kvstoreLogger := logging.NewLoggerUtil(logging.Debug)
-	kvstoreHandler = NewRequestHandler("", username, password, NewInmemoryStorage(), kvstoreLogger)
+	kvstoreHandler = NewRequestHandler("", NewInmemoryStorage(), "DEBUG")
 	router := mux.NewRouter()
 	kvstoreHandler.AddRoutes(router)
 	testutil.StartServing(router)
 	code := testutil.RunAndCheckCoverage("requestHandlerTest", m, 0.49)
 	testutil.StopServing()
 	os.Exit(code)
-}
-
-func TestKVStoreRequestHandler_health(t *testing.T) {
-	request := testutil.CreateIncomingRequest(http.MethodGet, "/health", testutil.CreateHeader(), "")
-	assert.NoError(t, testutil.AssertHandlerFunc(t, request, kvstoreHandler.handleHealth, func(response *http.Response, responseBody string) {
-		assert.Equal(t, http.StatusOK, response.StatusCode)
-	},
-	))
-}
-
-func TestKVStoreRequestHandler_serving_health(t *testing.T) {
-	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
-		testutil.CreateOutgoingRequest(t, http.MethodGet, "/health", testutil.CreateHeader(), ""), http.StatusOK))
 }
 
 func TestKVStoreRequestHandler_serving_putKVStore(t *testing.T) {

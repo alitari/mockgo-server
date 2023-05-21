@@ -13,7 +13,7 @@
 
 
 
-*mockgo-server* is a lightweight http server which can be used to mock http endpoints. *mockgo-server* is designed for horizontal scaling and feels at home in cloud environments like [kubernetes](https://kubernetes.io/). The main features are:
+*mockgo-server* is a lightweight http server which can be used to mock http endpoints. *mockgo-server* is designed for horizontal scaling and feels at home in cloud environments like [kubernetes](https://kubernetes.io/) and [knative](https://knative.dev/). The main features are:
 
 - **Simplicity** : easy configuration with human readable yaml files with reasonable defaults
 - **Scalability** : mockgo-server is designed for horizontal scaling. Therefore it can be used in environments with high http traffic ( e.g. for performance/load tests )
@@ -25,9 +25,14 @@ See [Examples.md](./Examples.md).
 
 ## variants
 
-*mockgo-server* currently comes in 2 variants:
-- `mockgo-standalone` : for non-cluster setups, use this when you don't need to scale, usually this variant is the starting point
-- `mockgo-grpc` : for cluster setups, use this when you have to deal with high incoming traffic. In order to share state between the cluster pods [grpc](https://grpc.io/) is used as protocol.
+*mockgo-server* is built with different variants which have their own use cases. The following table gives an overview:
+
+| variant             | can scale | persistence | use this when you ...                                                                         |
+|---------------------|-----------|-------------|-----------------------------------------------------------------------------------------------|
+| `mockgo-standalone` | no        | no          | want a simple setup and you don't need to scale, usually this variant is the starting point   |
+| `mockgo-grpc`       | yes       | no          | have to deal with high incoming traffic, but you don't need durability for states and results |
+| `mockgo-redis`      | yes       | yes         | have to deal with high incoming traffic and you want a durable storage for states and results or if you want to use mockgo as serverless deployment in knative |
+
 
 ## install on kubernetes
 
@@ -38,6 +43,28 @@ helm repo add mockgo-server https://alitari.github.io/mockgo-server/
 helm upgrade mymock mockgo-server/mockgo-server --install
 ```
 see [here](./deployments/helm/mockgo-server/README.md) for further helm configuration options.
+
+## install on knative
+
+If you have a [knative](https://knative.dev/) cluster available, you can start right away with [kn](https://knative.dev/docs/client/install-kn/)
+
+```bash
+cat <<EOF > kn-mock.yaml
+endpoints:
+- request:
+    path: "/hello-kn"
+  response:
+    statusCode: 200
+    body: "Hello from knative"
+EOF
+kubectl create configmap mockgo-config --from-file=kn-mock.yaml
+kn service create mockgo --image=alitari/mockgo-standalone:v1.2.3 --mount /mockdir=cm:mockgo-config --env MOCK_DIR=/mockdir --env MOCK_PORT=8080
+MOCKGO_URL=$(kn service describe mockgo -o url)
+curl -v $MOCKGO_URL/hello-kn
+```
+
+See [here](./knative.md) for a example with redis.
+
 
 ## install on local machine
 
@@ -63,7 +90,7 @@ MOCK_DIR=$(pwd)/test/mocks ./$MOCKGO_NAME
 ### option 2: go install
 
 ```bash
-go install github.com/alitari/mockgo-server/mockgo-$MOCKGO_VARIANT/cmd/mockgo@latest
+go install github.com/alitari/mockgo-server/mockgo-$MOCKGO_VARIANT/starter/mockgo@latest
 MOCK_DIR=$(pwd)/test/mocks mockgo
 ```
 

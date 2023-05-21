@@ -7,32 +7,56 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/go-http-utils/headers"
 	"github.com/gorilla/mux"
 )
 
+// BasicAuthMiddleware checks whether the BasicAuth header of the request contains the expected username and password
+func BasicAuthMiddleware(includePathPrefix, expectedUsername, expectedPassword string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.Path, includePathPrefix) && !strings.HasSuffix(r.URL.Path, "/health") {
+				username, password, ok := r.BasicAuth()
+				if ok {
+					usernameMatch := username == expectedUsername
+					passwordMatch := subtle.ConstantTimeCompare([]byte(password), []byte(expectedPassword)) == 1
+					if usernameMatch && passwordMatch {
+						next.ServeHTTP(w, r)
+					} else {
+						http.Error(w, fmt.Sprintf("Authorization with username '%s' failed. ", username), http.StatusUnauthorized)
+					}
+				} else {
+					http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				}
+			} else {
+				next.ServeHTTP(w, r)
+			}
+		})
+	}
+}
+
 /*
 BasicAuthRequest checks whether the BasicAuth header of the request contains the expected username and password
 */
-func BasicAuthRequest(expectedUsername, expectedPassword string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
-	f := func(w http.ResponseWriter, r *http.Request) {
-		username, password, ok := r.BasicAuth()
-		if ok {
-			usernameMatch := username == expectedUsername
-			passwordMatch := subtle.ConstantTimeCompare([]byte(password), []byte(expectedPassword)) == 1
-			if usernameMatch && passwordMatch {
-				impl(w, r)
-			} else {
-				http.Error(w, fmt.Sprintf("Authorization with username '%s' failed. ", username), http.StatusUnauthorized)
-			}
-		} else {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		}
-	}
-	return f
-}
+//func BasicAuthRequest(expectedUsername, expectedPassword string, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+//	f := func(w http.ResponseWriter, r *http.Request) {
+//		username, password, ok := r.BasicAuth()
+//		if ok {
+//			usernameMatch := username == expectedUsername
+//			passwordMatch := subtle.ConstantTimeCompare([]byte(password), []byte(expectedPassword)) == 1
+//			if usernameMatch && passwordMatch {
+//				impl(w, r)
+//			} else {
+//				http.Error(w, fmt.Sprintf("Authorization with username '%s' failed. ", username), http.StatusUnauthorized)
+//			}
+//		} else {
+//			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+//		}
+//	}
+//	return f
+//}
 
 /*
 JSONContentTypeRequest checks whether the Content-type header of the request is application/json
@@ -82,19 +106,19 @@ func PathParamRequest(expectedPathParams []string, impl func(writer http.Respons
 /*
 LoggingRequest writes details of request and response
 */
-func LoggingRequest(loggerUtil *logging.LoggerUtil, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
-	f := func(w http.ResponseWriter, r *http.Request) {
-		loggerUtil.LogIncomingRequest(r)
-		if loggerUtil.Level >= logging.Debug {
-			w = logging.NewResponseWriter(w, loggerUtil, 2)
-		}
-		impl(w, r)
-		if loggerUtil.Level >= logging.Debug {
-			w.(*logging.ResponseWriter).Log()
-		}
-	}
-	return f
-}
+//func LoggingRequest(loggerUtil *logging.LoggerUtil, impl func(writer http.ResponseWriter, request *http.Request)) func(http.ResponseWriter, *http.Request) {
+//	f := func(w http.ResponseWriter, r *http.Request) {
+//		if loggerUtil.IsHTTPLogging(r) {
+//			loggerUtil.LogIncomingRequest(r)
+//			w = logging.NewResponseWriter(w, loggerUtil, 2)
+//		}
+//		impl(w, r)
+//		if loggerUtil.IsHTTPLogging(r) {
+//			w.(*logging.ResponseWriter).Log()
+//		}
+//	}
+//	return f
+//}
 
 /*
 WriteEntity marshals an entity and writes the output to the http response

@@ -1,11 +1,18 @@
-appVersion: v1.1.3
+appVersion: v1.3.0
 description: A Helm chart for mockgo-server
 name: mockgo-server
 keywords:
 - mock
-version: 1.1.0
+version: 1.2.0
 home: https://github.com/alitari/mockgo-server
 maintainers:
 - name: Alexander Krieg
   url: https://github.com/alitari
   email: alitari67@gmail.com
+
+# add redis dependency
+dependencies:
+- name: redis
+  version: 17.10.1
+  repository: oci://registry-1.docker.io/bitnamicharts
+  condition: redis.internal

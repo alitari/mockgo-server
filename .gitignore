@@ -6,3 +6,4 @@ reports/hurl
 .mockgo_password
 test/mocks/dynamic-mock.yaml
 .idea/
+/deployments/helm/mockgo-server/charts/

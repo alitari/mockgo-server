@@ -1,16 +1,19 @@
-MOCKGO_MODULE = grpc-kvstore
-PROTO_CONTEXT = kvstore
+MOCKGO_MODULE = mockgo-redis
+MOCKGO_VARIANT = redis
 
 include ../main.mk
 
 .PHONY: env-module
-env-module: env-lib
+env-module: env-exe
 
 .PHONY: clean
-clean: cleancover cleanproto
+clean: helm-delete cleanexe cleancover
 
 .PHONY: build
-build: gen-proto buildarchive
+build: buildexe buildchecksum
+
+.PHONY: run
+run: buildexe runexe
 
 .PHONY: dep-dev
 dep-dev: require-dep-mockgo-dev

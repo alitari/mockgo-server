@@ -4,6 +4,5 @@ use (
 	./mockgo
 	./mockgo-standalone
 	./mockgo-grpc
-	./grpc-matchstore
-	./grpc-kvstore
+	./mockgo-redis
 )

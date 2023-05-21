@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/alitari/mockgo-server/mockgo/logging"
 	"github.com/alitari/mockgo-server/mockgo/testutil"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -44,9 +43,12 @@ func (s *ErrorMatchstore) DeleteMatches(endpointID string) error {
 func (s *ErrorMatchstore) DeleteMismatches() error {
 	return fmt.Errorf("error in delete mismatches")
 }
+func (s *ErrorMatchstore) Shutdown() error {
+	return nil
+}
 
-var matchesRequestHandler = NewRequestHandler("", username, password, NewInMemoryMatchstore(uint16(100)), logging.NewLoggerUtil(logging.Debug))
-var matchesRequestHandlerErroneous = NewRequestHandler("", username, password, &ErrorMatchstore{}, logging.NewLoggerUtil(logging.Debug))
+var matchesRequestHandler = NewRequestHandler("", NewInMemoryMatchstore(uint16(100)), "DEBUG")
+var matchesRequestHandlerErroneous = NewRequestHandler("", &ErrorMatchstore{}, "DEBUG")
 
 func TestMain(m *testing.M) {
 	router := mux.NewRouter()
@@ -55,11 +57,6 @@ func TestMain(m *testing.M) {
 	code := testutil.RunAndCheckCoverage("matchesRequestHandlerTest", m, 0.40)
 	testutil.StopServing()
 	os.Exit(code)
-}
-
-func TestMatchesRequestHandler_serving_health(t *testing.T) {
-	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
-		testutil.CreateOutgoingRequest(t, http.MethodGet, "/health", testutil.CreateHeader(), ""), http.StatusOK))
 }
 
 func TestMatchesRequestHandler_serving_getMatches(t *testing.T) {

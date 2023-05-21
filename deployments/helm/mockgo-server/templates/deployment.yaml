@@ -14,7 +14,7 @@ spec:
   selector:
     matchLabels:
       {{- include "mockgoserver.selectorLabels" . | nindent 6 }}
-  replicas: 1
+  replicas: {{ .Values.replicas }}
   template:
     metadata:
       annotations:
@@ -96,8 +96,13 @@ spec:
         - name: config-volume
           mountPath: /etc/mockgoserver-config
       {{- end }}
+      {{- if .Values.redis.enabled }}
+      - name: mockgo-redis
+        image: {{ .Values.image | default (printf "%s:%s" "alitari/mockgo-redis" .Chart.AppVersion) }}
+      {{- else }}
       - name: mockgo-standalone
         image: {{ .Values.image | default (printf "%s:%s" "alitari/mockgo-standalone" .Chart.AppVersion) }}
+      {{- end }}
         imagePullPolicy: {{ .Values.pullPolicy }}
         {{- if .Values.securityContext }}
         securityContext:
@@ -130,6 +135,19 @@ spec:
           value: '*-mock.yaml'
         - name: MATCHES_CAPACITY
           value: {{ .Values.matches.capacity | quote }}
+        {{- if .Values.redis.enabled }}
+        - name: REDIS_ADDRESS
+          value: {{ (printf "%s:%v" .Values.redis.host .Values.redis.port) | quote }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "mockgoserver.fullname" . }}
+              key: redisPassword
+        - name: MATCHSTORE_REDIS_DB
+          value: {{ .Values.redis.matchStoreDB | quote }}
+        - name: KVSTORE_REDIS_DB
+          value: {{ .Values.redis.kvStoreDB | quote }}
+        {{- end}}
         {{- if .Values.env }}
         {{- toYaml .Values.env | nindent 8 }}
         {{- end }}

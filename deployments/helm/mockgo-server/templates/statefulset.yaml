@@ -14,7 +14,7 @@ spec:
   selector:
     matchLabels:
       {{- include "mockgoserver.selectorLabels" . | nindent 6 }}
-  replicas: {{ .Values.cluster.replicas }}
+  replicas: {{ .Values.replicas }}
   serviceName: {{ include "mockgoserver.fullname" . }}
 
   podManagementPolicy: {{ .Values.podManagementPolicy }}
@@ -128,10 +128,6 @@ spec:
           value: {{ .Values.logging.api.level | quote }}
         - name: LOGLEVEL_MOCK
           value: {{ .Values.logging.mock.level | quote }}
-        - name: LOGLEVEL_KVSTORE
-          value: {{ .Values.logging.kvstore.level | quote }}
-        - name: LOGLEVEL_MATCHSTORE
-          value: {{ .Values.logging.matchstore.level | quote }}
         - name: MOCK_PORT
           value: {{ .Values.port | quote }}
         - name: API_PATH_PREFIX

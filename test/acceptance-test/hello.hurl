@@ -5,7 +5,7 @@ retry: true
 
 HTTP/1.1 200
 [Asserts]
-bytes count == 0
+bytes count == 2
 
 # hello1
 GET http://{{mockgo_host}}/hello1

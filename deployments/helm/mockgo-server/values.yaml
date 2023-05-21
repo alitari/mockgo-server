@@ -29,22 +29,31 @@ matches:
 # 0 only errors, 1 verbose , 2 debug
 logging: 
   api:
-    level: 1
+    level: INFO
   mock:
-    level: 1
-  kvstore:
-    level: 1
-  matchstore:
-    level: 1
+    level: INFO
+
+replicas: 1
 
 cluster:
   enabled: false
-  replicas: 3
   # Define if mockgo-server is using FQDN name for clustering (i.e. mockgo-server-0.mockgo-server.default.svc.cluster.local) or short name (i.e. mockgo-server-0.mockgo-server.default).
   useFQDN: true
   grpcPorts:
     matchstore: 50051
     kvstore: 50151
+
+redis:
+  enabled: false
+  internal: false
+  password: ""
+  auth:
+    enabled: false
+  matchStoreDB: 0
+  kvStoreDB: 1
+  host: mockgo-redis-master
+  port: 6379
+
 
 # image: alitari/mockgo-standalone:latest
 pullPolicy: IfNotPresent

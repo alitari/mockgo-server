@@ -257,6 +257,7 @@ endif
 
 .PHONY: helm-deploy
 helm-deploy: kind pushdocker
+	helm dependency build $(PROJECT_DIR)/deployments/helm/mockgo-server
 	helm upgrade --install mockgo-$(MOCKGO_VARIANT) $(PROJECT_DIR)/deployments/helm/mockgo-server \
 	--namespace mockgo --create-namespace -f $(PROJECT_DIR)/deployments/helm/$(MOCKGO_VARIANT)-values.yaml \
 	--wait --timeout $(HELM_DEPLOY_TIMEOUT) --atomic
@@ -294,31 +295,6 @@ require-dep-mockgo-dev: drop-dep-mockgo
 require-dep-mockgo-release: drop-dep-mockgo
 	go mod edit -require=github.com/alitari/mockgo-server/mockgo@$(MOCKGO_RELEASE)
 
-.PHONY: drop-dep-grpc-kvstore
-drop-dep-grpc-kvstore:
-	go mod edit -droprequire github.com/alitari/mockgo-server/grpc-kvstore
-	go mod edit -dropreplace github.com/alitari/mockgo-server/grpc-kvstore
-
-.PHONY: drop-dep-grpc-matchstore
-drop-dep-grpc-matchstore:
-	go mod edit -droprequire github.com/alitari/mockgo-server/grpc-matchstore
-	go mod edit -dropreplace github.com/alitari/mockgo-server/grpc-matchstore
-
-.PHONY: require-dep-grpc-kvstore-dev
-require-dep-grpc-kvstore-dev: drop-dep-grpc-kvstore
-	go mod edit -replace=github.com/alitari/mockgo-server/grpc-kvstore=../grpc-kvstore
-
-.PHONY: require-dep-grpc-kvstore-release
-require-dep-grpc-kvstore-release: drop-dep-grpc-kvstore
-	go mod edit -require=github.com/alitari/mockgo-server/grpc-kvstore@$(MOCKGO_RELEASE)
-
-.PHONY: require-dep-grpc-matchstore-dev
-require-dep-grpc-matchstore-dev: drop-dep-grpc-matchstore
-	go mod edit -replace=github.com/alitari/mockgo-server/grpc-matchstore=../grpc-matchstore
-
-.PHONY: require-dep-grpc-matchstore-release
-require-dep-grpc-matchstore-release: drop-dep-grpc-matchstore
-	go mod edit -require=github.com/alitari/mockgo-server/grpc-matchstore@$(MOCKGO_RELEASE)
 
 .PHONY: mod-release
 mod-release:
