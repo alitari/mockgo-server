@@ -23,10 +23,9 @@ export REDIS_PASSWORD=$(kubectl get secret --namespace redis redis -o jsonpath="
 ## install the mockgo config using the [people-mock example](./Examples.md#people-mock)
 
 ```bash
-
-```bash
 kubectl ns default
 kubectl create configmap people-mock-config  --from-file=test/main/people-mock.yaml
+# ksvc with autoscaling and short scale window for demo purposes
 kn service create mockgo --image=alitari/mockgo-redis:latest --mount /mockdir=cm:people-mock-config --env MOCK_DIR=/mockdir --env MOCK_PORT=8080 --env REDIS_ADDRESS=redis-master.redis.svc.cluster.local:6379 --env REDIS_PASSWORD=$REDIS_PASSWORD  --scale "0..5" --scale-window "10s" --force
 export MOCKGO_URL=$(kn service describe mockgo -o url)
 # check
