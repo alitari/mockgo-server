@@ -11,6 +11,6 @@
 
 ```bash
 git add README.md index.yaml *.tgz
-git commit -m "⬆️ Update helm charts to version 1.1.0"
+git commit -m "⬆️ Update helm charts to version 1.3.0"
 git push origin gh-pages
 ```
