@@ -51,4 +51,5 @@ type Matchstore interface {
 	GetMismatchesCount() (uint64, error)
 	DeleteMatches(endpointID string) error
 	DeleteMismatches() error
+	Shutdown() error
 }

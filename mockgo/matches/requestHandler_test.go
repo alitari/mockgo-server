@@ -43,6 +43,9 @@ func (s *ErrorMatchstore) DeleteMatches(endpointID string) error {
 func (s *ErrorMatchstore) DeleteMismatches() error {
 	return fmt.Errorf("error in delete mismatches")
 }
+func (s *ErrorMatchstore) Shutdown() error {
+	return nil
+}
 
 var matchesRequestHandler = NewRequestHandler("", NewInMemoryMatchstore(uint16(100)), "DEBUG")
 var matchesRequestHandlerErroneous = NewRequestHandler("", &ErrorMatchstore{}, "DEBUG")

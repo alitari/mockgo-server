@@ -14,6 +14,7 @@ type Storage interface {
 	GetAll(store string) (map[string]interface{}, error)
 	Put(store, key string, val interface{}) error
 	Get(store, key string) (interface{}, error)
+	Shutdown() error
 }
 
 /*
@@ -55,6 +56,13 @@ func (s *InmemoryStorage) Put(store, key string, val interface{}) error {
 		st = s.store[store]
 	}
 	st[key] = val
+	return nil
+}
+
+/*
+Shutdown does nothing for InmemoryStorage
+*/
+func (s *InmemoryStorage) Shutdown() error {
 	return nil
 }
 
@@ -105,4 +113,5 @@ func NewKVStoreTemplateFuncMap(storage Storage) template.FuncMap {
 			return ""
 		},
 	}
+
 }

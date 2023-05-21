@@ -91,3 +91,8 @@ func (g *grpcStorage) Put(store, key string, val interface{}) error {
 	}
 	return nil
 }
+
+func (g *grpcStorage) Shutdown() error {
+	g.server.GracefulStop()
+	return nil
+}

@@ -80,6 +80,6 @@ func main() {
 		log.Fatalf("can't initialize redis kvstore: %v", err)
 	}
 
-	starter.SetupRouter(variant, versionTag, config.info(), matchStore, kvStore, nil)
+	starter.SetupRouter(variant, versionTag, config.info(), matchStore, kvStore)
 
 }

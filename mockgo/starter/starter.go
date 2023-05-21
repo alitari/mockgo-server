@@ -1,10 +1,14 @@
 package starter
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/alitari/mockgo-server/mockgo/kvstore"
 	"github.com/alitari/mockgo-server/mockgo/matches"
@@ -14,6 +18,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 const banner = `
@@ -78,8 +83,19 @@ Matches:
 // BasicConfig is the basic mock configuration
 var BasicConfig *BasicConfiguration
 
+var server *http.Server
+
+// Serving is the function which starts the server
+var Serving func(router *mux.Router) error
+
+// Shutdown is the function which stops the server
+var Shutdown func() error
+
 // logger is the basic logger
 var logger *zap.Logger
+
+// StopChannel is the channel which is used to stop the server
+var StopChannel = make(chan os.Signal, 1)
 
 func init() {
 	BasicConfig = &BasicConfiguration{}
@@ -89,7 +105,15 @@ func init() {
 }
 
 // SetupRouter sets up the router with the given configuration, allows to control the server start
-func SetupRouter(variant, versionTag, configInfo string, matchStore matches.Matchstore, kvStore kvstore.Storage, serve func(router *mux.Router)) {
+func SetupRouter(variant, versionTag, configInfo string, matchStore matches.Matchstore, kvStore kvstore.Storage) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		signal.Notify(StopChannel, os.Interrupt, syscall.SIGTERM)
+		<-StopChannel
+		cancel()
+	}()
+
 	logger = util.CreateLogger(BasicConfig.LoglevelAPI)
 	fmt.Printf(banner, variant, versionTag)
 	logger.Info(BasicConfig.Info() + configInfo)
@@ -114,20 +138,47 @@ func SetupRouter(variant, versionTag, configInfo string, matchStore matches.Matc
 	kvHandler.AddRoutes(router)
 
 	mock.RegisterMetrics()
-	router.NewRoute().Name("metrics").Path("/__/metrics").Handler(promhttp.Handler())
+	router.NewRoute().Name("metrics").Path(BasicConfig.APIPathPrefix + "/metrics").Handler(promhttp.Handler())
 
-	if serve == nil {
-		serve = DefaultServe
+	if Serving == nil {
+		Serving = DefaultServing
 	}
-	serve(router)
+	if Shutdown == nil {
+		Shutdown = DefaultShutdown
+	}
+
+	g, gCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return Serving(router)
+	})
+	g.Go(func() error {
+		<-gCtx.Done()
+
+		logger.Info("shutting down matchstore ...")
+		if err := matchStore.Shutdown(); err != nil {
+			logger.Error("can't shutdown matchstore", zap.Error(err))
+		}
+		logger.Info("shutting down kvstore ...")
+		if err := kvStore.Shutdown(); err != nil {
+			logger.Error("can't shutdown kvstore", zap.Error(err))
+		}
+		logger.Info("shutting down http server ...")
+		return Shutdown()
+	})
+
+	if err := g.Wait(); err != nil {
+		logger.Info("exit ", zap.Error(err))
+	}
 }
 
-// DefaultServe starts the default http server
-func DefaultServe(router *mux.Router) {
-	server := &http.Server{Addr: ":" + strconv.Itoa(BasicConfig.MockPort), Handler: router}
+// DefaultServing is the default server
+func DefaultServing(router *mux.Router) error {
+	server = &http.Server{Addr: ":" + strconv.Itoa(BasicConfig.MockPort), Handler: router}
 	logger.Info("serving http  ...", zap.String("address", server.Addr))
-	err := server.ListenAndServe()
-	if err != nil {
-		logger.Fatal("can't start server", zap.Error(err))
-	}
+	return server.ListenAndServe()
+}
+
+// DefaultShutdown is the default shutdown
+func DefaultShutdown() error {
+	return server.Shutdown(context.Background())
 }

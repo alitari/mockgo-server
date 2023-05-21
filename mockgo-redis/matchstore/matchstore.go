@@ -149,6 +149,10 @@ func (r *redisMatchstore) DeleteMismatches() error {
 	return nil
 }
 
+func (r *redisMatchstore) Shutdown() error {
+	return r.client.Close()
+}
+
 // NewRedisMatchstore creates a new redis matchstore
 func NewRedisMatchstore(address, password string, db int, capacity uint16) (matches.Matchstore, error) {
 	matchstore := &redisMatchstore{

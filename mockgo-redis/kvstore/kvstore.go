@@ -80,3 +80,8 @@ func (r *RedisStorage) GetAll(store string) (map[string]interface{}, error) {
 	}
 	return result, nil
 }
+
+// Shutdown closes the connection to the kvstore.
+func (r *RedisStorage) Shutdown() error {
+	return r.client.Close()
+}

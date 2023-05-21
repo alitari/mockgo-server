@@ -117,3 +117,10 @@ func (s *InMemoryMatchstore) DeleteMismatches() error {
 	s.mismatchesCount = uint64(0)
 	return nil
 }
+
+/*
+Shutdown is a no-op for InMemoryMatchstore
+*/
+func (s *InMemoryMatchstore) Shutdown() error {
+	return nil
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"syscall"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -15,6 +16,8 @@ import (
 )
 
 var apiPassword = testutil.RandString(10)
+
+var testEnd = make(chan bool)
 
 func setupMain(t *testing.T) {
 	env := map[string]string{
@@ -31,17 +34,33 @@ func setupMain(t *testing.T) {
 		log.Fatal("can't create configuration", zap.Error(err))
 	}
 
-	serve = func(router *mux.Router) {
+	channel := make(chan string)
+	starter.Serving = func(router *mux.Router) error {
+		log.Println("starting test server...")
 		testutil.StartServing(router)
+		channel <- "test server started"
+		return nil
 	}
-	main()
+
+	starter.Shutdown = func() error {
+		testutil.StopServing()
+		testEnd <- true
+		return nil
+	}
+	go main()
+	log.Println(<-channel)
+}
+
+func stopServer() {
+	starter.StopChannel <- syscall.SIGTERM
+	<-testEnd
 }
 
 func TestMain_health(t *testing.T) {
 	setupMain(t)
 	assert.NoError(t, testutil.AssertResponseStatusOfRequestCall(t,
 		testutil.CreateOutgoingRequest(t, http.MethodGet, "/__/health", testutil.CreateHeader(), ""), http.StatusOK))
-	testutil.StopServing()
+	stopServer()
 }
 
 func TestMain_basicAuth(t *testing.T) {

@@ -31,7 +31,7 @@ See [Examples.md](./Examples.md).
 |---------------------|-----------|-------------|-----------------------------------------------------------------------------------------------|
 | `mockgo-standalone` | no        | no          | want a simple setup and you don't need to scale, usually this variant is the starting point   |
 | `mockgo-grpc`       | yes       | no          | have to deal with high incoming traffic, but you don't need durability for states and results |
-| `mockgo-redis`      | yes       | yes         | have to deal with high incoming traffic and you want a durable storage for states and results or if you want use mockgo as serverless deplyment in knative |
+| `mockgo-redis`      | yes       | yes         | have to deal with high incoming traffic and you want a durable storage for states and results or if you want to use mockgo as serverless deployment in knative |
 
 
 ## install on kubernetes

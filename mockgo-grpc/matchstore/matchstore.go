@@ -236,6 +236,11 @@ func (g *grpcMatchstore) DeleteMismatches() error {
 	return nil
 }
 
+func (g *grpcMatchstore) Shutdown() error {
+	g.server.GracefulStop()
+	return nil
+}
+
 func mapProtoMatch(protomatch *Match) *matches.Match {
 	match := &matches.Match{EndpointID: protomatch.EndpointId, Timestamp: protomatch.Timestamp.AsTime(),
 		ActualRequest:  &matches.ActualRequest{Method: protomatch.ActualRequest.Method, URL: protomatch.ActualRequest.Url, Header: mapProtoHeader(protomatch.ActualRequest.Header), Host: protomatch.ActualRequest.Host},
